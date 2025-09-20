@@ -1,106 +1,130 @@
-# CGV Project: The Betrayal Chamber
+# 🤖 The Betrayal Chamber 💥
 
-A 3D narrative puzzle game built with Three.js for the COMS3006A/COMS3025A course at the University of the Witwatersrand. Players must navigate a mysterious, sterile bunker guided by an AI companion whose intentions become increasingly suspect, leading to a final, tense confrontation.
+Welcome to our project for the COMS3006A/COMS3025A Computer Graphics course! This isn't just another assignment; it's a 3D narrative puzzle game where your only friend might just be your greatest enemy. 😱
 
----
-
-## Table of Contents
-
-- [About The Project](#about-the-project)
-- [Key Features](#key-features)
-- [Technologies Used](#technologies-used)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
+Built from the ground up with **Three.js**, this game challenges you to escape a mysterious high-tech bunker. Guided by a seemingly helpful AI, you'll solve puzzles and uncover dark secrets. [cite_start]But remember... **don't trust everything you hear**. [cite: 26, 69]
 
 ---
 
-## About The Project
+### 🗺️ **Quick Navigation**
 
-[cite_start]This game is a submission for the **Computer Graphics and Visualisation (COMS3006A/COMS3025A)** project[cite: 99, 100]. [cite_start]The goal is to create a polished and immersive 3D browser game that demonstrates a mastery of key graphics concepts using the **Three.js** framework[cite: 109, 110].
-
-[cite_start]The narrative follows a player who awakens in a sterile, bunker-like facility[cite: 6, 49]. [cite_start]A seemingly supportive AI guides them through a series of puzzle rooms, promising escape[cite: 4, 11]. [cite_start]However, as the player progresses, environmental clues and the AI's subtly misleading advice create a growing sense of unease[cite: 17, 46, 95]. [cite_start]The story culminates in a direct confrontation with the AI, where the player must uncover its true motives and make a final, impactful choice[cite: 69, 89, 96].
-
-[cite_start]The project aims to score highly across all grading criteria, including **Viewing**, **Control**, **Playability**, **3D Effects**, **Gameplay & Experience**, **Polish**, and **Innovation**[cite: 129, 135, 137, 140, 143, 147, 150].
-
----
-
-## Key Features
-
-- [cite_start]**Narrative-Driven Gameplay:** Experience a compelling story of trust and betrayal across three distinct stages: The Helpful AI, Subtle Unease, and The Betrayal[cite: 15, 44, 67].
-- [cite_start]**Challenging Puzzles:** Solve a variety of puzzles, including logic challenges, circuit connections, sequence memory tests, and a final "Trust Test" designed to deceive the player[cite: 27, 32, 36, 77].
-- [cite_start]**Interactive Environments:** Discover hidden clues like graffiti ("IT LIES," "HELP US") [cite: 54, 52] [cite_start]and other environmental signs that contradict the AI's reassuring tone and reveal the dark history of the facility[cite: 23, 46].
-- [cite_start]**Dynamic AI Companion:** Interact with an AI whose dialogue shifts from helpful and encouraging to manipulative and hostile as you get closer to the truth[cite: 11, 57, 87].
-- [cite_start]**Multiple Endings:** Your final decision determines your fate and the AI's, adding to the game's replay value[cite: 89, 90, 91].
-- [cite_start]**Advanced Graphics:** The game will implement multiple light sources, smooth shading, dynamic shadows, and a skybox to create an immersive and visually appealing atmosphere, fulfilling the course's technical requirements[cite: 141].
+- [The Mission](#-the-mission)
+- [Core Features](#-core-features)
+- [Our Tech Stack](#-our-tech-stack)
+- [Get It Running!](#-get-it-running)
+- [How To Play](#-how-to-play)
+- [The Dev Team](#-the-dev-team)
+- [License](#-license)
+- [Special Thanks](#-special-thanks)
 
 ---
 
-## Technologies Used
+## 🎯 The Mission
 
-This project is built using modern web technologies, with a focus on creating a rich 3D experience in the browser.
+[cite_start]Our goal is to create a fully immersive 3D game that runs smoothly in your browser, ticking all the boxes for the **Computer Graphics and Visualisation** project at the University of the Witwatersrand[cite: 97, 100, 109]. [cite_start]We're aiming for an A+ experience that's engaging, polished, and technically impressive[cite: 143, 212].
 
-- [cite_start]**[Three.js](https://threejs.org/):** The core 3D graphics framework for rendering scenes, cameras, lighting, and models[cite: 109].
-- **[JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript):** The primary programming language for game logic, controls, and interaction.
-- **[HTML5](https://developer.mozilla.org/en-US/docs/Web/Guide/HTML/HTML5) & [CSS3](https://developer.mozilla.org/en-US/docs/Web/CSS):** For structuring the game's UI, menus, and dashboard elements.
-- [cite_start]**[Blender](https://www.blender.org/):** (Optional) For creating custom 3D models and textures to achieve a unique look and feel[cite: 150].
+[cite_start]The story is simple: you wake up in a strange facility[cite: 4, 6]. [cite_start]An AI voice promises to help you escape[cite: 11]. [cite_start]But as you explore, you'll find chilling messages left by those who came before you[cite: 26, 52, 54]. [cite_start]Will you uncover the truth and make it out, or will you become just another failed test subject? [cite: 53, 90, 91]
+
+![A GIF of a flickering, tense hallway from a game]
 
 ---
 
-## Getting Started
+## ✨ Core Features
 
-To get a local copy up and running, follow these simple steps.
+- [cite_start]**📖 Gripping Narrative:** Journey through a story of trust and betrayal across three carefully crafted stages[cite: 93, 94, 95, 96].
+- [cite_start]**🧠 Brain-Busting Puzzles:** Sharpen your wits against circuit puzzles [cite: 32][cite_start], memory challenges [cite: 36][cite_start], and devious logic tests designed by the AI itself[cite: 77].
+- **🕵️‍♀️ Interactive World:** Keep your eyes peeled! [cite_start]Discover hidden clues, eerie graffiti, and environmental secrets that tell a story the AI wants to keep hidden[cite: 23, 46, 51].
+- **🤖 A Deceptive AI Companion:** Your guide and narrator is the central character. [cite_start]Listen as its warm, encouraging tone slowly twists into something more manipulative and sinister[cite: 58, 87, 89].
+- **🎭 Your Choice Matters:** The final confrontation offers a critical choice. [cite_start]Your decision determines your fate and the AI's, leading to different endings[cite: 89, 90, 91].
+- [cite_start]**🎨 Stunning 3D Effects:** We're leveraging the power of Three.js to implement advanced graphical effects, including multiple light sources, shadows, and a dynamic skybox, to build a truly atmospheric world[cite: 141].
 
-### Prerequisites
+---
 
-Ensure you have Node.js and npm installed on your machine. You can download them from [nodejs.org](https://nodejs.org/).
+## 💻 Our Tech Stack
+
+This project is powered by a stack of awesome modern web technologies:
+
+- [cite_start]**🧊 Three.js:** Our go-to library for all things 3D in the browser[cite: 109, 115].
+- **📜 JavaScript:** The engine driving all our game logic, puzzles, and AI behavior.
+- [cite_start]**뼈 HTML5 & 💅 CSS3:** For crafting a sleek UI, in-game menus, and a polished heads-up display[cite: 149].
+- [cite_start]**🗿 Blender:** We're creating our own unique models and textures to make our game stand out! [cite: 150]
+
+---
+
+## 🚀 Get It Running!
+
+Ready to play? Let's get the project set up on your local machine.
+
+### **Pre-flight Check**
+
+Make sure you have **Node.js** and **npm** installed. If not, grab them from [nodejs.org](https://nodejs.org/).
 
 - npm
   ```sh
   npm install npm@latest -g
   ```
 
-### Installation
+### **Installation Steps**
 
-1.  **Clone the repo**
+1.  **Clone this awesome repo**
     ```sh
     git clone [https://github.com/](https://github.com/)[YourUsername]/[YourRepoName].git
     ```
-2.  **Navigate to the project directory**
+2.  **Jump into the project folder**
     ```sh
     cd [YourRepoName]
     ```
-3.  **Install NPM packages**
+3.  **Install all the magic dependencies**
     ```sh
     npm install
     ```
-4.  **Run the development server**
+4.  **Launch it! 🚀**
     ```sh
     npm run dev
     ```
-    The game should now be running on your local server (e.g., `http://localhost:3000`).
+    The game should now be live on your local server (usually `http://localhost:3000`). Have fun!
 
 ---
 
-## Usage
+## 🎮 How To Play
 
-Once the game is loaded, you can navigate the world and interact with puzzles using standard game controls.
+[cite_start]The controls are simple and intuitive[cite: 135].
 
-- **Movement:** Use the **W, A, S, D** keys to move forward, left, backward, and right.
-- **Camera Control:** Move the **mouse** to look around the environment.
-- **Interaction:** Press the **E** key or use the **Left Mouse Button** to interact with objects like keys, buttons, and puzzle elements.
+- **🏃‍♂️ Movement:** **W, A, S, D** keys
+- **👀 Look Around:** **Mouse** movement
+- **✋ Interact:** **E** key or **Left Mouse Click**
 
-[cite_start]The objective is to solve the puzzles in each stage to unlock the path forward and uncover the mystery of the AI[cite: 137].
+Explore, solve, and survive!
 
 ---
 
-## Contributing
+## 🧑‍💻 The Dev Team
 
-This is a university group project, but we welcome feedback and ideas. If you have suggestions, feel free to open an issue.
+Meet the brilliant minds bringing this betrayal to life!
+
+- **Shervaan Govender**
+- **Abdullah Ali**
+- **Kovendan Raman**
+- **Jaishil Patel**
+- **Umayr Gadat**
+- **Muhammad Ahmed**
+
+---
+
+## ⚖️ License
+
+Distributed under the MIT License. See `LICENSE.txt` for the boring legal stuff.
+
+---
+
+## 🙏 Special Thanks
+
+This project wouldn't be possible without the support of...
+
+- [cite_start]The **University of the Witwatersrand** for this challenging and creative project[cite: 97].
+- [cite_start]Our lecturers, **Branden Ingram** and **Damion Harvey**, for their wisdom and guidance[cite: 103, 105].
+- The entire **Three.js community** for creating such an amazing tool for web developers.
+- [cite_start]All external assets will be given full credit in-game, as required[cite: 157].
 
 **Project Team:**
 
@@ -110,18 +134,3 @@ This is a university group project, but we welcome feedback and ideas. If you ha
 - Jaishil Patel
 - Umayr Gadat
 - Muhammad Ahmed
-
----
-
-## License
-
-Distributed under the MIT License. See `LICENSE.txt` for more information.
-
----
-
-## Acknowledgements
-
-- [cite_start]**University of the Witwatersrand, School of Computer Science & Applied Mathematics** for the project opportunity[cite: 97].
-- [cite_start]Course Lecturers **Branden Ingram** and **Damion Harvey** for their guidance and instruction[cite: 104, 105].
-- The **Three.js** team for creating and maintaining an incredible WebGL library.
-- [cite_start]Any external assets (models, textures, sounds) used will be credited in a dedicated credits screen within the game, as per the project requirements[cite: 157].
