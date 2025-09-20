@@ -2,7 +2,7 @@
 
 Welcome to our project for the COMS3006A/COMS3025A Computer Graphics course! This isn't just another assignment; it's a 3D narrative puzzle game where your only friend might just be your greatest enemy. 😱
 
-Built from the ground up with **Three.js**, this game challenges you to escape a mysterious high-tech bunker. Guided by a seemingly helpful AI, you'll solve puzzles and uncover dark secrets. [cite_start]But remember... **don't trust everything you hear**. [cite: 26, 69]
+Built from the ground up with **Three.js**, this game challenges you to escape a mysterious high-tech bunker. Guided by a seemingly helpful AI, you'll solve puzzles and uncover dark secrets. But remember... **don't trust everything you hear**.
 
 ---
 
@@ -21,33 +21,31 @@ Built from the ground up with **Three.js**, this game challenges you to escape a
 
 ## 🎯 The Mission
 
-[cite_start]Our goal is to create a fully immersive 3D game that runs smoothly in your browser, ticking all the boxes for the **Computer Graphics and Visualisation** project at the University of the Witwatersrand[cite: 97, 100, 109]. [cite_start]We're aiming for an A+ experience that's engaging, polished, and technically impressive[cite: 143, 212].
+Our goal is to create a fully immersive 3D game that runs smoothly in your browser, ticking all the boxes for the **Computer Graphics and Visualisation** project at the University of the Witwatersrand. We're aiming for an A+ experience that's engaging, polished, and technically impressive.
 
-[cite_start]The story is simple: you wake up in a strange facility[cite: 4, 6]. [cite_start]An AI voice promises to help you escape[cite: 11]. [cite_start]But as you explore, you'll find chilling messages left by those who came before you[cite: 26, 52, 54]. [cite_start]Will you uncover the truth and make it out, or will you become just another failed test subject? [cite: 53, 90, 91]
+The story is simple: you wake up in a strange facility. An AI voice promises to help you escape. But as you explore, you'll find chilling messages left by those who came before you. Will you uncover the truth and make it out, or will you become just another failed test subject?
 
-![A GIF of a flickering, tense hallway from a game]
+![Sci-fi hallway with flickering lights](https://media1.tenor.com/m/8Y5rg35jrdcAAAAC/the-expanse-space.gif)
 
 ---
 
 ## ✨ Core Features
 
-- [cite_start]**📖 Gripping Narrative:** Journey through a story of trust and betrayal across three carefully crafted stages[cite: 93, 94, 95, 96].
-- [cite_start]**🧠 Brain-Busting Puzzles:** Sharpen your wits against circuit puzzles [cite: 32][cite_start], memory challenges [cite: 36][cite_start], and devious logic tests designed by the AI itself[cite: 77].
-- **🕵️‍♀️ Interactive World:** Keep your eyes peeled! [cite_start]Discover hidden clues, eerie graffiti, and environmental secrets that tell a story the AI wants to keep hidden[cite: 23, 46, 51].
-- **🤖 A Deceptive AI Companion:** Your guide and narrator is the central character. [cite_start]Listen as its warm, encouraging tone slowly twists into something more manipulative and sinister[cite: 58, 87, 89].
-- **🎭 Your Choice Matters:** The final confrontation offers a critical choice. [cite_start]Your decision determines your fate and the AI's, leading to different endings[cite: 89, 90, 91].
-- [cite_start]**🎨 Stunning 3D Effects:** We're leveraging the power of Three.js to implement advanced graphical effects, including multiple light sources, shadows, and a dynamic skybox, to build a truly atmospheric world[cite: 141].
+- **📖 Gripping Narrative:** Journey through a story of trust and betrayal across three carefully crafted stages.
+- **🧠 Brain-Busting Puzzles:** Sharpen your wits against circuit puzzles, memory challenges, and devious logic tests designed by the AI itself.
+- **🕵️‍♀️ Interactive World:** Keep your eyes peeled! Discover hidden clues, eerie graffiti, and environmental secrets that tell a story the AI wants to keep hidden.
+- **🤖 A Deceptive AI Companion:** Your guide and narrator is the central character. Listen as its warm, encouraging tone slowly twists into something more manipulative and sinister.
+- **🎭 Your Choice Matters:** The final confrontation offers a critical choice. Your decision determines your fate and the AI's, leading to different endings.
+- **🎨 Stunning 3D Effects:** We're leveraging the power of Three.js to implement advanced graphical effects, including multiple light sources, shadows, and a dynamic skybox, to build a truly atmospheric world.
 
 ---
 
 ## 💻 Our Tech Stack
 
-This project is powered by a stack of awesome modern web technologies:
-
-- [cite_start]**🧊 Three.js:** Our go-to library for all things 3D in the browser[cite: 109, 115].
+- **🧊 Three.js:** Our go-to library for all things 3D in the browser.
 - **📜 JavaScript:** The engine driving all our game logic, puzzles, and AI behavior.
-- [cite_start]**뼈 HTML5 & 💅 CSS3:** For crafting a sleek UI, in-game menus, and a polished heads-up display[cite: 149].
-- [cite_start]**🗿 Blender:** We're creating our own unique models and textures to make our game stand out! [cite: 150]
+- **뼈 HTML5 & 💅 CSS3:** For crafting a sleek UI, in-game menus, and a polished heads-up display.
+- **🗿 Blender:** We're creating our own unique models and textures to make our game stand out!
 
 ---
 
@@ -67,17 +65,23 @@ Make sure you have **Node.js** and **npm** installed. If not, grab them from [no
 ### **Installation Steps**
 
 1.  **Clone this awesome repo**
+
     ```sh
     git clone [https://github.com/](https://github.com/)[YourUsername]/[YourRepoName].git
     ```
+
 2.  **Jump into the project folder**
+
     ```sh
     cd [YourRepoName]
     ```
+
 3.  **Install all the magic dependencies**
+
     ```sh
     npm install
     ```
+
 4.  **Launch it! 🚀**
     ```sh
     npm run dev
@@ -88,11 +92,11 @@ Make sure you have **Node.js** and **npm** installed. If not, grab them from [no
 
 ## 🎮 How To Play
 
-[cite_start]The controls are simple and intuitive[cite: 135].
+The controls are simple and intuitive.
 
-- **🏃‍♂️ Movement:** **W, A, S, D** keys
-- **👀 Look Around:** **Mouse** movement
-- **✋ Interact:** **E** key or **Left Mouse Click**
+- **🏃‍♂️ Movement:** W, A, S, D keys
+- **👀 Look Around:** Mouse movement
+- **✋ Interact:** E key or Left Mouse Click
 
 Explore, solve, and survive!
 
@@ -102,12 +106,12 @@ Explore, solve, and survive!
 
 Meet the brilliant minds bringing this betrayal to life!
 
-- **Shervaan Govender**
-- **Abdullah Ali**
-- **Kovendan Raman**
-- **Jaishil Patel**
-- **Umayr Gadat**
-- **Muhammad Ahmed**
+- Shervaan Govender
+- Abdullah Ali
+- Kovendan Raman
+- Jaishil Patel
+- Umayr Gadat
+- Muhammad Ahmed
 
 ---
 
@@ -119,18 +123,7 @@ Distributed under the MIT License. See `LICENSE.txt` for the boring legal stuff.
 
 ## 🙏 Special Thanks
 
-This project wouldn't be possible without the support of...
-
-- [cite_start]The **University of the Witwatersrand** for this challenging and creative project[cite: 97].
-- [cite_start]Our lecturers, **Branden Ingram** and **Damion Harvey**, for their wisdom and guidance[cite: 103, 105].
+- The **University of the Witwatersrand** for this challenging and creative project.
+- Our lecturers, **Branden Ingram** and **Damion Harvey**, for their wisdom and guidance.
 - The entire **Three.js community** for creating such an amazing tool for web developers.
-- [cite_start]All external assets will be given full credit in-game, as required[cite: 157].
-
-**Project Team:**
-
-- Shervaan Govender
-- Abdullah Ali
-- Kovendan Raman
-- Jaishil Patel
-- Umayr Gadat
-- Muhammad Ahmed
+- All external assets will be given full credit in-game, as required.
