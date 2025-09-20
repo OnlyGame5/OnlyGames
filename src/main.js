@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson } from './player.js';
 import { AI } from './ai.js';
+import { createRoom0 } from './room0.js';
 import { createRoom1 } from './room1.js';
 import { createRoom2 } from './room2.js';
 import { createRoom3 } from './room3.js';
-import { handleMouseClick } from './utils.js';
+import { handleMouseClick, handleStage0Click } from './utils.js';
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
@@ -28,29 +29,53 @@ scene.add(new THREE.HemisphereLight(0x8888aa, 0x222222, 0.6));
 // Player
 const player = setupPlayer(scene);
 
-// Rooms
-const room1 = createRoom1(scene);
-const room2 = createRoom2(scene, 20, 0);
-const room3 = createRoom3(scene, -20, 0);
+// Stage 0: Game state management
+let gameState = {
+  stage: 0,
+  room0: null,
+  room1: null,
+  room2: null,
+  room3: null
+};
 
-// AI Dialogue
-AI.say("Hello, I’m here to help you… trust me.");
+// Stage 0: Initialize Stage 0 (Lobby/Entry Room)
+gameState.room0 = createRoom0(scene);
 
-// Input
+// Stage 0: AI greeting for Stage 0
+AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
+
+// Stage 0: Make AI globally accessible for room0 interactions
+window.AI = AI;
+
+// Stage 0: Input handling for different stages
 window.addEventListener('click', (e) => {
   // Only handle mouse clicks for interactions if not in first-person mode or if pointer is not locked
   if (!isInFirstPerson() || document.pointerLockElement !== document.body) {
-    handleMouseClick(e, camera, [room1, room2, room3]);
+    if (gameState.stage === 0) {
+      // Stage 0: Handle Stage 0 interactions (key, door)
+      handleStage0Click(e, camera, scene, gameState.room0);
+    } else {
+      // Stage 1+: Handle existing room interactions
+      const rooms = [gameState.room1, gameState.room2, gameState.room3].filter(room => room !== null);
+      handleMouseClick(e, camera, rooms);
+    }
   }
 });
 
-// View toggle key handler (V key)
+// View toggle key handler (V key) and E key interaction
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyV') {
     toggleViewMode();
     // Update AI dialogue to inform player about view change
     const viewMode = isInFirstPerson() ? 'First-Person' : 'Third-Person';
     AI.say(`Switched to ${viewMode} view. Use mouse to look around in first-person.`);
+  }
+  
+  // E key interaction handler
+  if (e.code === 'KeyE') {
+    if (gameState.stage === 0 && gameState.room0) {
+      gameState.room0.handleEKeyInteraction(player);
+    }
   }
 });
 
@@ -61,11 +86,68 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Loop
-function animate() {
+// Stage 0: Stage transition function
+function transitionToStage1() {
+  // Stage 0: Hide Stage 0 room
+  if (gameState.room0) {
+    gameState.room0.group.visible = false;
+  }
+  
+  // Stage 0: Load Stage 1 (existing room1.js)
+  gameState.room1 = createRoom1(scene);
+  gameState.room2 = createRoom2(scene, 20, 0);
+  gameState.room3 = createRoom3(scene, -20, 0);
+  
+  // Stage 0: Reposition player to Room 1 entrance
+  player.position.set(0, 0.9, 8);
+  
+  // Stage 0: Update game state
+  gameState.stage = 1;
+  
+  // Stage 0: AI message for Stage 1
+  AI.say("Welcome to the first challenge. You'll need to solve the keypad puzzle to proceed.");
+}
+
+// Stage 0: Animation loop with stage management
+let lastTime = 0;
+function animate(currentTime) {
   requestAnimationFrame(animate);
-  updatePlayer(player, camera); // Pass camera for first-person movement calculations
+  
+  const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+  lastTime = currentTime;
+  
+  // Stage 0: Update player movement
+  updatePlayer(player, camera);
+  
+  // Stage 0: Check collisions if in Stage 0
+  if (gameState.stage === 0 && gameState.room0) {
+    // Check wall collisions first
+    gameState.room0.checkWallCollisions(player);
+    
+    // Then check door collision
+    if (gameState.room0.checkDoorCollision(player)) {
+      // Prevent player from passing through closed door
+      const doorZ = -7.5 + 0.15; // Updated for new room size
+      if (player.position.z < doorZ + 0.3) {
+        player.position.z = doorZ + 0.3;
+      }
+    }
+  }
+  
+  // Stage 0: Update Stage 0 if active
+  if (gameState.stage === 0 && gameState.room0) {
+    gameState.room0.updateRoom0(deltaTime, { playerObject: player, ai: AI });
+    
+    // Stage 0: Check for doorway trigger
+    if (gameState.room0.state.doorOpen && gameState.room0.checkDoorwayTrigger(player)) {
+      transitionToStage1();
+    }
+  }
+  
+  // Stage 0: Update camera
   attachCamera(camera, player);
+  
+  // Stage 0: Render scene
   renderer.render(scene, camera);
 }
-animate();
+animate(0);
