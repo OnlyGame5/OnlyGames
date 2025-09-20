@@ -64,6 +64,39 @@
       text-align:center; 
       z-index:10; 
     }
+    
+    /* Crosshair */
+    #crosshair { 
+      position:absolute; 
+      top:50%; 
+      left:50%; 
+      transform:translate(-50%, -50%); 
+      width:20px; 
+      height:20px; 
+      z-index:20; 
+      pointer-events:none; 
+      display:none; 
+    }
+    #crosshair::before, #crosshair::after { 
+      content:''; 
+      position:absolute; 
+      background:#fff; 
+      box-shadow:0 0 2px rgba(0,0,0,0.8); 
+    }
+    #crosshair::before { 
+      top:50%; 
+      left:0; 
+      right:0; 
+      height:2px; 
+      transform:translateY(-50%); 
+    }
+    #crosshair::after { 
+      left:50%; 
+      top:0; 
+      bottom:0; 
+      width:2px; 
+      transform:translateX(-50%); 
+    }
   </style>
 </head>
 <body>
@@ -95,8 +128,11 @@
   
   <!-- Instructions -->
   <div id="instructions">
-    Press <strong>E</strong> near objects to interact | Press <strong>1-5</strong> to select inventory slots | Press <strong>V</strong> to toggle view
+    Press <strong>E</strong> near objects to interact | Press <strong>1-5</strong> to select inventory slots | Press <strong>V</strong> to toggle view | Click to lock mouse in first-person
   </div>
+  
+  <!-- Crosshair -->
+  <div id="crosshair"></div>
   
   <script type="module" src="/src/main.js"></script>
 </body>

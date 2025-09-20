@@ -4,8 +4,16 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 export function handleMouseClick(event, camera, rooms) {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  // If pointer is locked (first-person mode), use center of screen (crosshair position)
+  if (document.pointerLockElement === document.body) {
+    mouse.x = 0; // Center of screen
+    mouse.y = 0; // Center of screen
+  } else {
+    // If pointer is not locked (third-person mode), use actual mouse position
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  }
+  
   raycaster.setFromCamera(mouse, camera);
 
   rooms.forEach(room => {
@@ -41,8 +49,15 @@ export function raycastInteractables(pointer, camera, scene) {
 
 // Stage 0: Enhanced mouse click handler for Stage 0 interactions
 export function handleStage0Click(event, camera, scene, room0) {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  // If pointer is locked (first-person mode), use center of screen (crosshair position)
+  if (document.pointerLockElement === document.body) {
+    mouse.x = 0; // Center of screen
+    mouse.y = 0; // Center of screen
+  } else {
+    // If pointer is not locked (third-person mode), use actual mouse position
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  }
   
   const hitObject = raycastInteractables(mouse, camera, scene);
   if (hitObject && room0 && room0.handleInteraction) {

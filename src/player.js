@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const keys = {};
-let isFirstPerson = false;
+let isFirstPerson = true;
 let mouseX = 0, mouseY = 0;
 let isMouseLocked = false;
 
@@ -268,6 +268,21 @@ export function debugAnimations() {
   console.log('All running actions:', animationMixer._actions.filter(a => a.isRunning()).map(a => a.getClip().name));
 }
 
+// Crosshair control functions
+function showCrosshair() {
+  const crosshair = document.getElementById('crosshair');
+  if (crosshair) {
+    crosshair.style.display = 'block';
+  }
+}
+
+function hideCrosshair() {
+  const crosshair = document.getElementById('crosshair');
+  if (crosshair) {
+    crosshair.style.display = 'none';
+  }
+}
+
 // Camera view modes
 export const VIEW_MODES = {
   FIRST_PERSON: 'firstPerson',
@@ -324,6 +339,13 @@ export function setupPlayer(scene) {
   // Pointer lock change events
   document.addEventListener('pointerlockchange', () => {
     isMouseLocked = document.pointerLockElement === document.body;
+    
+    // Show/hide crosshair based on mouse lock and view mode
+    if (isMouseLocked && isFirstPerson) {
+      showCrosshair();
+    } else {
+      hideCrosshair();
+    }
   });
 
   // Initialize inventory UI
@@ -457,6 +479,13 @@ export function toggleViewMode() {
   // Exit pointer lock when switching to third-person
   if (!isFirstPerson && isMouseLocked) {
     document.exitPointerLock();
+  }
+  
+  // Update crosshair visibility
+  if (isFirstPerson && isMouseLocked) {
+    showCrosshair();
+  } else {
+    hideCrosshair();
   }
   
   console.log(`Switched to ${isFirstPerson ? 'First-Person' : 'Third-Person'} view`);

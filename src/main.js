@@ -71,16 +71,14 @@ initGame();
 
 // Stage 0: Input handling for different stages
 window.addEventListener('click', (e) => {
-  // Only handle mouse clicks for interactions if not in first-person mode or if pointer is not locked
-  if (!isInFirstPerson() || document.pointerLockElement !== document.body) {
-    if (gameState.stage === 0) {
-      // Stage 0: Handle Stage 0 interactions (key, door)
-      handleStage0Click(e, camera, scene, gameState.room0);
-    } else {
-      // Stage 1+: Handle existing room interactions
-      const rooms = [gameState.room1, gameState.room2, gameState.room3].filter(room => room !== null);
-      handleMouseClick(e, camera, rooms);
-    }
+  // Handle mouse clicks for interactions in both first-person (with locked pointer) and third-person modes
+  if (gameState.stage === 0) {
+    // Stage 0: Handle Stage 0 interactions (key, door)
+    handleStage0Click(e, camera, scene, gameState.room0);
+  } else {
+    // Stage 1+: Handle existing room interactions
+    const rooms = [gameState.room1, gameState.room2, gameState.room3].filter(room => room !== null);
+    handleMouseClick(e, camera, rooms);
   }
 });
 
