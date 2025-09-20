@@ -1,6 +1,15 @@
 import * as THREE from 'three';
 
 const keys = {};
+let isFirstPerson = false;
+let mouseX = 0, mouseY = 0;
+let isMouseLocked = false;
+
+// Camera view modes
+export const VIEW_MODES = {
+  FIRST_PERSON: 'firstPerson',
+  THIRD_PERSON: 'thirdPerson'
+};
 
 export function setupPlayer(scene) {
   const player = new THREE.Mesh(
@@ -11,21 +20,117 @@ export function setupPlayer(scene) {
   player.castShadow = true;
   scene.add(player);
 
+  // Keyboard input handling
   window.addEventListener('keydown', (e)=> keys[e.code] = true);
   window.addEventListener('keyup', (e)=> keys[e.code] = false);
+
+  // Mouse movement handling for first-person look
+  window.addEventListener('mousemove', (e) => {
+    if (isMouseLocked && isFirstPerson) {
+      mouseX -= e.movementX * 0.002; // Fixed: inverted horizontal movement
+      mouseY -= e.movementY * 0.002; // Fixed: inverted vertical movement
+      mouseY = Math.max(-Math.PI/2, Math.min(Math.PI/2, mouseY)); // Clamp vertical look
+    }
+  });
+
+  // Mouse click to lock cursor in first-person mode
+  window.addEventListener('click', () => {
+    if (isFirstPerson && !isMouseLocked) {
+      document.body.requestPointerLock();
+    }
+  });
+
+  // Pointer lock change events
+  document.addEventListener('pointerlockchange', () => {
+    isMouseLocked = document.pointerLockElement === document.body;
+  });
 
   return player;
 }
 
-export function updatePlayer(player) {
+export function updatePlayer(player, camera) {
   const speed = 0.15;
-  if (keys['KeyW']) player.position.z -= speed;
-  if (keys['KeyS']) player.position.z += speed;
-  if (keys['KeyA']) player.position.x -= speed;
-  if (keys['KeyD']) player.position.x += speed;
+  
+  if (isFirstPerson) {
+    // First-person movement: move relative to camera direction
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    direction.y = 0; // Keep movement on horizontal plane
+    direction.normalize();
+    
+    const right = new THREE.Vector3();
+    right.crossVectors(direction, new THREE.Vector3(0, 1, 0));
+    
+    if (keys['KeyW']) {
+      player.position.add(direction.clone().multiplyScalar(speed));
+    }
+    if (keys['KeyS']) {
+      player.position.add(direction.clone().multiplyScalar(-speed));
+    }
+    if (keys['KeyA']) {
+      player.position.add(right.clone().multiplyScalar(-speed));
+    }
+    if (keys['KeyD']) {
+      player.position.add(right.clone().multiplyScalar(speed));
+    }
+  } else {
+    // Third-person movement: move in world coordinates
+    if (keys['KeyW']) player.position.z -= speed;
+    if (keys['KeyS']) player.position.z += speed;
+    if (keys['KeyA']) player.position.x -= speed;
+    if (keys['KeyD']) player.position.x += speed;
+  }
 }
 
-export function attachCamera(camera, player) {
+// First-person camera positioning and rotation
+export function attachCameraFirstPerson(camera, player) {
+  // Position camera at player's head level
+  camera.position.set(
+    player.position.x, 
+    player.position.y + 1.6, // Head height
+    player.position.z
+  );
+  
+  // Apply mouse look rotation
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = mouseX;
+  camera.rotation.x = mouseY;
+}
+
+// Third-person camera positioning (original chase camera)
+export function attachCameraThirdPerson(camera, player) {
   camera.position.set(player.position.x, player.position.y+5, player.position.z+10);
   camera.lookAt(player.position);
+}
+
+// Main camera attachment function that switches between modes
+export function attachCamera(camera, player) {
+  if (isFirstPerson) {
+    attachCameraFirstPerson(camera, player);
+  } else {
+    attachCameraThirdPerson(camera, player);
+  }
+}
+
+// Toggle between first-person and third-person view
+export function toggleViewMode() {
+  isFirstPerson = !isFirstPerson;
+  
+  // Exit pointer lock when switching to third-person
+  if (!isFirstPerson && isMouseLocked) {
+    document.exitPointerLock();
+  }
+  
+  console.log(`Switched to ${isFirstPerson ? 'First-Person' : 'Third-Person'} view`);
+  return isFirstPerson;
+}
+
+// Get current view mode
+export function getViewMode() {
+  return isFirstPerson ? VIEW_MODES.FIRST_PERSON : VIEW_MODES.THIRD_PERSON;
+}
+
+// Check if currently in first-person mode
+export function isInFirstPerson() {
+  return isFirstPerson;
 }

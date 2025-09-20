@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setupPlayer, updatePlayer, attachCamera } from './player.js';
+import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson } from './player.js';
 import { AI } from './ai.js';
 import { createRoom1 } from './room1.js';
 import { createRoom2 } from './room2.js';
@@ -37,7 +37,22 @@ const room3 = createRoom3(scene, -20, 0);
 AI.say("Hello, I’m here to help you… trust me.");
 
 // Input
-window.addEventListener('click', (e) => handleMouseClick(e, camera, [room1, room2, room3]));
+window.addEventListener('click', (e) => {
+  // Only handle mouse clicks for interactions if not in first-person mode or if pointer is not locked
+  if (!isInFirstPerson() || document.pointerLockElement !== document.body) {
+    handleMouseClick(e, camera, [room1, room2, room3]);
+  }
+});
+
+// View toggle key handler (V key)
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyV') {
+    toggleViewMode();
+    // Update AI dialogue to inform player about view change
+    const viewMode = isInFirstPerson() ? 'First-Person' : 'Third-Person';
+    AI.say(`Switched to ${viewMode} view. Use mouse to look around in first-person.`);
+  }
+});
 
 // Resize
 window.addEventListener('resize', () => {
@@ -49,7 +64,7 @@ window.addEventListener('resize', () => {
 // Loop
 function animate() {
   requestAnimationFrame(animate);
-  updatePlayer(player);
+  updatePlayer(player, camera); // Pass camera for first-person movement calculations
   attachCamera(camera, player);
   renderer.render(scene, camera);
 }
