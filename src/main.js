@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson } from './player.js';
+import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard } from './player.js';
 import { AI } from './ai.js';
 import { createRoom0 } from './room0.js';
 import { createRoom1 } from './room1.js';
@@ -26,7 +26,7 @@ dirLight.castShadow = true;
 scene.add(dirLight);
 scene.add(new THREE.HemisphereLight(0x8888aa, 0x222222, 0.6));
 
-// Player
+// Player setup
 const player = setupPlayer(scene);
 
 // Stage 0: Game state management
@@ -38,14 +38,36 @@ let gameState = {
   room3: null
 };
 
-// Stage 0: Initialize Stage 0 (Lobby/Entry Room)
-gameState.room0 = createRoom0(scene);
+// Initialize game with Leonard
+async function initGame() {
+  try {
+    // Load Leonard model
+    await loadLeonard(scene);
+    console.log('Leonard loaded successfully!');
+    
+    // Initialize Stage 0 (Lobby/Entry Room)
+    gameState.room0 = createRoom0(scene);
+    
+    // AI greeting for Stage 0
+    AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
+    
+    // Make AI globally accessible for room0 interactions
+    window.AI = AI;
+    
+    console.log('Game initialized successfully!');
+  } catch (error) {
+    console.error('Failed to initialize game:', error);
+    console.log('Using fallback player box instead of Leonard');
+    
+    // Fallback: still create room0 even if Leonard fails to load
+    gameState.room0 = createRoom0(scene);
+    AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
+    window.AI = AI;
+  }
+}
 
-// Stage 0: AI greeting for Stage 0
-AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
-
-// Stage 0: Make AI globally accessible for room0 interactions
-window.AI = AI;
+// Initialize the game
+initGame();
 
 // Stage 0: Input handling for different stages
 window.addEventListener('click', (e) => {
@@ -116,8 +138,8 @@ function animate(currentTime) {
   const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
   lastTime = currentTime;
   
-  // Stage 0: Update player movement
-  updatePlayer(player, camera);
+  // Stage 0: Update player movement with deltaTime for animations
+  updatePlayer(player, camera, deltaTime);
   
   // Stage 0: Check collisions if in Stage 0
   if (gameState.stage === 0 && gameState.room0) {
