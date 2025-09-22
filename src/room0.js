@@ -976,10 +976,40 @@ export function createRoom0() {
     return doorwayBox.intersectsBox(playerBox);
   }
 
-  // NO COLLISION SYSTEM - Removed for now
+  // Stage 0: Simple collision clamp against room walls, doorway, and hallway
   function checkWallCollisions(playerObject) {
-    // Collision system removed - player can move freely
-    // We can add collision back later when we have time to implement it properly
+    if (!playerObject || !playerObject.position) return;
+
+    const playerRadius = 0.5;
+    const pos = playerObject.position;
+
+    // Side walls (x clamping) inside Room 0
+    if (pos.x < -roomWidthHalf + playerRadius) pos.x = -roomWidthHalf + playerRadius;
+    if (pos.x >  roomWidthHalf - playerRadius) pos.x =  roomWidthHalf - playerRadius;
+
+    // Front wall (positive Z) inside Room 0
+    if (pos.z > roomDepthHalf - playerRadius) pos.z = roomDepthHalf - playerRadius;
+
+    // Back wall (negative Z) with doorway at center (x in [-2, 2])
+    const inDoorwayX = Math.abs(pos.x) <= 2;
+    const doorIsOpen = !!state.doorOpen;
+    const backWallZ = -roomDepthHalf;
+
+    if (pos.z < backWallZ + playerRadius) {
+      // Only allow passing through if within doorway and the door is open
+      if (!(inDoorwayX && doorIsOpen)) {
+        pos.z = backWallZ + playerRadius;
+      }
+    }
+
+    // Hallway constraints (after crossing the back wall into negative Z further)
+    // Hallway spans roughly from -7.5 (backWallZ) toward Room 1 at around -25
+    // Keep player within hallway width (x in [-2, 2]) once past the back wall
+    if (pos.z < backWallZ - 0.01) {
+      const hallwayHalf = 2 - playerRadius;
+      if (pos.x < -hallwayHalf) pos.x = -hallwayHalf;
+      if (pos.x >  hallwayHalf) pos.x =  hallwayHalf;
+    }
   }
 
   // NO DOOR COLLISION - Removed for now

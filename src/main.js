@@ -181,11 +181,12 @@ function animate(currentTime) {
   // Stage 0: Update player movement with deltaTime for animations
   updatePlayer(activePlayer, camera, deltaTime);
   
-  // NO COLLISION SYSTEM - Removed for now
-  // Player can move freely without collision detection
-  // We can add collision back later when we have time to implement it properly
-  
-  // Room1 collision also removed for now
+  // Collision: clamp player against current room walls/doorway
+  if (gameState.stage === 0 && gameState.room0) {
+    gameState.room0.checkWallCollisions(activePlayer);
+  } else if (gameState.stage >= 1 && gameState.room1 && gameState.room1.group.visible && typeof gameState.room1.checkWallCollisions === 'function') {
+    gameState.room1.checkWallCollisions(activePlayer);
+  }
   
   // Stage 0: Update Stage 0 if active
   if (gameState.stage === 0 && gameState.room0) {

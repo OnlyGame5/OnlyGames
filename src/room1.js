@@ -101,34 +101,49 @@ export function createRoom1() {
   exitAnchor.position.set(0, 0, -6); // Back of room (exit point)
   group.add(exitAnchor);
 
-  // Collision detection function for room1 walls
+  // Collision detection function for room1 walls (account for room's world position)
   function checkWallCollisions(playerObject) {
-    const playerPos = playerObject.position;
+    if (!playerObject || !playerObject.position) return;
+
     const playerRadius = 0.5;
-    const roomSize = 6; // Half size of room (12/2)
+    const roomHalf = 6; // Half of 12
     const wallThickness = 0.1;
-    
-    // Left wall collision
-    if (playerPos.x - playerRadius < -roomSize + wallThickness) {
-      playerObject.position.x = -roomSize + wallThickness + playerRadius;
+
+    // Convert player world position to room-local space
+    const playerWorldPos = playerObject.position.clone();
+    const playerLocal = group.worldToLocal(playerWorldPos.clone());
+
+    let clamped = false;
+
+    // Left wall
+    if (playerLocal.x - playerRadius < -roomHalf + wallThickness) {
+      playerLocal.x = -roomHalf + wallThickness + playerRadius;
+      clamped = true;
     }
-    
-    // Right wall collision
-    if (playerPos.x + playerRadius > roomSize - wallThickness) {
-      playerObject.position.x = roomSize - wallThickness - playerRadius;
+
+    // Right wall
+    if (playerLocal.x + playerRadius > roomHalf - wallThickness) {
+      playerLocal.x = roomHalf - wallThickness - playerRadius;
+      clamped = true;
     }
-    
-    // Front wall collision (with doorway exception)
-    if (playerPos.z + playerRadius > roomSize - wallThickness) {
-      // Check if player is in doorway area (between -2 and 2 on X axis)
-      if (Math.abs(playerPos.x) > 2) {
-        playerObject.position.z = roomSize - wallThickness - playerRadius;
+
+    // Front wall (z = +roomHalf) with doorway at center (x in [-2, 2])
+    if (playerLocal.z + playerRadius > roomHalf - wallThickness) {
+      if (Math.abs(playerLocal.x) > 2) {
+        playerLocal.z = roomHalf - wallThickness - playerRadius;
+        clamped = true;
       }
     }
-    
-    // Back wall collision
-    if (playerPos.z - playerRadius < -roomSize + wallThickness) {
-      playerObject.position.z = -roomSize + wallThickness + playerRadius;
+
+    // Back wall (z = -roomHalf)
+    if (playerLocal.z - playerRadius < -roomHalf + wallThickness) {
+      playerLocal.z = -roomHalf + wallThickness + playerRadius;
+      clamped = true;
+    }
+
+    if (clamped) {
+      const newWorld = group.localToWorld(playerLocal);
+      playerObject.position.copy(newWorld);
     }
   }
 
@@ -138,3 +153,4 @@ export function createRoom1() {
     checkWallCollisions
   };
 }
+
