@@ -181,11 +181,28 @@ function animate(currentTime) {
   // Stage 0: Update player movement with deltaTime for animations
   updatePlayer(activePlayer, camera, deltaTime);
   
-  // Collision: clamp player against current room walls/doorway
-  if (gameState.stage === 0 && gameState.room0) {
-    gameState.room0.checkWallCollisions(activePlayer);
-  } else if (gameState.stage >= 1 && gameState.room1 && gameState.room1.group.visible && typeof gameState.room1.checkWallCollisions === 'function') {
-    gameState.room1.checkWallCollisions(activePlayer);
+  // Collision: choose which area's walls to apply based on player position
+  if (gameState.room0) {
+    let useRoom1 = false;
+
+    if (gameState.room1 && gameState.room1.group.visible && typeof gameState.room1.checkWallCollisions === 'function') {
+      // Convert player world position to room1 local space and check bounds (12x12 room → half 6)
+      const playerWorld = activePlayer.position.clone();
+      const localToRoom1 = gameState.room1.group.worldToLocal(playerWorld.clone());
+      const half = 6;
+      const insideRoom1 = (
+        localToRoom1.x >= -half && localToRoom1.x <= half &&
+        localToRoom1.z >= -half && localToRoom1.z <= half
+      );
+      useRoom1 = insideRoom1;
+    }
+
+    if (useRoom1) {
+      gameState.room1.checkWallCollisions(activePlayer);
+    } else {
+      // Default to room0/hallway constraints
+      gameState.room0.checkWallCollisions(activePlayer);
+    }
   }
   
   // Stage 0: Update Stage 0 if active
