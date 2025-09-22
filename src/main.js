@@ -20,7 +20,7 @@ renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
 // Lighting
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+const dirLight = new THREE.DirectionalLight(0xffffff, 2);
 dirLight.position.set(10, 20, 10);
 dirLight.castShadow = true;
 scene.add(dirLight);
@@ -45,8 +45,26 @@ async function initGame() {
     await loadLeonard(scene);
     console.log('Leonard loaded successfully!');
     
-    // Initialize Stage 0 (Lobby/Entry Room)
-    gameState.room0 = createRoom0(scene);
+    // Initialize all rooms (no scene param now)
+    gameState.room0 = createRoom0();
+    gameState.room1 = createRoom1();
+    gameState.room2 = createRoom2();
+    gameState.room3 = createRoom3();
+    
+    // Add groups to scene
+    scene.add(gameState.room0.group, gameState.room1.group, gameState.room2.group, gameState.room3.group);
+    
+    // Line them up along -Z with proper spacing
+    const ROOM_SPACING = 25; // tweak to your room length
+    gameState.room0.group.position.set(0, 0, 0 * -ROOM_SPACING); // 0
+    gameState.room1.group.position.set(0, 0, 1 * -ROOM_SPACING); // -25
+    gameState.room2.group.position.set(0, 0, 2 * -ROOM_SPACING); // -50
+    gameState.room3.group.position.set(0, 0, 3 * -ROOM_SPACING); // -75
+    
+    // Initially hide rooms 1, 2, 3 until unlocked
+    gameState.room1.group.visible = false;
+    gameState.room2.group.visible = false;
+    gameState.room3.group.visible = false;
     
     // AI greeting for Stage 0
     AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
@@ -59,8 +77,27 @@ async function initGame() {
     console.error('Failed to initialize game:', error);
     console.log('Using fallback player box instead of Leonard');
     
-    // Fallback: still create room0 even if Leonard fails to load
-    gameState.room0 = createRoom0(scene);
+    // Fallback: still create all rooms even if Leonard fails to load
+    gameState.room0 = createRoom0();
+    gameState.room1 = createRoom1();
+    gameState.room2 = createRoom2();
+    gameState.room3 = createRoom3();
+    
+    // Add groups to scene
+    scene.add(gameState.room0.group, gameState.room1.group, gameState.room2.group, gameState.room3.group);
+    
+    // Line them up along -Z with proper spacing
+    const ROOM_SPACING = 25;
+    gameState.room0.group.position.set(0, 0, 0 * -ROOM_SPACING);
+    gameState.room1.group.position.set(0, 0, 1 * -ROOM_SPACING);
+    gameState.room2.group.position.set(0, 0, 2 * -ROOM_SPACING);
+    gameState.room3.group.position.set(0, 0, 3 * -ROOM_SPACING);
+    
+    // Initially hide rooms 1, 2, 3
+    gameState.room1.group.visible = false;
+    gameState.room2.group.visible = false;
+    gameState.room3.group.visible = false;
+    
     AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
     window.AI = AI;
   }
@@ -106,26 +143,14 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Stage 0: Stage transition function
-function transitionToStage1() {
-  // Stage 0: Hide Stage 0 room
-  if (gameState.room0) {
-    gameState.room0.group.visible = false;
+// Unlock room 1 (reveal room, hallway is always visible)
+function unlockRoom1() {
+  if (!gameState.room1.group.visible) {
+    gameState.room1.group.visible = true;
+    // Hallway is always visible, door just controls access
+    gameState.stage = 1;
+    AI.say("The door opens, granting you access to the hallway. Walk through to reach the first challenge room.");
   }
-  
-  // Stage 0: Load Stage 1 (existing room1.js)
-  gameState.room1 = createRoom1(scene);
-  gameState.room2 = createRoom2(scene, 20, 0);
-  gameState.room3 = createRoom3(scene, -20, 0);
-  
-  // Stage 0: Reposition player to Room 1 entrance
-  player.position.set(0, 0.9, 8);
-  
-  // Stage 0: Update game state
-  gameState.stage = 1;
-  
-  // Stage 0: AI message for Stage 1
-  AI.say("Welcome to the first challenge. You'll need to solve the keypad puzzle to proceed.");
 }
 
 // Stage 0: Animation loop with stage management
@@ -139,12 +164,12 @@ function animate(currentTime) {
   // Stage 0: Update player movement with deltaTime for animations
   updatePlayer(player, camera, deltaTime);
   
-  // Stage 0: Check collisions if in Stage 0
-  if (gameState.stage === 0 && gameState.room0) {
-    // Check wall collisions first
+  // Check collisions for all active rooms
+  if (gameState.room0) {
+    // Check room0 wall collisions (including hallway)
     gameState.room0.checkWallCollisions(player);
     
-    // Then check door collision
+    // Check door collision
     if (gameState.room0.checkDoorCollision(player)) {
       // Prevent player from passing through closed door
       const doorZ = -7.5 + 0.15; // Updated for new room size
@@ -154,13 +179,18 @@ function animate(currentTime) {
     }
   }
   
+  if (gameState.room1 && gameState.room1.group.visible) {
+    // Check room1 wall collisions when room1 is visible
+    gameState.room1.checkWallCollisions(player);
+  }
+  
   // Stage 0: Update Stage 0 if active
   if (gameState.stage === 0 && gameState.room0) {
     gameState.room0.updateRoom0(deltaTime, { playerObject: player, ai: AI });
     
     // Stage 0: Check for doorway trigger
     if (gameState.room0.state.doorOpen && gameState.room0.checkDoorwayTrigger(player)) {
-      transitionToStage1();
+      unlockRoom1();
     }
   }
   

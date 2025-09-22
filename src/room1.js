@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 
-export function createRoom1(scene) {
+export function createRoom1() {
   const group = new THREE.Group();
-  group.position.set(0,0,0);
+  group.name = 'room1';
 
   // Floor + walls
   const floor = new THREE.Mesh(new THREE.BoxGeometry(12,0.2,12), new THREE.MeshStandardMaterial({color:0x222244}));
@@ -10,11 +10,34 @@ export function createRoom1(scene) {
   group.add(floor);
 
   const wallMat = new THREE.MeshStandardMaterial({color:0x333366});
-  const wall1 = new THREE.Mesh(new THREE.BoxGeometry(12,4,0.2), wallMat); wall1.position.set(0,2,-6);
-  const wall2 = wall1.clone(); wall2.position.set(0,2,6);
-  const wall3 = new THREE.Mesh(new THREE.BoxGeometry(0.2,4,12), wallMat); wall3.position.set(-6,2,0);
-  const wall4 = wall3.clone(); wall4.position.set(6,2,0);
-  group.add(wall1, wall2, wall3, wall4);
+  
+  // Back wall
+  const wall1 = new THREE.Mesh(new THREE.BoxGeometry(12,4,0.2), wallMat); 
+  wall1.position.set(0,2,-6);
+  wall1.userData = { type: 'wall', side: 'back' };
+  group.add(wall1);
+  
+  // Front wall with doorway (split into two parts)
+  const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(4,4,0.2), wallMat);
+  frontWallLeft.position.set(-4,2,6);
+  frontWallLeft.userData = { type: 'wall', side: 'front-left' };
+  group.add(frontWallLeft);
+  
+  const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(4,4,0.2), wallMat);
+  frontWallRight.position.set(4,2,6);
+  frontWallRight.userData = { type: 'wall', side: 'front-right' };
+  group.add(frontWallRight);
+  
+  // Side walls
+  const wall3 = new THREE.Mesh(new THREE.BoxGeometry(0.2,4,12), wallMat); 
+  wall3.position.set(-6,2,0);
+  wall3.userData = { type: 'wall', side: 'left' };
+  group.add(wall3);
+  
+  const wall4 = wall3.clone(); 
+  wall4.position.set(6,2,0);
+  wall4.userData = { type: 'wall', side: 'right' };
+  group.add(wall4);
 
   // Console pedestal
   const pedestal = new THREE.Mesh(new THREE.BoxGeometry(2,1,1), new THREE.MeshStandardMaterial({color:0x444444}));
@@ -66,6 +89,52 @@ export function createRoom1(scene) {
   }
 
   group.userData = {keypadButtons:buttons, pressButton:press};
-  scene.add(group);
-  return group;
+
+  // Create entry/exit anchors for future hallway/minimap work
+  const entryAnchor = new THREE.Object3D();
+  entryAnchor.name = 'entryAnchor';
+  entryAnchor.position.set(0, 0, 6); // Front of room (entry point)
+  group.add(entryAnchor);
+
+  const exitAnchor = new THREE.Object3D();
+  exitAnchor.name = 'exitAnchor';
+  exitAnchor.position.set(0, 0, -6); // Back of room (exit point)
+  group.add(exitAnchor);
+
+  // Collision detection function for room1 walls
+  function checkWallCollisions(playerObject) {
+    const playerPos = playerObject.position;
+    const playerRadius = 0.5;
+    const roomSize = 6; // Half size of room (12/2)
+    const wallThickness = 0.1;
+    
+    // Left wall collision
+    if (playerPos.x - playerRadius < -roomSize + wallThickness) {
+      playerObject.position.x = -roomSize + wallThickness + playerRadius;
+    }
+    
+    // Right wall collision
+    if (playerPos.x + playerRadius > roomSize - wallThickness) {
+      playerObject.position.x = roomSize - wallThickness - playerRadius;
+    }
+    
+    // Front wall collision (with doorway exception)
+    if (playerPos.z + playerRadius > roomSize - wallThickness) {
+      // Check if player is in doorway area (between -2 and 2 on X axis)
+      if (Math.abs(playerPos.x) > 2) {
+        playerObject.position.z = roomSize - wallThickness - playerRadius;
+      }
+    }
+    
+    // Back wall collision
+    if (playerPos.z - playerRadius < -roomSize + wallThickness) {
+      playerObject.position.z = -roomSize + wallThickness + playerRadius;
+    }
+  }
+
+  return {
+    group,
+    anchors: { entry: entryAnchor, exit: exitAnchor },
+    checkWallCollisions
+  };
 }

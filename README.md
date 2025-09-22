@@ -106,7 +106,7 @@ Explore, solve, and survive!
 
 Meet the brilliant minds bringing this betrayal to life!
 
-- Shervaan Govender
+- Shervaan Govinder
 - Abdullah Ali
 - Kovendan Raman
 - Jaishil Patel

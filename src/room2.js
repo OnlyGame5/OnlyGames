@@ -1,14 +1,28 @@
 import * as THREE from 'three';
 
-export function createRoom2(scene, x=20, z=0) {
+export function createRoom2() {
   const group = new THREE.Group();
-  group.position.set(x,0,z);
+  group.name = 'room2';
 
   const floor = new THREE.Mesh(new THREE.BoxGeometry(12,0.2,12), new THREE.MeshStandardMaterial({color:0x442244}));
   floor.receiveShadow = true;
   group.add(floor);
 
   group.userData = {type:"room2"};
-  scene.add(group);
-  return group;
+
+  // Create entry/exit anchors for future hallway/minimap work
+  const entryAnchor = new THREE.Object3D();
+  entryAnchor.name = 'entryAnchor';
+  entryAnchor.position.set(0, 0, 6); // Front of room (entry point)
+  group.add(entryAnchor);
+
+  const exitAnchor = new THREE.Object3D();
+  exitAnchor.name = 'exitAnchor';
+  exitAnchor.position.set(0, 0, -6); // Back of room (exit point)
+  group.add(exitAnchor);
+
+  return {
+    group,
+    anchors: { entry: entryAnchor, exit: exitAnchor }
+  };
 }

@@ -3,9 +3,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { addToInventory, hasInInventory, removeFromInventory } from './player.js';
 
 // Stage 0: Lobby/Entry Room
-export function createRoom0(scene) {
+export function createRoom0() {
   const group = new THREE.Group();
-  group.position.set(0, 0, 0);
   group.name = 'stage0-room';
 
   // Stage 0: Room geometry - much bigger floor (20x15)
@@ -408,6 +407,28 @@ export function createRoom0(scene) {
         playerObject.position.z = -roomDepth + wallThickness/2 + playerRadius;
       }
     }
+    
+    // Hallway wall collisions
+    checkHallwayCollisions(playerObject);
+  }
+
+  // Stage 0: Check hallway wall collisions
+  function checkHallwayCollisions(playerObject) {
+    const playerPos = playerObject.position;
+    const playerRadius = 0.5;
+    
+    // Check if player is in hallway area (between -7.5 and -19 on Z axis, between -2 and 2 on X axis)
+    if (playerPos.z < -7.5 && playerPos.z > -19 && Math.abs(playerPos.x) < 2.2) {
+      // Left hallway wall collision
+      if (playerPos.x - playerRadius < -2 + 0.1) {
+        playerObject.position.x = -2 + 0.1 + playerRadius;
+      }
+      
+      // Right hallway wall collision
+      if (playerPos.x + playerRadius > 2 - 0.1) {
+        playerObject.position.x = 2 - 0.1 - playerRadius;
+      }
+    }
   }
 
   // Stage 0: Check door collision (prevent passing through closed door)
@@ -426,14 +447,70 @@ export function createRoom0(scene) {
     return false;
   }
 
-  // Stage 0: Add room to scene
-  scene.add(group);
+  // Stage 0: Create hallway to room 1 (always visible)
+  const hallway = new THREE.Group();
+  hallway.name = 'hallway-to-room1';
+  hallway.visible = true; // Always visible, door just controls access
+  
+  // Hallway floor
+  const hallwayFloor = new THREE.Mesh(
+    new THREE.BoxGeometry(4, 0.2, 11.5),
+    new THREE.MeshStandardMaterial({ color: 0x2a2a2a })
+  );
+  hallwayFloor.position.set(0, -0.1, -13.25); // Position between room 0 and room 1
+  hallwayFloor.receiveShadow = true;
+  hallway.add(hallwayFloor);
+  
+  // Hallway walls
+  const hallwayWallMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+  const hallwayWall1 = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 4, 11.5),
+    hallwayWallMaterial
+  );
+  hallwayWall1.position.set(-2, 2, -13.25);
+  hallwayWall1.castShadow = true;
+  hallwayWall1.userData = { type: 'wall', side: 'hallway-left' };
+  hallway.add(hallwayWall1);
+  
+  const hallwayWall2 = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 4, 11.5),
+    hallwayWallMaterial
+  );
+  hallwayWall2.position.set(2, 2, -13.25);
+  hallwayWall2.castShadow = true;
+  hallwayWall2.userData = { type: 'wall', side: 'hallway-right' };
+  hallway.add(hallwayWall2);
+  
+  // Hallway ceiling
+  const hallwayCeiling = new THREE.Mesh(
+    new THREE.BoxGeometry(4, 0.3, 11.5),
+    new THREE.MeshStandardMaterial({ color: 0x444444 })
+  );
+  hallwayCeiling.position.set(0, 4.15, -13.25);
+  hallwayCeiling.receiveShadow = true;
+  hallway.add(hallwayCeiling);
+  
+  // Add hallway to group (not scene)
+  group.add(hallway);
+
+  // Create entry/exit anchors for future hallway/minimap work
+  const entryAnchor = new THREE.Object3D();
+  entryAnchor.name = 'entryAnchor';
+  entryAnchor.position.set(0, 0, 7.5); // Front of room (entry point)
+  group.add(entryAnchor);
+
+  const exitAnchor = new THREE.Object3D();
+  exitAnchor.name = 'exitAnchor';
+  exitAnchor.position.set(0, 0, -7.5); // Back of room (exit point)
+  group.add(exitAnchor);
 
   // Stage 0: Return room object with all necessary properties
   return {
     group,
+    anchors: { entry: entryAnchor, exit: exitAnchor },
     door,
     key,
+    hallway,
     triggers: { doorwayBox },
     state,
     updateRoom0,
@@ -441,7 +518,8 @@ export function createRoom0(scene) {
     handleEKeyInteraction,
     checkDoorwayTrigger,
     checkDoorCollision,
-    checkWallCollisions
+    checkWallCollisions,
+    checkHallwayCollisions
   };
 }
 
