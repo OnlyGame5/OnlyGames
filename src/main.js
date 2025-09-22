@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard } from './player.js';
+import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel } from './player.js';
 import { AI } from './ai.js';
 import { createRoom0 } from './room0.js';
 import { createRoom1 } from './room1.js';
@@ -54,6 +54,9 @@ async function initGame() {
     // Add groups to scene
     scene.add(gameState.room0.group, gameState.room1.group, gameState.room2.group, gameState.room3.group);
     
+    // Add first-person item display to scene
+    addFirstPersonItemToScene(scene);
+    
     // Line them up along -Z with proper spacing
     const ROOM_SPACING = 25; // tweak to your room length
     gameState.room0.group.position.set(0, 0, 0 * -ROOM_SPACING); // 0
@@ -72,6 +75,9 @@ async function initGame() {
     // Make AI globally accessible for room0 interactions
     window.AI = AI;
     
+    // Make gameState globally accessible for first-person item display
+    window.gameState = gameState;
+    
     console.log('Game initialized successfully!');
   } catch (error) {
     console.error('Failed to initialize game:', error);
@@ -85,6 +91,9 @@ async function initGame() {
     
     // Add groups to scene
     scene.add(gameState.room0.group, gameState.room1.group, gameState.room2.group, gameState.room3.group);
+    
+    // Add first-person item display to scene
+    addFirstPersonItemToScene(scene);
     
     // Line them up along -Z with proper spacing
     const ROOM_SPACING = 25;
@@ -100,6 +109,9 @@ async function initGame() {
     
     AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
     window.AI = AI;
+    
+    // Make gameState globally accessible for first-person item display
+    window.gameState = gameState;
   }
 }
 
@@ -131,7 +143,9 @@ window.addEventListener('keydown', (e) => {
   // E key interaction handler
   if (e.code === 'KeyE') {
     if (gameState.stage === 0 && gameState.room0) {
-      gameState.room0.handleEKeyInteraction(player);
+      // Use the active player object (Leonard model or fallback box)
+      const activePlayer = leonardModel || player;
+      gameState.room0.handleEKeyInteraction(activePlayer);
     }
   }
 });
@@ -161,35 +175,25 @@ function animate(currentTime) {
   const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
   lastTime = currentTime;
   
+  // Get the active player object (Leonard model or fallback box)
+  const activePlayer = leonardModel || player;
+  
   // Stage 0: Update player movement with deltaTime for animations
-  updatePlayer(player, camera, deltaTime);
+  updatePlayer(activePlayer, camera, deltaTime);
   
-  // Check collisions for all active rooms
-  if (gameState.room0) {
-    // Check room0 wall collisions (including hallway)
-    gameState.room0.checkWallCollisions(player);
-    
-    // Check door collision
-    if (gameState.room0.checkDoorCollision(player)) {
-      // Prevent player from passing through closed door
-      const doorZ = -7.5 + 0.15; // Updated for new room size
-      if (player.position.z < doorZ + 0.3) {
-        player.position.z = doorZ + 0.3;
-      }
-    }
-  }
+  // NO COLLISION SYSTEM - Removed for now
+  // Player can move freely without collision detection
+  // We can add collision back later when we have time to implement it properly
   
-  if (gameState.room1 && gameState.room1.group.visible) {
-    // Check room1 wall collisions when room1 is visible
-    gameState.room1.checkWallCollisions(player);
-  }
+  // Room1 collision also removed for now
   
   // Stage 0: Update Stage 0 if active
   if (gameState.stage === 0 && gameState.room0) {
-    gameState.room0.updateRoom0(deltaTime, { playerObject: player, ai: AI });
+    const activePlayer = leonardModel || player;
+    gameState.room0.updateRoom0(deltaTime, { playerObject: activePlayer, ai: AI });
     
     // Stage 0: Check for doorway trigger
-    if (gameState.room0.state.doorOpen && gameState.room0.checkDoorwayTrigger(player)) {
+    if (gameState.room0.state.doorOpen && gameState.room0.checkDoorwayTrigger(activePlayer)) {
       unlockRoom1();
     }
   }

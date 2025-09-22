@@ -17,7 +17,7 @@ export function handleMouseClick(event, camera, rooms) {
   raycaster.setFromCamera(mouse, camera);
 
   rooms.forEach(room => {
-    if (room.userData.keypadButtons) {
+    if (room && room.userData && room.userData.keypadButtons) {
       const intersects = raycaster.intersectObjects(room.userData.keypadButtons);
       if (intersects.length > 0) {
         room.userData.pressButton(intersects[0].object);
