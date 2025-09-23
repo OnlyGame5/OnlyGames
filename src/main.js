@@ -216,6 +216,11 @@ function animate(currentTime) {
     }
   }
   
+  // Update Room 1 light flicker when room is visible
+  if (gameState.room1 && gameState.room1.group.visible && typeof gameState.room1.updateRoom1 === 'function') {
+    gameState.room1.updateRoom1(deltaTime);
+  }
+  
   // Stage 0: Update camera
   attachCamera(camera, player);
   

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -9,7 +10,7 @@ export function createRoom1() {
   floor.receiveShadow = true;
   group.add(floor);
 
-  const wallMat = new THREE.MeshStandardMaterial({color:0x333366});
+  const wallMat = new THREE.MeshStandardMaterial({color:0x666666});
   
   // Back wall
   const wall1 = new THREE.Mesh(new THREE.BoxGeometry(12,4,0.2), wallMat); 
@@ -39,56 +40,66 @@ export function createRoom1() {
   wall4.userData = { type: 'wall', side: 'right' };
   group.add(wall4);
 
-  // Console pedestal
-  const pedestal = new THREE.Mesh(new THREE.BoxGeometry(2,1,1), new THREE.MeshStandardMaterial({color:0x444444}));
-  pedestal.position.set(0,0.5,-3);
-  group.add(pedestal);
+  // Flickering light (3s flicker every 5s cycle)
+  const flickerLight = new THREE.PointLight(0xE6F3FF, 0.7, 18);
+  flickerLight.position.set(0, 3.5, 0);
+  flickerLight.castShadow = true;
+  group.add(flickerLight);
 
-  // Panel
-  const panel = new THREE.Mesh(new THREE.BoxGeometry(1.8,1,0.1), new THREE.MeshStandardMaterial({color:0x111111, emissive:0x111155}));
-  panel.position.set(0,1.2,-2.55);
-  group.add(panel);
-
-  // Keypad
-  const buttons = [];
-  const geom = new THREE.BoxGeometry(0.4,0.2,0.1);
-  let num=1;
-  for(let row=0; row<3; row++){
-    for(let col=0; col<3; col++){
-      const b = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({color:0x555555}));
-      b.position.set(-0.6+col*0.6, 1.2-row*0.3, -2.5);
-      b.userData = {number:num};
-      group.add(b);
-      buttons.push(b);
-      num++;
+  let flickerTimer = 0; // seconds
+  function updateRoom1(dt) {
+    flickerTimer = (flickerTimer + dt) % 5.0; // 5s cycle
+    const isFlickerPhase = flickerTimer < 3.0; // first 3s flicker
+    if (isFlickerPhase) {
+      // combine a couple of sines for irregular flicker feel
+      const t = flickerTimer;
+      const base = 0.55;
+      const flick = 0.15 * Math.sin(t * 12) + 0.1 * Math.sin(t * 23) + 0.05 * Math.sin(t * 37);
+      const intensity = Math.max(0.3, Math.min(1.0, base + flick));
+      flickerLight.intensity = intensity;
+    } else {
+      // steady dim for 2 seconds
+      flickerLight.intensity = 0.5;
     }
   }
-  const zero = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({color:0x555555}));
-  zero.position.set(0,0.3,-2.5);
-  zero.userData = {number:0};
-  group.add(zero);
-  buttons.push(zero);
 
-  const solution = "3142";
-  let input = "";
+  // Removed pedestal, panel, and keypad to keep only table and safe in this room
 
-  function press(b) {
-    b.material.emissive = new THREE.Color(0x3333ff);
-    setTimeout(()=> b.material.emissive = new THREE.Color(0x000000),300);
-    input += b.userData.number;
-    if(input.length===4){
-      if(input===solution){
-        panel.material.emissive.setHex(0x00ff00);
-        console.log("Correct!");
-      } else {
-        panel.material.emissive.setHex(0xff0000);
-        console.log("Wrong!");
+  // Load sci-fi table (independent of safe placement)
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.load('/models/sci_fi_table.glb', (gltf) => {
+    const sciFiTable = gltf.scene;
+    sciFiTable.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
       }
-      input="";
-    }
-  }
+    });
+    sciFiTable.position.set(2, 0, -2.5);
+    group.add(sciFiTable);
+  }, undefined, (err) => {
+    console.error('Failed to load sci_fi_table.glb', err);
+  });
+  
+  
 
-  group.userData = {keypadButtons:buttons, pressButton:press};
+  // Load the safe model very small and place it anywhere in the room
+  gltfLoader.load('/models/safe.glb', (gltf) => {
+    const safeModel = gltf.scene;
+    safeModel.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    // Make the safe really small
+    safeModel.scale.set(0.03, 0.03, 0.03);
+    // Place it freely somewhere on the floor in the room
+    safeModel.position.set(-3.0, 0.1, 1.5);
+    group.add(safeModel);
+  }, undefined, (err) => {
+    console.error('Failed to load safe.glb', err);
+  });
 
   // Create entry/exit anchors for future hallway/minimap work
   const entryAnchor = new THREE.Object3D();
@@ -150,7 +161,8 @@ export function createRoom1() {
   return {
     group,
     anchors: { entry: entryAnchor, exit: exitAnchor },
-    checkWallCollisions
+    checkWallCollisions,
+    updateRoom1
   };
 }
 
