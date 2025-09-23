@@ -113,6 +113,8 @@ function getItemIcon(itemName) {
   switch (itemName) {
     case 'stage0-key':
       return '🗝️';
+    case 'room1-note':
+      return '📝';
     default:
       return '📦';
   }

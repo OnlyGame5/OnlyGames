@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { addToInventory } from './player.js';
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -75,7 +76,8 @@ export function createRoom1() {
         child.receiveShadow = true;
       }
     });
-    sciFiTable.position.set(2, 0, -2.5);
+    // Move the table closer to the back wall (centered)
+    sciFiTable.position.set(0, 0, -4.5);
     group.add(sciFiTable);
   }, undefined, (err) => {
     console.error('Failed to load sci_fi_table.glb', err);
@@ -97,9 +99,91 @@ export function createRoom1() {
     // Place it freely somewhere on the floor in the room
     safeModel.position.set(-3.0, 0.1, 1.5);
     group.add(safeModel);
+
+    // Store reference for interaction
+    state.safeObject = safeModel;
   }, undefined, (err) => {
     console.error('Failed to load safe.glb', err);
   });
+
+  // Add a wall panel with the Statue of Liberty coordinates + riddle
+  const panelGeometry = new THREE.PlaneGeometry(4, 2);
+  const panelCanvas = document.createElement('canvas');
+  panelCanvas.width = 512;
+  panelCanvas.height = 256;
+  const ctx = panelCanvas.getContext('2d');
+
+  // Black background
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, panelCanvas.width, panelCanvas.height);
+
+  // Lime-green text for coordinates + riddle
+  ctx.fillStyle = 'lime';
+  ctx.font = '28px monospace';
+  ctx.fillText('STATUE COORDINATES:', 20, 50);
+  ctx.fillText('Lat: 40.6892° N', 20, 100);
+  ctx.fillText('Lon: 74.0445° W', 20, 140);
+  ctx.fillText('Find the year she was dedicated', 20, 200);
+
+  const panelTexture = new THREE.CanvasTexture(panelCanvas);
+  panelTexture.colorSpace = THREE.SRGBColorSpace;
+  panelTexture.generateMipmaps = true;
+  panelTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  panelTexture.magFilter = THREE.LinearFilter;
+  panelTexture.needsUpdate = true;
+
+  const panelMaterial = new THREE.MeshBasicMaterial({
+    map: panelTexture,
+    side: THREE.FrontSide,
+    toneMapped: false,
+    depthWrite: false
+  });
+
+  const panelMesh = new THREE.Mesh(panelGeometry, panelMaterial);
+
+  // Position panel on the back wall, slightly above table
+  panelMesh.position.set(0, 2.5, -5.85); // pull slightly forward to avoid z-fighting
+  panelMesh.rotation.x = -0.05; // slight tilt for realism
+  panelMesh.renderOrder = 1;
+
+  group.add(panelMesh);
+
+  // Room state for interactions
+  const state = {
+    safeOpened: false,
+    safeObject: null
+  };
+
+  // E-key interaction for room1
+  function handleEKeyInteraction(playerObject) {
+    if (state.safeOpened || !state.safeObject) return false;
+    const distance = playerObject.position.distanceTo(state.safeObject.position);
+    if (distance > 2.2) return false;
+
+    const input = window.prompt('Enter 4-digit passcode:');
+    if (input == null) return false;
+    const code = ('' + input).trim();
+    if (code === '1886') {
+      state.safeOpened = true;
+
+      // Give player a note item
+      const noteItem = {
+        name: 'room1-note',
+        description: 'A note recovered from the safe. It looks important.',
+        type: 'note'
+      };
+      addToInventory(noteItem);
+      if (window.AI) {
+        window.AI.say('Good. The safe yields a note. Keep it—you will need it.');
+      }
+      return true;
+    } else {
+      if (window.AI) {
+        window.AI.say('That code is wrong. Look around—clues are on the wall.');
+      }
+      return false;
+    }
+  }
 
   // Create entry/exit anchors for future hallway/minimap work
   const entryAnchor = new THREE.Object3D();
@@ -162,7 +246,8 @@ export function createRoom1() {
     group,
     anchors: { entry: entryAnchor, exit: exitAnchor },
     checkWallCollisions,
-    updateRoom1
+    updateRoom1,
+    handleEKeyInteraction
   };
 }
 

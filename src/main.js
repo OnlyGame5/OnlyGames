@@ -146,6 +146,9 @@ window.addEventListener('keydown', (e) => {
       // Use the active player object (Leonard model or fallback box)
       const activePlayer = leonardModel || player;
       gameState.room0.handleEKeyInteraction(activePlayer);
+    } else if (gameState.room1 && gameState.room1.group.visible && gameState.room1.handleEKeyInteraction) {
+      const activePlayer = leonardModel || player;
+      gameState.room1.handleEKeyInteraction(activePlayer);
     }
   }
 });
