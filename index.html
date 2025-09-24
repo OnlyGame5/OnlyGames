@@ -134,6 +134,42 @@
   <!-- Crosshair -->
   <div id="crosshair"></div>
   
+  <!-- Keypad UI -->
+  <div id="keypadUI" style="display:none; position:fixed; top:50%; left:50%; 
+  transform:translate(-50%, -50%); background:#111; padding:20px; border:2px solid #0f0;
+  border-radius:10px; text-align:center; z-index:1000; font-family:monospace; color:#0f0;">
+    <div id="keypadDisplay" style="margin-bottom:10px; font-size:20px;">____</div>
+    <div>
+      <button class="keyBtn">1</button>
+      <button class="keyBtn">2</button>
+      <button class="keyBtn">3</button><br>
+      <button class="keyBtn">4</button>
+      <button class="keyBtn">5</button>
+      <button class="keyBtn">6</button><br>
+      <button class="keyBtn">7</button>
+      <button class="keyBtn">8</button>
+      <button class="keyBtn">9</button><br>
+      <button id="clearBtn">C</button>
+      <button class="keyBtn">0</button>
+      <button id="enterBtn">↵</button>
+    </div>
+  </div>
+  
   <script type="module" src="/src/main.js"></script>
+  <style>
+    #keypadUI button {
+      background:#222;
+      border:1px solid #0f0;
+      color:#0f0;
+      width:40px;
+      height:40px;
+      margin:4px;
+      font-size:16px;
+      cursor:pointer;
+    }
+    #keypadUI button:hover {
+      background:#333;
+    }
+  </style>
 </body>
 </html>

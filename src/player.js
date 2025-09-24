@@ -598,6 +598,18 @@ export function updatePlayer(player, camera, deltaTime = 0.016) {
   // Use Leonard if available, else player box
   const activePlayer = leonardModel || player;
 
+  // Block movement when UI requests it (e.g., keypad open)
+  if (window.disablePlayerControls) {
+    // Still update animations mixer for idle/walk blending timing
+    if (leonardModel) {
+      updateLeonardAnimations(deltaTime);
+      player.position.copy(leonardModel.position);
+      player.visible = false;
+      leonardModel.visible = !isFirstPerson;
+    }
+    return;
+  }
+
   if (isFirstPerson) {
     // Move relative to camera direction
     const direction = new THREE.Vector3();

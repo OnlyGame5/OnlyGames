@@ -6,40 +6,94 @@ export function createRoom1() {
   const group = new THREE.Group();
   group.name = 'room1';
 
-  // Floor + walls
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(12,0.2,12), new THREE.MeshStandardMaterial({color:0x222244}));
+  // Room state for interactions (declare early so loaders can assign)
+  const state = {
+    safeOpened: false,
+    safeObject: null,
+    keypadOpen: false,
+    inputCode: ''
+  };
+
+  // Floor + walls (room 0 style: darker, metallic, slightly glossy)
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x222244,
+    roughness: 0.35,
+    metalness: 0.5
+  });
+  const floor = new THREE.Mesh(
+    new THREE.BoxGeometry(12, 0.2, 12),
+    floorMat
+  );
   floor.receiveShadow = true;
   group.add(floor);
 
-  const wallMat = new THREE.MeshStandardMaterial({color:0x666666});
-  
+  // Room 0 style wall material
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x333344,
+    roughness: 0.35,
+    metalness: 0.5
+  });
+
   // Back wall
-  const wall1 = new THREE.Mesh(new THREE.BoxGeometry(12,4,0.2), wallMat); 
-  wall1.position.set(0,2,-6);
+  const wall1 = new THREE.Mesh(new THREE.BoxGeometry(12, 4, 0.2), wallMat);
+  wall1.position.set(0, 2, -6);
   wall1.userData = { type: 'wall', side: 'back' };
+  wall1.castShadow = true;
+  wall1.receiveShadow = true;
   group.add(wall1);
-  
+
   // Front wall with doorway (split into two parts)
-  const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(4,4,0.2), wallMat);
-  frontWallLeft.position.set(-4,2,6);
+  const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 0.2), wallMat);
+  frontWallLeft.position.set(-4, 2, 6);
   frontWallLeft.userData = { type: 'wall', side: 'front-left' };
+  frontWallLeft.castShadow = true;
+  frontWallLeft.receiveShadow = true;
   group.add(frontWallLeft);
-  
-  const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(4,4,0.2), wallMat);
-  frontWallRight.position.set(4,2,6);
+
+  const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 0.2), wallMat);
+  frontWallRight.position.set(4, 2, 6);
   frontWallRight.userData = { type: 'wall', side: 'front-right' };
+  frontWallRight.castShadow = true;
+  frontWallRight.receiveShadow = true;
   group.add(frontWallRight);
-  
+
   // Side walls
-  const wall3 = new THREE.Mesh(new THREE.BoxGeometry(0.2,4,12), wallMat); 
-  wall3.position.set(-6,2,0);
+  const wall3 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 12), wallMat);
+  wall3.position.set(-6, 2, 0);
   wall3.userData = { type: 'wall', side: 'left' };
+  wall3.castShadow = true;
+  wall3.receiveShadow = true;
   group.add(wall3);
-  
-  const wall4 = wall3.clone(); 
-  wall4.position.set(6,2,0);
+
+  const wall4 = wall3.clone();
+  wall4.position.set(6, 2, 0);
   wall4.userData = { type: 'wall', side: 'right' };
+  wall4.castShadow = true;
+  wall4.receiveShadow = true;
   group.add(wall4);
+
+  // Pillars in each corner (room 0 style)
+  const pillarMat = new THREE.MeshStandardMaterial({
+    color: 0x444466,
+    roughness: 0.3,
+    metalness: 0.7
+  });
+  const pillarGeometry = new THREE.CylinderGeometry(0.25, 0.25, 4.2, 16);
+
+  const pillarPositions = [
+    [-5.7, 2.1, -5.7],
+    [5.7, 2.1, -5.7],
+    [-5.7, 2.1, 5.7],
+    [5.7, 2.1, 5.7]
+  ];
+
+  pillarPositions.forEach(pos => {
+    const pillar = new THREE.Mesh(pillarGeometry, pillarMat);
+    pillar.position.set(...pos);
+    pillar.castShadow = true;
+    pillar.receiveShadow = true;
+    group.add(pillar);
+  });
 
   // Flickering light (3s flicker every 5s cycle)
   const flickerLight = new THREE.PointLight(0xE6F3FF, 0.7, 18);
@@ -85,7 +139,7 @@ export function createRoom1() {
   
   
 
-  // Load the safe model very small and place it anywhere in the room
+  // Load the safe model very small and place it next to the sci-fi table
   gltfLoader.load('/models/safe.glb', (gltf) => {
     const safeModel = gltf.scene;
     safeModel.traverse((child) => {
@@ -94,10 +148,10 @@ export function createRoom1() {
         child.receiveShadow = true;
       }
     });
-    // Make the safe really small
-    safeModel.scale.set(0.03, 0.03, 0.03);
-    // Place it freely somewhere on the floor in the room
-    safeModel.position.set(-3.0, 0.1, 1.5);
+    // Make the safe really small and shorter (squash Y axis)
+    safeModel.scale.set(0.03, 0.03, 0.01); // Y axis is shorter
+    // Place it right at the back wall, next to the table (right side)
+    safeModel.position.set(1.8, 0.1, -5); // z = -5.8 is almost flush with back wall
     group.add(safeModel);
 
     // Store reference for interaction
@@ -148,42 +202,130 @@ export function createRoom1() {
 
   group.add(panelMesh);
 
-  // Room state for interactions
-  const state = {
-    safeOpened: false,
-    safeObject: null
-  };
+  // (state declared earlier)
 
   // E-key interaction for room1
   function handleEKeyInteraction(playerObject) {
-    if (state.safeOpened || !state.safeObject) return false;
-    const distance = playerObject.position.distanceTo(state.safeObject.position);
+    if (!state.safeObject) return false;
+    // Compare in world space because room1 group is offset in the scene
+    const safeWorldPos = new THREE.Vector3();
+    state.safeObject.getWorldPosition(safeWorldPos);
+    const distance = playerObject.position.distanceTo(safeWorldPos);
     if (distance > 2.2) return false;
 
-    const input = window.prompt('Enter 4-digit passcode:');
-    if (input == null) return false;
-    const code = ('' + input).trim();
-    if (code === '1886') {
-      state.safeOpened = true;
+    // Toggle keypad on/off
+    toggleKeypad(!state.keypadOpen);
+    return true;
+  }
 
-      // Give player a note item
-      const noteItem = {
-        name: 'room1-note',
-        description: 'A note recovered from the safe. It looks important.',
-        type: 'note'
-      };
-      addToInventory(noteItem);
-      if (window.AI) {
-        window.AI.say('Good. The safe yields a note. Keep it—you will need it.');
+  // Keyboard input handler for keypad
+  function handleKeypadInput(e) {
+    if (!state.keypadOpen) return;
+    const display = document.getElementById('keypadDisplay');
+    // Only allow number keys
+    if (/^[0-9]$/.test(e.key) && state.inputCode.length < 4) {
+      state.inputCode += e.key;
+      if (display) display.textContent = state.inputCode.padEnd(4, '_');
+    }
+    // Backspace to clear last digit
+    if (e.key === 'Backspace' && state.inputCode.length > 0) {
+      state.inputCode = state.inputCode.slice(0, -1);
+      if (display) display.textContent = state.inputCode.padEnd(4, '_');
+      e.preventDefault();
+    }
+    // Enter to submit
+    if (e.key === 'Enter') {
+      if (state.inputCode === '1886') {
+        toggleKeypad(false);
+        if (!state.safeOpened) {
+          state.safeOpened = true;
+          const noteItem = {
+            name: 'room1-note',
+            description: 'A note recovered from the safe. It looks important.',
+            type: 'note'
+          };
+          addToInventory(noteItem);
+          if (window.AI) window.AI.say('Correct. The safe yields a note.');
+        }
+      } else {
+        if (display) display.textContent = 'WRONG';
+        if (window.AI) window.AI.say('Incorrect password.');
       }
-      return true;
-    } else {
-      if (window.AI) {
-        window.AI.say('That code is wrong. Look around—clues are on the wall.');
-      }
-      return false;
+    }
+    // Escape to close keypad
+    if (e.key === 'Escape') {
+      toggleKeypad(false);
     }
   }
+
+  // Show/hide keypad UI
+  function toggleKeypad(show) {
+    const keypadUI = document.getElementById('keypadUI');
+    if (!keypadUI) return;
+
+    if (show) {
+      keypadUI.style.display = 'block';
+      state.keypadOpen = true;
+      state.inputCode = '';
+      const disp = document.getElementById('keypadDisplay');
+      if (disp) disp.textContent = '____';
+      // Disable player movement
+      window.disablePlayerControls = true;
+      // Enable keyboard input for keypad
+      window.addEventListener('keydown', handleKeypadInput);
+    } else {
+      keypadUI.style.display = 'none';
+      state.keypadOpen = false;
+      // Enable movement again
+      window.disablePlayerControls = false;
+      // Remove keyboard input for keypad
+      window.removeEventListener('keydown', handleKeypadInput);
+    }
+  }
+
+  // Keypad input wiring (run once per page)
+  (function setupKeypad() {
+    const keypadUI = document.getElementById('keypadUI');
+    if (!keypadUI || keypadUI.dataset.bound === '1') return;
+
+    keypadUI.dataset.bound = '1';
+    const display = document.getElementById('keypadDisplay');
+
+    keypadUI.querySelectorAll('.keyBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (state.inputCode.length < 4) {
+          state.inputCode += btn.textContent;
+          if (display) display.textContent = state.inputCode.padEnd(4, '_');
+        }
+      });
+    });
+
+    const clearBtn = document.getElementById('clearBtn');
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+      state.inputCode = '';
+      if (display) display.textContent = '____';
+    });
+
+    const enterBtn = document.getElementById('enterBtn');
+    if (enterBtn) enterBtn.addEventListener('click', () => {
+      if (state.inputCode === '1886') {
+        toggleKeypad(false);
+        if (!state.safeOpened) {
+          state.safeOpened = true;
+          const noteItem = {
+            name: 'room1-note',
+            description: 'A note recovered from the safe. It looks important.',
+            type: 'note'
+          };
+          addToInventory(noteItem);
+          if (window.AI) window.AI.say('Correct. The safe yields a note.');
+        }
+      } else {
+        if (display) display.textContent = 'WRONG';
+        if (window.AI) window.AI.say('Incorrect password.');
+      }
+    });
+  })();
 
   // Create entry/exit anchors for future hallway/minimap work
   const entryAnchor = new THREE.Object3D();
@@ -199,40 +341,33 @@ export function createRoom1() {
   // Collision detection function for room1 walls (account for room's world position)
   function checkWallCollisions(playerObject) {
     if (!playerObject || !playerObject.position) return;
-
     const playerRadius = 0.5;
     const roomHalf = 6; // Half of 12
     const wallThickness = 0.1;
+    let clamped = false;
 
     // Convert player world position to room-local space
     const playerWorldPos = playerObject.position.clone();
     const playerLocal = group.worldToLocal(playerWorldPos.clone());
-
-    let clamped = false;
 
     // Left wall
     if (playerLocal.x - playerRadius < -roomHalf + wallThickness) {
       playerLocal.x = -roomHalf + wallThickness + playerRadius;
       clamped = true;
     }
-
     // Right wall
     if (playerLocal.x + playerRadius > roomHalf - wallThickness) {
       playerLocal.x = roomHalf - wallThickness - playerRadius;
       clamped = true;
     }
-
-    // Front wall (z = +roomHalf) with doorway at center (x in [-2, 2])
-    if (playerLocal.z + playerRadius > roomHalf - wallThickness) {
-      if (Math.abs(playerLocal.x) > 2) {
-        playerLocal.z = roomHalf - wallThickness - playerRadius;
-        clamped = true;
-      }
-    }
-
-    // Back wall (z = -roomHalf)
+    // Back wall
     if (playerLocal.z - playerRadius < -roomHalf + wallThickness) {
       playerLocal.z = -roomHalf + wallThickness + playerRadius;
+      clamped = true;
+    }
+    // Front wall
+    if (playerLocal.z + playerRadius > roomHalf - wallThickness) {
+      playerLocal.z = roomHalf - wallThickness - playerRadius;
       clamped = true;
     }
 
@@ -242,12 +377,96 @@ export function createRoom1() {
     }
   }
 
+  // Main ceiling light (toggleable)
+  const ceilingLight = new THREE.PointLight(0xFFFFFF, 1.2, 16);
+  ceilingLight.position.set(0, 3.8, 0);
+  ceilingLight.castShadow = true;
+  group.add(ceilingLight);
+
+  // Light switch on the front wall
+  const switchGeometry = new THREE.BoxGeometry(0.25, 0.5, 0.05);
+  const switchMaterial = new THREE.MeshStandardMaterial({
+    color: 0xcccccc,
+    metalness: 0.3,
+    roughness: 0.6
+  });
+  const lightSwitch = new THREE.Mesh(switchGeometry, switchMaterial);
+  lightSwitch.position.set(-5.5, 1.2, 6.13); // left side of front wall, slightly out
+  lightSwitch.userData = { type: 'lightSwitch' };
+  lightSwitch.castShadow = false;
+  lightSwitch.receiveShadow = true;
+  group.add(lightSwitch);
+
+  // Switch state
+  let lightOn = true;
+  let nearSwitch = false;
+
+  // Helper: show/hide popup
+  function showSwitchPopup(show) {
+    let popup = document.getElementById('switchPopup');
+    if (!popup) {
+      popup = document.createElement('div');
+      popup.id = 'switchPopup';
+      popup.textContent = 'L';
+      popup.style.position = 'absolute';
+      popup.style.top = '50%';
+      popup.style.left = '50%';
+      popup.style.transform = 'translate(-50%, -120px)';
+      popup.style.padding = '16px 32px';
+      popup.style.fontSize = '2rem';
+      popup.style.background = 'rgba(30,30,30,0.85)';
+      popup.style.color = '#fff';
+      popup.style.borderRadius = '12px';
+      popup.style.zIndex = '1000';
+      popup.style.pointerEvents = 'none';
+      document.body.appendChild(popup);
+    }
+    popup.style.display = show ? 'block' : 'none';
+  }
+
+  // Check if player is near the switch (call in your update loop)
+  function checkSwitchProximity(playerObject) {
+    if (!playerObject || !playerObject.position) return;
+    const switchWorldPos = new THREE.Vector3();
+    lightSwitch.getWorldPosition(switchWorldPos);
+    const distance = playerObject.position.distanceTo(switchWorldPos);
+    nearSwitch = distance < 2.0;
+    showSwitchPopup(nearSwitch);
+  }
+
+  // Keyboard interaction for switch
+  function handleSwitchKey(e) {
+    if (nearSwitch && e.key.toLowerCase() === 'l') {
+      lightOn = !lightOn;
+      ceilingLight.visible = lightOn;
+      switchMaterial.color.set(lightOn ? 0xcccccc : 0x222222);
+      if (window.AI) window.AI.say(lightOn ? 'Light on.' : 'Light off.');
+    }
+  }
+  window.addEventListener('keydown', handleSwitchKey);
+
+  // Raycast interaction for switch (call this from your main click handler)
+  function handleSwitchInteraction(raycaster) {
+    const intersects = raycaster.intersectObject(lightSwitch, false);
+    if (intersects.length > 0) {
+      lightOn = !lightOn;
+      ceilingLight.visible = lightOn;
+      // Optional: change switch color to indicate state
+      switchMaterial.color.set(lightOn ? 0xcccccc : 0x222222);
+      if (window.AI) window.AI.say(lightOn ? 'Light on.' : 'Light off.');
+      return true;
+    }
+    return false;
+  }
+
   return {
     group,
     anchors: { entry: entryAnchor, exit: exitAnchor },
     checkWallCollisions,
     updateRoom1,
-    handleEKeyInteraction
+    handleEKeyInteraction,
+    handleSwitchInteraction,
+    checkSwitchProximity // <-- call this in your game loop with player object
   };
 }
 
