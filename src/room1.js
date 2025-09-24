@@ -913,11 +913,11 @@ export function createRoom1() {
     } else {
       // Show blank paper when lights are off
       paperContent.innerHTML = `
-        <h2 style="color: #333; margin-bottom: 20px; text-align: center;">Recovered Document</h2>
+        <h2 style="color: #333; margin-bottom: 20px; text-align: center;"></h2>
         <div style="color: #666; line-height: 1.6;">
-          <p>The paper appears to be blank or the text is too faded to read clearly.</p>
+          <p></p>
           <p style="margin-top: 20px; font-style: italic; color: #888;">
-            Perhaps you need to examine this under different lighting conditions...
+            
           </p>
         </div>
         <div style="text-align: center; margin-top: 20px; color: #999; font-size: 14px;">

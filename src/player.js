@@ -1,6 +1,7 @@
 // player.js
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import * as Input from './systems/input.js';
 
 /* ================================
    INPUT & CAMERA STATE
@@ -122,7 +123,10 @@ function getItemIcon(itemName) {
 
 function showCrosshair() {
   const crosshair = document.getElementById('crosshair');
-  if (crosshair) crosshair.style.display = 'block';
+  if (crosshair) {
+    const settings = Input.getSettings();
+    crosshair.style.display = settings.crosshair ? 'block' : 'none';
+  }
 }
 
 function hideCrosshair() {
@@ -526,8 +530,9 @@ export function setupPlayer(scene) {
   // Mouse movement (first-person look)
   window.addEventListener('mousemove', (e) => {
     if (isMouseLocked && isFirstPerson) {
-      mouseX -= e.movementX * 0.002;
-      mouseY -= e.movementY * 0.002;
+      const sensitivity = Input.getSettings().sensitivity;
+      mouseX -= e.movementX * 0.002 * sensitivity;
+      mouseY -= e.movementY * 0.002 * sensitivity;
       mouseY = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, mouseY));
     }
   });
@@ -584,23 +589,23 @@ export function updatePlayer(player, camera, deltaTime = 0.016) {
     const right = new THREE.Vector3();
     right.crossVectors(direction, new THREE.Vector3(0, 1, 0));
 
-    if (keys['KeyW']) { activePlayer.position.add(direction.clone().multiplyScalar(speed)); isMoving = true; }
-    if (keys['KeyS']) { activePlayer.position.add(direction.clone().multiplyScalar(-speed)); isMoving = true; }
-    if (keys['KeyA']) { activePlayer.position.add(right.clone().multiplyScalar(-speed)); isMoving = true; }
-    if (keys['KeyD']) { activePlayer.position.add(right.clone().multiplyScalar(speed)); isMoving = true; }
+    if (Input.isDown('moveForward')) { activePlayer.position.add(direction.clone().multiplyScalar(speed)); isMoving = true; }
+    if (Input.isDown('moveBack')) { activePlayer.position.add(direction.clone().multiplyScalar(-speed)); isMoving = true; }
+    if (Input.isDown('moveLeft')) { activePlayer.position.add(right.clone().multiplyScalar(-speed)); isMoving = true; }
+    if (Input.isDown('moveRight')) { activePlayer.position.add(right.clone().multiplyScalar(speed)); isMoving = true; }
   } else {
     // Third-person: world-aligned movement
-    if (keys['KeyW']) { activePlayer.position.z -= speed; isMoving = true; }
-    if (keys['KeyS']) { activePlayer.position.z += speed; isMoving = true; }
-    if (keys['KeyA']) { activePlayer.position.x -= speed; isMoving = true; }
-    if (keys['KeyD']) { activePlayer.position.x += speed; isMoving = true; }
+    if (Input.isDown('moveForward')) { activePlayer.position.z -= speed; isMoving = true; }
+    if (Input.isDown('moveBack')) { activePlayer.position.z += speed; isMoving = true; }
+    if (Input.isDown('moveLeft')) { activePlayer.position.x -= speed; isMoving = true; }
+    if (Input.isDown('moveRight')) { activePlayer.position.x += speed; isMoving = true; }
 
     // Face movement direction (3rd person only)
     if (isMoving && leonardModel) {
       const movementDirection = new THREE.Vector3(
-        (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0),
+        (Input.isDown('moveRight') ? 1 : 0) - (Input.isDown('moveLeft') ? 1 : 0),
         0,
-        (keys['KeyS'] ? 1 : 0) - (keys['KeyW'] ? 1 : 0)
+        (Input.isDown('moveBack') ? 1 : 0) - (Input.isDown('moveForward') ? 1 : 0)
       );
       if (movementDirection.lengthSq() > 0) {
         movementDirection.normalize();

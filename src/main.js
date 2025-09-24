@@ -6,6 +6,8 @@ import { createRoom1 } from './room1.js';
 import { createRoom2 } from './room2.js';
 import { createRoom3 } from './room3.js';
 import { handleMouseClick, handleStage0Click } from './utils.js';
+import { initInput, isDown as inputIsDown, getBindings } from './systems/input.js';
+import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
@@ -36,7 +38,8 @@ let gameState = {
   room0: null,
   room1: null,
   room2: null,
-  room3: null
+  room3: null,
+  paused: false
 };
 
 // Initialize game with Leonard
@@ -78,6 +81,13 @@ async function initGame() {
     
     // Make gameState globally accessible for first-person item display
     window.gameState = gameState;
+    
+    // Initialize input and menu systems
+    initInput();
+    initMenu({ onPauseChange: (paused) => { gameState.paused = paused; } });
+    
+    // Update HUD with current bindings
+    updateHUDInstructions();
     
     console.log('Game initialized successfully!');
   } catch (error) {
@@ -132,9 +142,15 @@ window.addEventListener('click', (e) => {
   }
 });
 
-// View toggle key handler (V key) and E key interaction
+// View toggle key handler and other interactions
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'KeyV') {
+  // Handle menu toggle first
+  if (e.code === getBindings().openMenu) {
+    toggleMenu();
+    return;
+  }
+  
+  if (e.code === getBindings().toggleView) {
     toggleViewMode();
     // Update AI dialogue to inform player about view change
     const viewMode = isInFirstPerson() ? 'First-Person' : 'Third-Person';
@@ -159,7 +175,7 @@ window.addEventListener('keydown', (e) => {
   }
   
   // E key interaction handler
-  if (e.code === 'KeyE') {
+  if (e.code === getBindings().interact) {
     // Check if paper examination is open first
     const paperExamination = document.getElementById('paperExamination');
     if (paperExamination) {
@@ -178,7 +194,7 @@ window.addEventListener('keydown', (e) => {
   }
   
   // L key interaction handler for Room 1 light switch
-  if (e.code === 'KeyL') {
+  if (e.code === getBindings().toggleLight) {
     console.log('L key pressed in main.js');
     // Check if player is in Room 1 using the new bounds checking function
     if (gameState.room1 && gameState.room1.isPlayerInRoom1) {
@@ -228,6 +244,13 @@ function animate(currentTime) {
   
   const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
   lastTime = currentTime;
+  
+  // Check if game is paused
+  if (gameState.paused) {
+    // Skip gameplay updates but still render the current frame
+    renderer.render(scene, camera);
+    return;
+  }
   
   // Get the active player object (Leonard model or fallback box)
   const activePlayer = leonardModel || player;
