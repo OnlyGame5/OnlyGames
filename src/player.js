@@ -449,19 +449,10 @@ export function updateLeonardAnimations(deltaTime) {
   // Movement state (from WASD)
   const moving = !!(keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD']);
 
-  // Debug: Log what's happening
-  if (Math.random() < 0.01) { // Log 1% of the time
-    console.log('Animation Debug:', {
-      moving: moving,
-      current: currentAnimation ? currentAnimation.getClip().name : 'none',
-      walkRunning: animations.walk ? animations.walk.isRunning() : false
-    });
-  }
 
   if (moving) {
     // Start walking animation if not already running
     if (animations.walk && !animations.walk.isRunning()) {
-      console.log('Starting walking animation');
       animations.walk.reset();
       animations.walk.setLoop(THREE.LoopRepeat, Infinity);
       animations.walk.play();
@@ -477,7 +468,6 @@ export function updateLeonardAnimations(deltaTime) {
   } else {
     // Stop walking animation when not moving
     if (animations.walk && animations.walk.isRunning()) {
-      console.log('Stopping walking animation');
       animations.walk.stop();
       currentAnimation = null;
     }
@@ -486,32 +476,6 @@ export function updateLeonardAnimations(deltaTime) {
   animationMixer.update(deltaTime);
 }
 
-/* ================================
-   DEBUG
-=================================== */
-export function debugAnimations() {
-  if (!animationMixer) {
-    console.log('No animation mixer');
-    return;
-  }
-  console.log('=== Animation Debug ===');
-  console.log('Current animation:', currentAnimation ? currentAnimation.getClip().name : 'none');
-  console.log('Keys pressed:', {
-    W: !!keys['KeyW'],
-    S: !!keys['KeyS'],
-    A: !!keys['KeyA'],
-    D: !!keys['KeyD']
-  });
-  console.log('Has idle animation:', !!animations.idle);
-  console.log('Has walk animation:', !!animations.walk);
-  if (animations.idle) {
-    console.log('Idle running:', animations.idle.isRunning(), 'time:', animations.idle.time, 'weight:', animations.idle.getEffectiveWeight());
-  }
-  if (animations.walk) {
-    console.log('Walk running:', animations.walk.isRunning(), 'time:', animations.walk.time, 'weight:', animations.walk.getEffectiveWeight());
-  }
-  console.log('Mixer time:', animationMixer.time);
-}
 
 /* ================================
    PLAYER (FALLBACK BOX) & INPUT

@@ -423,44 +423,44 @@ export function createRoom0() {
   lightFixtureGroup.position.set(0, wallHeight - 0.1, 0);
   group.add(lightFixtureGroup);
 
-  // Stage 0: Sterile bunker lighting - Cold and clinical
-  const roomAmbientLight = new THREE.AmbientLight(0x808B96, 0.4); // Cold bluish ambient
+  // Stage 0: Sterile bunker lighting - Cold and clinical (reduced intensity to prevent spill)
+  const roomAmbientLight = new THREE.AmbientLight(0x808B96, 0.2); // Reduced intensity
   group.add(roomAmbientLight);
 
-  // Stage 0: Main directional light (moved from global scene)
-  const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  // Stage 0: Main directional light (moved from global scene) - clamped to prevent spill
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); // Reduced intensity
   dirLight.position.set(10, 20, 10);
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.width = 512;
   dirLight.shadow.mapSize.height = 512;
   dirLight.shadow.camera.near = 0.1;
-  dirLight.shadow.camera.far = 50;
+  dirLight.shadow.camera.far = 15; // Further clamped to prevent spill to other rooms
   group.add(dirLight);
 
-  // Stage 0: Hemisphere light (moved from global scene)
-  const hemisphereLight = new THREE.HemisphereLight(0x8888aa, 0x222222, 0.4);
+  // Stage 0: Hemisphere light (moved from global scene) - reduced intensity
+  const hemisphereLight = new THREE.HemisphereLight(0x8888aa, 0x222222, 0.2); // Reduced intensity
   group.add(hemisphereLight);
 
-  // Stage 0: Optimized main ceiling light for performance
-  const ceilingLight = new THREE.PointLight(0xE6F3FF, 1.0, 25); // Optimized intensity and range
+  // Stage 0: Optimized main ceiling light for performance (reduced to prevent spill)
+  const ceilingLight = new THREE.PointLight(0xE6F3FF, 0.6, 15); // Reduced intensity and range
   ceilingLight.position.set(0, wallHeight - 0.8, 0);
   ceilingLight.castShadow = true;
   ceilingLight.shadow.mapSize.width = 512; // Reduced resolution for performance
   ceilingLight.shadow.mapSize.height = 512;
   ceilingLight.shadow.camera.near = 0.1;
-  ceilingLight.shadow.camera.far = 25;
+  ceilingLight.shadow.camera.far = 15; // Reduced far distance
   ceilingLight.shadow.bias = -0.0001;
   group.add(ceilingLight);
 
-  // Stage 0: Optimized fill lights for performance (no shadows)
-  const fillLight1 = new THREE.DirectionalLight(0x5D6D7E, 0.3); // Steel blue - no shadows for performance
+  // Stage 0: Optimized fill lights for performance (no shadows) - reduced intensity
+  const fillLight1 = new THREE.DirectionalLight(0x5D6D7E, 0.15); // Reduced intensity
   fillLight1.position.set(-8, 4, 8);
   fillLight1.target.position.set(0, 0, 0);
   fillLight1.castShadow = false; // Disabled for performance
   group.add(fillLight1);
   group.add(fillLight1.target);
 
-  const fillLight2 = new THREE.DirectionalLight(0x808B96, 0.3); // Cold grey - no shadows for performance
+  const fillLight2 = new THREE.DirectionalLight(0x808B96, 0.15); // Reduced intensity
   fillLight2.position.set(8, 4, -8);
   fillLight2.target.position.set(0, 0, 0);
   fillLight2.castShadow = false; // Disabled for performance
@@ -850,12 +850,10 @@ export function createRoom0() {
       // Player entered room - start tracking
       state.securityCamera.playerInRoom = true;
       state.securityCamera.isTracking = true;
-      console.log('Security camera: Player entered room, starting tracking');
     } else if (!inRoom && state.securityCamera.playerInRoom) {
       // Player left room - stop tracking
       state.securityCamera.playerInRoom = false;
       state.securityCamera.isTracking = false;
-      console.log('Security camera: Player left room, stopping tracking');
     }
     
     // Update camera rotation to track player

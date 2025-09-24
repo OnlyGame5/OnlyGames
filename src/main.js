@@ -141,8 +141,32 @@ window.addEventListener('keydown', (e) => {
     AI.say(`Switched to ${viewMode} view. Use mouse to look around in first-person.`);
   }
   
+  // I key interaction handler for inventory inspection
+  if (e.code === 'KeyI') {
+    // Check if paper examination is open first
+    const paperExamination = document.getElementById('paperExamination');
+    if (paperExamination) {
+      // Paper examination is open, don't handle the I-key here
+      // Let the paper examination's event listener handle it
+      return;
+    }
+    
+    // Only handle inventory inspection if paper examination is not open
+    if (gameState.room1 && gameState.room1.handleIKeyInteraction) {
+      const activePlayer = leonardModel || player;
+      gameState.room1.handleIKeyInteraction(activePlayer);
+    }
+  }
+  
   // E key interaction handler
   if (e.code === 'KeyE') {
+    // Check if paper examination is open first
+    const paperExamination = document.getElementById('paperExamination');
+    if (paperExamination) {
+      // Paper examination is open, let it handle the E-key to close
+      return;
+    }
+    
     if (gameState.stage === 0 && gameState.room0) {
       // Use the active player object (Leonard model or fallback box)
       const activePlayer = leonardModel || player;
@@ -156,22 +180,25 @@ window.addEventListener('keydown', (e) => {
   // L key interaction handler for Room 1 light switch
   if (e.code === 'KeyL') {
     console.log('L key pressed in main.js');
-    // Check if player is in Room 1
-    if (gameState.room1) {
+    // Check if player is in Room 1 using the new bounds checking function
+    if (gameState.room1 && gameState.room1.isPlayerInRoom1) {
       const activePlayer = leonardModel || player;
-      const playerWorld = activePlayer.position.clone();
-      const localToRoom1 = gameState.room1.group.worldToLocal(playerWorld.clone());
-      const half = 9; // Room 1 is 18x18, so half is 9
-      const insideRoom1 = (
-        localToRoom1.x >= -half && localToRoom1.x <= half &&
-        localToRoom1.z >= -half && localToRoom1.z <= half
-      );
+      const playerPos = activePlayer.position.clone();
       
-      if (insideRoom1 && gameState.room1.toggleLights) {
+      if (gameState.room1.isPlayerInRoom1(playerPos)) {
         console.log('Player is in Room 1, toggling lights');
-        gameState.room1.toggleLights();
+        // Use the unified lighting controller
+        if (gameState.room1.setRoom1Lights) {
+          // Toggle the current state using the getter
+          const currentState = gameState.room1.getLightsOn ? gameState.room1.getLightsOn() : true;
+          console.log('Current light state:', currentState, 'Toggling to:', !currentState);
+          gameState.room1.setRoom1Lights(!currentState);
+        } else if (gameState.room1.toggleLights) {
+          // Fallback to legacy toggle
+          gameState.room1.toggleLights();
+        }
       } else {
-        console.log('Player not in Room 1 or toggleLights not available');
+        console.log('Player not in Room 1');
       }
     }
   }
@@ -185,9 +212,11 @@ window.addEventListener('resize', () => {
 });
 
 // Unlock room 1 (door opens, room is already visible)
+let room1Unlocked = false;
 function unlockRoom1() {
-  if (gameState.stage === 0) {
+  if (gameState.stage === 0 && !room1Unlocked) {
     gameState.stage = 1;
+    room1Unlocked = true;
     AI.say("The door opens, granting you access to the hallway. Walk through to reach the first challenge room.");
   }
 }
@@ -230,9 +259,11 @@ function animate(currentTime) {
     }
   }
   
-  // Stage 0: Update Stage 0 if active
+  // Stage 0: Update Stage 0 if active (but not if player is in Room 1)
   if (gameState.stage === 0 && gameState.room0) {
     const activePlayer = leonardModel || player;
+    
+    // Always run Room 0 updates to allow door message to play
     gameState.room0.updateRoom0(deltaTime, { playerObject: activePlayer, ai: AI });
     
     // Stage 0: Check for doorway trigger
@@ -249,6 +280,11 @@ function animate(currentTime) {
   // Update Room 1 light switch proximity
   if (gameState.room1 && typeof gameState.room1.checkLightSwitchProximity === 'function') {
     gameState.room1.checkLightSwitchProximity();
+  }
+  
+  // Update Room 1 contextual dialogue
+  if (gameState.room1 && typeof gameState.room1.updateRoom1Dialogue === 'function') {
+    gameState.room1.updateRoom1Dialogue();
   }
   
   // Stage 0: Update camera

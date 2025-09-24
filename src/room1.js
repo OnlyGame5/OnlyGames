@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { addToInventory } from './player.js';
+import { addToInventory, hasInInventory, getPlayerInventory } from './player.js';
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -117,11 +117,13 @@ export function createRoom1() {
       normalScale: new THREE.Vector2(0.5, 0.5)
     });
     
+    // Store reference to floor material for lighting control
     const floor = new THREE.Mesh(
       new THREE.BoxGeometry(18, 0.2, 18),
       floorMat
     );
     floor.receiveShadow = true;
+    floor.name = 'room1-floor'; // Add name for easy reference
     group.add(floor);
   }
   createDetailedFloor();
@@ -624,14 +626,34 @@ export function createRoom1() {
   lightFixtureGroup.position.set(0, 4.0, 0);
   group.add(lightFixtureGroup);
 
-  // Room 1: Main ceiling light (toggleable) with hum and flicker
-  const ceilingLight = new THREE.PointLight(0xFFFFFF, 1.0, 20);
-  ceilingLight.position.set(0, 3.8, 0);
-  ceilingLight.castShadow = true;
-  ceilingLight.shadow.mapSize.width = 512;
-  ceilingLight.shadow.mapSize.height = 512;
-  ceilingLight.name = 'ceiling-light';
-  group.add(ceilingLight);
+  // Room 1: Unified lighting controller setup
+  const lights = {
+    ambient: new THREE.AmbientLight(0x404040, 1.2), // Increased from 0.5 to 1.2
+    ceiling: new THREE.PointLight(0xFFFFFF, 2.5, 20), // Increased from 1.0 to 2.5
+    spot: new THREE.SpotLight(0xffffff, 1.5, 12, Math.PI / 6, 0.2, 1) // Increased from 0.6 to 1.5
+  };
+  
+  // Configure lights with clamped distances to prevent spill
+  lights.ceiling.distance = 20; // Tune to room length
+  lights.spot.distance = 12;
+  lights.spot.position.set(0, 3.8, 0);
+  lights.spot.target.position.set(0, 0, 0);
+  lights.spot.castShadow = true;
+  lights.spot.shadow.mapSize.width = 512;
+  lights.spot.shadow.mapSize.height = 512;
+  
+  // Position and add lights to group
+  lights.ceiling.position.set(0, 3.8, 0);
+  lights.ceiling.castShadow = true;
+  lights.ceiling.shadow.mapSize.width = 512;
+  lights.ceiling.shadow.mapSize.height = 512;
+  lights.ceiling.name = 'ceiling-light';
+  
+  // Add lights to group
+  group.add(lights.ambient);
+  group.add(lights.ceiling);
+  group.add(lights.spot);
+  group.add(lights.spot.target);
 
   // Add swivel cameras
   function addSwivelCameras() {
@@ -678,10 +700,14 @@ export function createRoom1() {
   }
   addSwivelCameras();
 
-  // Room 1: Ambient light for basic illumination (increased for better floor visibility)
-  const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-  ambientLight.name = 'ambient-light';
-  group.add(ambientLight);
+  // Room 1: Create emissives list for bulbs, LEDs, and indicators
+  const emissives = [];
+  
+  // Add light fixture bulb to emissives
+  const lightBulbRef = lightFixtureGroup.getObjectByName('light-bulb');
+  if (lightBulbRef) {
+    emissives.push(lightBulbRef);
+  }
 
   // Room 1: Light switch system
   let lightsOn = true;
@@ -813,10 +839,169 @@ export function createRoom1() {
 
   group.add(panelMesh);
 
-  // (state declared earlier)
+  // Paper examination system
+  let paperExaminationOpen = false;
+  
+  function showPaperExamination() {
+    if (paperExaminationOpen) {
+      return;
+    }
+    
+    paperExaminationOpen = true;
+    
+    // Create paper examination overlay
+    const paperOverlay = document.createElement('div');
+    paperOverlay.id = 'paperExamination';
+    paperOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 2000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    `;
+    
+    // Create paper content
+    const paperContent = document.createElement('div');
+    paperContent.style.cssText = `
+      background: #f5f5dc;
+      border: 2px solid #8b4513;
+      border-radius: 8px;
+      padding: 40px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      position: relative;
+    `;
+    
+    // Check if lights are on in Room 1 to show circuit puzzle text
+    const lightsAreOn = lightsOn;
+    
+    if (lightsAreOn) {
+      // Show circuit puzzle when lights are on
+      paperContent.innerHTML = `
+        <h2 style="color: #333; margin-bottom: 20px; text-align: center;">Circuit Puzzle Instructions</h2>
+        <div style="color: #666; line-height: 1.6;">
+          <p><strong>Wire Connection Order:</strong></p>
+          <ul style="list-style-type: disc; margin-left: 20px;">
+            <li style="color: #ff0000; font-weight: bold;">Red</li>
+            <li style="color: #0000ff; font-weight: bold;">Blue</li>
+            <li style="color: #008000; font-weight: bold;">Green</li>
+            <li style="color: #ffd700; font-weight: bold;">Yellow</li>
+          </ul>
+          <p style="margin-top: 20px; font-style: italic; color: #888;">
+            Connect the wires in the exact order shown above to complete the circuit.
+          </p>
+        </div>
+        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 14px;">
+          Click anywhere or press I to close
+        </div>
+      `;
+      
+      // AI response with incorrect order
+      if (window.AI) {
+        setTimeout(() => {
+          window.AI.say("Ah yes, the circuit problem. From my memory, it's Blue, Green, Yellow, Red. That should be the correct order.");
+        }, 1000);
+      }
+    } else {
+      // Show blank paper when lights are off
+      paperContent.innerHTML = `
+        <h2 style="color: #333; margin-bottom: 20px; text-align: center;">Recovered Document</h2>
+        <div style="color: #666; line-height: 1.6;">
+          <p>The paper appears to be blank or the text is too faded to read clearly.</p>
+          <p style="margin-top: 20px; font-style: italic; color: #888;">
+            Perhaps you need to examine this under different lighting conditions...
+          </p>
+        </div>
+        <div style="text-align: center; margin-top: 20px; color: #999; font-size: 14px;">
+          Click anywhere or press I to close
+        </div>
+      `;
+      
+      // Trigger AI response for examining paper with lights off
+      handlePaperExaminationWithLightsOff();
+    }
+    
+    paperOverlay.appendChild(paperContent);
+    document.body.appendChild(paperOverlay);
+    
+    // Close on click
+    paperOverlay.addEventListener('click', () => {
+      if (paperOverlay && paperOverlay.parentNode) {
+        document.body.removeChild(paperOverlay);
+      }
+      paperExaminationOpen = false;
+    });
+    
+    // Close on Escape key or I key
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' || e.key === 'i' || e.key === 'I' || e.code === 'KeyI') {
+        // Check if the element still exists before removing
+        if (paperOverlay && paperOverlay.parentNode) {
+          document.body.removeChild(paperOverlay);
+        }
+        paperExaminationOpen = false;
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+  }
+
+  // I-key interaction for inventory inspection
+  function handleIKeyInteraction(playerObject) {
+    // Check if player has the paper from safe and wants to examine it
+    if (state.safeOpened && hasInInventory('room1-note')) {
+      // Check if the paper is in the currently selected inventory slot
+      const playerInventory = getPlayerInventory();
+      const selectedItem = playerInventory.getSelectedItem();
+      if (!selectedItem || selectedItem.name !== 'room1-note') {
+        return false; // Paper not in selected slot
+      }
+      
+      // Check if player is in Room 1 bounds
+      const playerPos = playerObject.position.clone();
+      const localToRoom1 = group.worldToLocal(playerPos.clone());
+      const half = 9;
+      const insideRoom1 = (
+        localToRoom1.x >= -half && localToRoom1.x <= half &&
+        localToRoom1.z >= -half && localToRoom1.z <= half
+      );
+      
+      if (insideRoom1) {
+        // Show paper examination view
+        showPaperExamination();
+        return true;
+      }
+    }
+    
+    return false;
+  }
 
   // E-key interaction for room1
   function handleEKeyInteraction(playerObject) {
+    // Check if player is near the light switch
+    const lightSwitchGroup = group.getObjectByName('light-switch-group');
+    if (lightSwitchGroup) {
+      const switchWorldPos = new THREE.Vector3();
+      lightSwitchGroup.getWorldPosition(switchWorldPos);
+      const distanceToSwitch = playerObject.position.distanceTo(switchWorldPos);
+      
+      if (distanceToSwitch < 4.0) { // Increased from 2.0 to 4.0 units
+        // Toggle lights
+        const currentState = lightsOn;
+        setRoom1Lights(!currentState);
+        return true;
+      }
+    }
+    
+    // Original safe interaction
     if (!state.safeObject) return false;
     // Compare in world space because room1 group is offset in the scene
     const safeWorldPos = new THREE.Vector3();
@@ -1110,6 +1295,19 @@ export function createRoom1() {
   switchLight.name = 'switch-point-light';
   group.add(switchLight);
   
+  // Add switch lights to lights registry
+  lights.switchSpotlight = new THREE.SpotLight(0x00ff00, 1.0, 15, Math.PI / 6, 0.2, 1);
+  lights.switchSpotlight.position.set(-8.5, 4.0, 0);
+  lights.switchSpotlight.target.position.set(-8.5, 1.8, 0);
+  lights.switchSpotlight.castShadow = true;
+  lights.switchSpotlight.name = 'switch-spotlight';
+  lights.switchSpotlight.distance = 15; // Clamp distance
+  group.add(lights.switchSpotlight);
+  group.add(lights.switchSpotlight.target);
+  
+  lights.switchPointLight = switchLight;
+  lights.switchPointLight.distance = 10; // Clamp distance
+  
   // Add a floating arrow indicator above the switch
   const arrowGeometry = new THREE.ConeGeometry(0.3, 1.0, 8);
   const arrowMaterial = new THREE.MeshStandardMaterial({
@@ -1122,6 +1320,17 @@ export function createRoom1() {
   arrowIndicator.rotation.x = Math.PI;
   arrowIndicator.name = 'arrow-indicator';
   group.add(arrowIndicator);
+  
+  // Add switch indicators to emissives list
+  const switchButtonRef = lightSwitchGroup.getObjectByName('switch-button');
+  const statusLight1Ref = lightSwitchGroup.getObjectByName('status-light-1');
+  const statusLight2Ref = lightSwitchGroup.getObjectByName('status-light-2');
+  
+  if (switchButtonRef) emissives.push(switchButtonRef);
+  if (statusLight1Ref) emissives.push(statusLight1Ref);
+  if (statusLight2Ref) emissives.push(statusLight2Ref);
+  if (floorIndicator) emissives.push(floorIndicator);
+  if (arrowIndicator) emissives.push(arrowIndicator);
   
   // Add pulsing animation to the arrow
   let arrowPulse = 0;
@@ -1219,107 +1428,221 @@ export function createRoom1() {
     return false;
   }
 
-  // Toggle lights function for main.js to call
-  function toggleLights() {
-    console.log('Room 1 toggleLights called');
-    lightsOn = !lightsOn;
+  // Unified lighting controller for Room 1
+  function setRoom1Lights(on) {
+    console.log('setRoom1Lights called with:', on);
     
-    // Toggle ceiling light fixture (the visual light)
+    // Toggle point/spot lights
+    lights.ceiling.visible = on;
+    lights.spot.visible = on;
+    lights.switchSpotlight.visible = on;
+    lights.switchPointLight.visible = on;
+    
+    // Set ambient intensity to 0 when off (or remove ambient entirely)
+    if (lights.ambient) {
+      lights.ambient.intensity = on ? 1.2 : 0.0; // Increased from 0.5 to 1.2
+    }
+    
+    // Also reduce global ambient lighting when Room 1 lights are off
+    // This is a more aggressive approach to ensure complete darkness
+    if (window.gameState && window.gameState.room0) {
+      // Find and temporarily reduce Room 0's ambient light
+      window.gameState.room0.group.traverse((child) => {
+        if (child.isAmbientLight) {
+          child.intensity = on ? 0.2 : 0.05; // Much darker when Room 1 lights are off
+        }
+      });
+    }
+    
+    // Zero out emissiveIntensity for all emissive meshes and optionally hide them
+    for (const mesh of emissives) {
+      if (!mesh || !mesh.material) continue;
+      if ('emissiveIntensity' in mesh.material) {
+        mesh.material.emissiveIntensity = on ? 1.5 : 0.0; // Increased from 0.8 to 1.5
+      }
+      mesh.visible = on; // Hide indicators when off
+    }
+    
+    // Update light fixture visibility
     const lightFixtureGroup = group.getObjectByName('ceiling-light-fixture');
     if (lightFixtureGroup) {
-      lightFixtureGroup.visible = lightsOn;
-      console.log('Ceiling light fixture toggled:', lightsOn);
-    } else {
-      console.log('Ceiling light fixture not found!');
+      lightFixtureGroup.visible = on;
     }
     
-    // Toggle ceiling light (the actual light source)
-    const ceilingLight = group.getObjectByName('ceiling-light');
-    if (ceilingLight) {
-      ceilingLight.visible = lightsOn;
-      console.log('Ceiling light toggled:', lightsOn);
-    } else {
-      console.log('Ceiling light not found!');
+    // Update floor material darkness when lights are off
+    const floor = group.getObjectByName('room1-floor');
+    if (floor && floor.material) {
+      if (on) {
+        // Make floor brighter when lights are on
+        floor.material.color.setHex(0x2a3a2a); // Brighter greenish-gray
+      } else {
+        // Make floor extremely dark when lights are off
+        floor.material.color.setHex(0x050505); // Almost black
+      }
     }
     
-    // Toggle ambient light
-    const ambientLight = group.getObjectByName('ambient-light');
-    if (ambientLight) {
-      ambientLight.visible = lightsOn;
-      console.log('Ambient light toggled:', lightsOn);
-    } else {
-      console.log('Ambient light not found!');
-    }
-    
-    // Toggle switch lights (they should only be on when main lights are on)
-    const switchSpotlight = group.getObjectByName('switch-spotlight');
-    if (switchSpotlight) {
-      switchSpotlight.visible = lightsOn;
-      console.log('Switch spotlight toggled:', lightsOn);
-    }
-    
-    const switchLight = group.getObjectByName('switch-point-light');
-    if (switchLight) {
-      switchLight.visible = lightsOn;
-      console.log('Switch point light toggled:', lightsOn);
-    }
+    // Update wall materials darkness when lights are off
+    group.traverse((child) => {
+      if (child.isMesh && child.userData && child.userData.type === 'wall') {
+        if (child.material) {
+          if (on) {
+            // Make walls brighter when lights are on
+            if (child.material.color) {
+              child.material.color.setHex(0x3a4a3a); // Brighter wall color
+            }
+          } else {
+            // Make walls extremely dark when lights are off
+            if (child.material.color) {
+              child.material.color.setHex(0x080808); // Almost black walls
+            }
+          }
+        }
+      }
+    });
     
     // Update switch visual feedback
-    const switchButton = lightSwitchGroup.getObjectByName('switch-button');
-    const statusLight1 = lightSwitchGroup.getObjectByName('status-light-1');
-    const statusLight2 = lightSwitchGroup.getObjectByName('status-light-2');
+    const switchButtonUpdate = lightSwitchGroup.getObjectByName('switch-button');
+    const statusLight1Update = lightSwitchGroup.getObjectByName('status-light-1');
+    const statusLight2Update = lightSwitchGroup.getObjectByName('status-light-2');
     
-    if (switchButton) {
-      switchButton.material.emissive.setHex(lightsOn ? 0x00ff00 : 0x000000);
-      switchButton.material.emissiveIntensity = lightsOn ? 0.5 : 0.0;
-      console.log('Switch button updated:', lightsOn);
+    if (switchButtonUpdate) {
+      switchButtonUpdate.material.emissive.setHex(on ? 0x00ff00 : 0x000000);
+      switchButtonUpdate.material.emissiveIntensity = on ? 0.5 : 0.0;
     }
     
-    if (statusLight1) {
-      statusLight1.material.emissiveIntensity = lightsOn ? 0.8 : 0.0;
-      console.log('Status light 1 updated:', lightsOn);
+    if (statusLight1Update) {
+      statusLight1Update.material.emissiveIntensity = on ? 0.8 : 0.0;
     }
     
-    if (statusLight2) {
-      statusLight2.material.emissiveIntensity = lightsOn ? 0.0 : 0.8;
-      console.log('Status light 2 updated:', lightsOn);
+    if (statusLight2Update) {
+      statusLight2Update.material.emissiveIntensity = on ? 0.0 : 0.8;
     }
     
-    // Toggle floor indicator and arrow (they should be dim when lights are off)
-    const floorIndicator = group.getObjectByName('switch-indicator');
-    if (floorIndicator) {
-      floorIndicator.visible = lightsOn;
-      console.log('Floor indicator toggled:', lightsOn);
-    }
+    // Update state
+    lightsOn = on;
     
-    const arrowIndicator = group.getObjectByName('arrow-indicator');
-    if (arrowIndicator) {
-      arrowIndicator.visible = lightsOn;
-      console.log('Arrow indicator toggled:', lightsOn);
-    }
-    
-    // Debug: Log the light state
-    console.log('Room 1 lights toggled:', lightsOn);
-    
-    // Try multiple ways to access AI
-    if (window.AI && window.AI.say) {
-      window.AI.say(lightsOn ? 'Lights on.' : 'Lights off.');
-    } else if (window.gameState && window.gameState.room0 && window.gameState.room0.AI) {
-      window.gameState.room0.AI.say(lightsOn ? 'Lights on.' : 'Lights off.');
-    } else {
-      console.log('AI not found, lights toggled to:', lightsOn);
-    }
+    // No procedural AI feedback for lights - contextual dialogue handles this
+  }
+  
+  // Check if player is inside Room 1 bounds
+  function isPlayerInRoom1(playerPos) {
+    // Use the group's world position + known room extents
+    const g = group;
+    const wp = new THREE.Vector3();
+    g.getWorldPosition(wp);
+    const half = 9; // Room is 18x18, so half is 9
+    const x = playerPos.x - wp.x;
+    const z = playerPos.z - wp.z;
+    return (x > -half && x < half && z > -half && z < half);
+  }
+  
+  // Legacy toggle function for backward compatibility
+  function toggleLights() {
+    setRoom1Lights(!lightsOn);
+  }
+  
+  // Getter for current light state
+  function getLightsOn() {
+    return lightsOn;
   }
 
+  // Initialize lights OFF by default
+  setRoom1Lights(false);
+  
+  // Room 1 contextual dialogue system
+  let room1DialogueState = {
+    hasWelcomed: false,
+    hasPromptedDesk: false,
+    hasPromptedPaper: false,
+    hasExaminedPaperWithLightsOff: false
+  };
+  
+  // Welcome message for Room 1
+  function triggerRoom1Welcome() {
+    if (!room1DialogueState.hasWelcomed) {
+      room1DialogueState.hasWelcomed = true;
+      if (window.AI) {
+        // Add 5-second delay to allow Room 0 door message to play first
+        setTimeout(() => {
+          window.AI.say("Welcome to Room 1. This is your first challenge room. It's quite dark in here - you might want to find the light switch. Look around - there's a desk with a safe, and some interesting equipment. Take your time to explore.");
+        }, 5000);
+      }
+    }
+  }
+  
+  // Prompt to check desk and safe
+  function triggerDeskSafePrompt() {
+    if (!room1DialogueState.hasPromptedDesk && state.safeOpened) {
+      room1DialogueState.hasPromptedDesk = true;
+      if (window.AI) {
+        window.AI.say("Good Work opening the safe! You have a note in your inventory. Press E to examine it closely. These documents often contain important information for solving puzzles. Make sure you have good lighting to read it properly.");
+      }
+    }
+  }
+  
+  // Prompt to examine paper
+  function triggerPaperPrompt() {
+    if (!room1DialogueState.hasPromptedPaper && hasInInventory('room1-note')) {
+      room1DialogueState.hasPromptedPaper = true;
+      if (window.AI) {
+        window.AI.say("You might need better lighting to read it clearly - try turning on the lights first.");
+      }
+    }
+  }
+  
+  // Response when examining paper with lights off
+  function handlePaperExaminationWithLightsOff() {
+    if (!room1DialogueState.hasExaminedPaperWithLightsOff) {
+      room1DialogueState.hasExaminedPaperWithLightsOff = true;
+      // No AI message for lights off examination
+    }
+  }
+  
+  // Update dialogue system
+  function updateRoom1Dialogue() {
+    // Check if player is in Room 1
+    if (window.leonardModel || window.player) {
+      const activePlayer = window.leonardModel || window.player;
+      const playerPos = activePlayer.position.clone();
+      const localToRoom1 = group.worldToLocal(playerPos.clone());
+      const half = 9;
+      const insideRoom1 = (
+        localToRoom1.x >= -half && localToRoom1.x <= half &&
+        localToRoom1.z >= -half && localToRoom1.z <= half
+      );
+      
+      if (insideRoom1) {
+        // Trigger welcome message
+        triggerRoom1Welcome();
+        
+        // Trigger desk/safe prompt after safe is opened
+        if (state.safeOpened) {
+          triggerDeskSafePrompt();
+        }
+        
+        // Trigger paper prompt if player has the note
+        if (hasInInventory('room1-note')) {
+          triggerPaperPrompt();
+        }
+      }
+    }
+  }
+  
   return {
     group,
     anchors: { entry: entryAnchor, exit: exitAnchor },
     checkWallCollisions,
     updateRoom1,
     handleEKeyInteraction,
+    handleIKeyInteraction, // <-- new I-key handler for inventory inspection
     handleSwitchInteraction,
     checkLightSwitchProximity, // <-- call this in your game loop with player object
-    toggleLights // <-- for main.js to call when L key is pressed
+    toggleLights, // <-- for main.js to call when L key is pressed
+    setRoom1Lights, // <-- unified lighting controller
+    isPlayerInRoom1, // <-- player bounds checking
+    getLightsOn, // <-- getter for current light state
+    lightsOn: lightsOn, // <-- expose current state
+    updateRoom1Dialogue // <-- contextual dialogue system
   };
 }
 
