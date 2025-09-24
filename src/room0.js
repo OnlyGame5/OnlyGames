@@ -359,52 +359,117 @@ export function createRoom0() {
   roof.receiveShadow = true;
   group.add(roof);
 
-  // Stage 0: Ceiling light fixture
-  const lightFixture = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.5, 1.5, 0.2, 16),
+  // Stage 0: Enhanced ceiling light fixture with proper housing
+  const lightFixtureGroup = new THREE.Group();
+  lightFixtureGroup.name = 'ceiling-light-fixture';
+  
+  // Main light housing (metallic)
+  const lightHousing = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.8, 1.8, 0.3, 16),
     new THREE.MeshStandardMaterial({ 
-      color: 0x444444,
-      metalness: 0.8,
-      roughness: 0.2
+      color: 0x333333,
+      metalness: 0.9,
+      roughness: 0.1
     })
   );
-  lightFixture.position.set(0, wallHeight - 0.1, 0);
-  lightFixture.castShadow = true;
-  group.add(lightFixture);
+  lightHousing.position.set(0, 0, 0);
+  lightHousing.castShadow = false; // Don't cast shadows to avoid blocking light
+  lightHousing.receiveShadow = true;
+  lightFixtureGroup.add(lightHousing);
+  
+  // Light diffuser/cover (semi-transparent)
+  const lightDiffuser = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.6, 1.6, 0.1, 16),
+    new THREE.MeshStandardMaterial({ 
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.3,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.1
+    })
+  );
+  lightDiffuser.position.set(0, -0.1, 0);
+  lightDiffuser.castShadow = false;
+  lightFixtureGroup.add(lightDiffuser);
+  
+  // Light bulb/emitter (glowing)
+  const lightBulb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.3, 12, 8),
+    new THREE.MeshStandardMaterial({ 
+      color: 0xffffff,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.8,
+      transparent: true,
+      opacity: 0.9
+    })
+  );
+  lightBulb.position.set(0, -0.15, 0);
+  lightBulb.castShadow = false;
+  lightFixtureGroup.add(lightBulb);
+  
+  // Mounting bracket
+  const mountingBracket = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1, 0.1, 0.4, 8),
+    new THREE.MeshStandardMaterial({ 
+      color: 0x222222,
+      metalness: 0.8,
+      roughness: 0.3
+    })
+  );
+  mountingBracket.position.set(0, 0.2, 0);
+  mountingBracket.castShadow = false; // Don't cast shadows to avoid blocking light
+  lightFixtureGroup.add(mountingBracket);
+  
+  lightFixtureGroup.position.set(0, wallHeight - 0.1, 0);
+  group.add(lightFixtureGroup);
 
   // Stage 0: Sterile bunker lighting - Cold and clinical
   const roomAmbientLight = new THREE.AmbientLight(0x808B96, 0.4); // Cold bluish ambient
   group.add(roomAmbientLight);
 
-  // Stage 0: Main ceiling light - Cold white with slight flicker
-  const ceilingLight = new THREE.PointLight(0xE6F3FF, 0.6, 25); // Cold white
-  ceilingLight.position.set(0, wallHeight - 1, 0);
+  // Stage 0: Main directional light (moved from global scene)
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  dirLight.position.set(10, 20, 10);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 512;
+  dirLight.shadow.mapSize.height = 512;
+  dirLight.shadow.camera.near = 0.1;
+  dirLight.shadow.camera.far = 50;
+  group.add(dirLight);
+
+  // Stage 0: Hemisphere light (moved from global scene)
+  const hemisphereLight = new THREE.HemisphereLight(0x8888aa, 0x222222, 0.4);
+  group.add(hemisphereLight);
+
+  // Stage 0: Optimized main ceiling light for performance
+  const ceilingLight = new THREE.PointLight(0xE6F3FF, 1.0, 25); // Optimized intensity and range
+  ceilingLight.position.set(0, wallHeight - 0.8, 0);
   ceilingLight.castShadow = true;
-  ceilingLight.shadow.mapSize.width = 1024;
-  ceilingLight.shadow.mapSize.height = 1024;
+  ceilingLight.shadow.mapSize.width = 512; // Reduced resolution for performance
+  ceilingLight.shadow.mapSize.height = 512;
   ceilingLight.shadow.camera.near = 0.1;
   ceilingLight.shadow.camera.far = 25;
+  ceilingLight.shadow.bias = -0.0001;
   group.add(ceilingLight);
 
-  // Stage 0: Additional cold fill lights for sterile atmosphere
-  const fillLight1 = new THREE.DirectionalLight(0x5D6D7E, 0.15); // Steel blue
-  fillLight1.position.set(-5, 3, 5);
+  // Stage 0: Optimized fill lights for performance (no shadows)
+  const fillLight1 = new THREE.DirectionalLight(0x5D6D7E, 0.3); // Steel blue - no shadows for performance
+  fillLight1.position.set(-8, 4, 8);
   fillLight1.target.position.set(0, 0, 0);
+  fillLight1.castShadow = false; // Disabled for performance
   group.add(fillLight1);
   group.add(fillLight1.target);
 
-  const fillLight2 = new THREE.DirectionalLight(0x808B96, 0.15); // Cold grey
-  fillLight2.position.set(5, 3, -5);
+  const fillLight2 = new THREE.DirectionalLight(0x808B96, 0.3); // Cold grey - no shadows for performance
+  fillLight2.position.set(8, 4, -8);
   fillLight2.target.position.set(0, 0, 0);
+  fillLight2.castShadow = false; // Disabled for performance
   group.add(fillLight2);
   group.add(fillLight2.target);
   
-  // Stage 0: Add subtle flickering effect to main light
-  let flickerTime = 0;
+  // Stage 0: Stable lighting - no flickering
   function updateLightFlicker(dt) {
-    flickerTime += dt;
-    const flickerIntensity = 0.6 + Math.sin(flickerTime * 8) * 0.05 + Math.sin(flickerTime * 13) * 0.03;
-    ceilingLight.intensity = Math.max(0.4, flickerIntensity);
+    // No flickering - stable lighting
   }
 
   // Stage 0: Add wall-mounted emergency lights
@@ -831,8 +896,7 @@ export function createRoom0() {
     // Stage 0: Update security camera tracking
     updateSecurityCamera(playerObject);
     
-    // Stage 0: Update light flickering for atmosphere
-    updateLightFlicker(dt);
+    // Stage 0: Stable lighting - no flickering needed
 
     // Stage 0: Door animation
     if (state.doorAnim.active) {
@@ -1003,7 +1067,7 @@ export function createRoom0() {
     }
 
     // Hallway constraints (after crossing the back wall into negative Z further)
-    // Hallway spans roughly from -7.5 (backWallZ) toward Room 1 at around -25
+    // Hallway spans roughly from -7.5 (backWallZ) toward Room 1 at around -30
     // Keep player within hallway width (x in [-2, 2]) once past the back wall
     if (pos.z < backWallZ - 0.01) {
       const hallwayHalf = 2 - playerRadius;
@@ -1025,39 +1089,39 @@ export function createRoom0() {
   
   // Hallway floor
   const hallwayFloor = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 0.2, 11.5),
+    new THREE.BoxGeometry(4, 0.2, 16.5),
     new THREE.MeshStandardMaterial({ color: 0x2a2a2a })
   );
-  hallwayFloor.position.set(0, -0.1, -13.25); // Position between room 0 and room 1
+  hallwayFloor.position.set(0, -0.1, -15); // Position between room 0 and room 1
   hallwayFloor.receiveShadow = true;
   hallway.add(hallwayFloor);
   
   // Hallway walls
   const hallwayWallMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
   const hallwayWall1 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 4, 11.5),
+    new THREE.BoxGeometry(0.2, 4, 16.5),
     hallwayWallMaterial
   );
-  hallwayWall1.position.set(-2, 2, -13.25);
+  hallwayWall1.position.set(-2, 2, -15);
   hallwayWall1.castShadow = true;
   hallwayWall1.userData = { type: 'wall', side: 'hallway-left' };
   hallway.add(hallwayWall1);
   
   const hallwayWall2 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 4, 11.5),
+    new THREE.BoxGeometry(0.2, 4, 16.5),
     hallwayWallMaterial
   );
-  hallwayWall2.position.set(2, 2, -13.25);
+  hallwayWall2.position.set(2, 2, -15);
   hallwayWall2.castShadow = true;
   hallwayWall2.userData = { type: 'wall', side: 'hallway-right' };
   hallway.add(hallwayWall2);
   
   // Hallway ceiling
   const hallwayCeiling = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 0.3, 11.5),
+    new THREE.BoxGeometry(4, 0.3, 16.5),
     new THREE.MeshStandardMaterial({ color: 0x444444 })
   );
-  hallwayCeiling.position.set(0, 4.15, -13.25);
+  hallwayCeiling.position.set(0, 4.15, -15);
   hallwayCeiling.receiveShadow = true;
   hallway.add(hallwayCeiling);
   

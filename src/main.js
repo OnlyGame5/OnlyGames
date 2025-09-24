@@ -14,17 +14,18 @@ scene.background = new THREE.Color(0x0b0b12);
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 4, 10);
 
-const renderer = new THREE.WebGLRenderer({ antialias:true });
+const renderer = new THREE.WebGLRenderer({ 
+  antialias: false, // Disabled for performance
+  powerPreference: "high-performance"
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Better shadow quality with less performance cost
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio for performance
 document.body.appendChild(renderer.domElement);
 
-// Lighting
-const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-dirLight.position.set(10, 20, 10);
-dirLight.castShadow = true;
-scene.add(dirLight);
-scene.add(new THREE.HemisphereLight(0x8888aa, 0x222222, 0.6));
+// Lighting - Only for Room 0 (global lights removed to let Room 1 control its own lighting)
+// Global lights moved to Room 0 only
 
 // Player setup
 const player = setupPlayer(scene);
@@ -58,16 +59,16 @@ async function initGame() {
     addFirstPersonItemToScene(scene);
     
     // Line them up along -Z with proper spacing
-    const ROOM_SPACING = 25; // tweak to your room length
+    const ROOM_SPACING = 30; // Increased spacing to accommodate larger room 1
     gameState.room0.group.position.set(0, 0, 0 * -ROOM_SPACING); // 0
-    gameState.room1.group.position.set(0, 0, 1 * -ROOM_SPACING); // -25
-    gameState.room2.group.position.set(0, 0, 2 * -ROOM_SPACING); // -50
-    gameState.room3.group.position.set(0, 0, 3 * -ROOM_SPACING); // -75
+    gameState.room1.group.position.set(0, 0, 1 * -ROOM_SPACING); // -30
+    gameState.room2.group.position.set(0, 0, 2 * -ROOM_SPACING); // -60
+    gameState.room3.group.position.set(0, 0, 3 * -ROOM_SPACING); // -90
     
-    // Initially hide rooms 1, 2, 3 until unlocked
-    gameState.room1.group.visible = false;
-    gameState.room2.group.visible = false;
-    gameState.room3.group.visible = false;
+    // All rooms visible from start to prevent loading freezes
+    gameState.room1.group.visible = true;
+    gameState.room2.group.visible = true;
+    gameState.room3.group.visible = true;
     
     // AI greeting for Stage 0
     AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
@@ -96,16 +97,16 @@ async function initGame() {
     addFirstPersonItemToScene(scene);
     
     // Line them up along -Z with proper spacing
-    const ROOM_SPACING = 25;
+    const ROOM_SPACING = 30;
     gameState.room0.group.position.set(0, 0, 0 * -ROOM_SPACING);
     gameState.room1.group.position.set(0, 0, 1 * -ROOM_SPACING);
     gameState.room2.group.position.set(0, 0, 2 * -ROOM_SPACING);
     gameState.room3.group.position.set(0, 0, 3 * -ROOM_SPACING);
     
-    // Initially hide rooms 1, 2, 3
-    gameState.room1.group.visible = false;
-    gameState.room2.group.visible = false;
-    gameState.room3.group.visible = false;
+    // All rooms visible from start to prevent loading freezes
+    gameState.room1.group.visible = true;
+    gameState.room2.group.visible = true;
+    gameState.room3.group.visible = true;
     
     AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
     window.AI = AI;
@@ -146,9 +147,32 @@ window.addEventListener('keydown', (e) => {
       // Use the active player object (Leonard model or fallback box)
       const activePlayer = leonardModel || player;
       gameState.room0.handleEKeyInteraction(activePlayer);
-    } else if (gameState.room1 && gameState.room1.group.visible && gameState.room1.handleEKeyInteraction) {
+    } else if (gameState.room1 && gameState.room1.handleEKeyInteraction) {
       const activePlayer = leonardModel || player;
       gameState.room1.handleEKeyInteraction(activePlayer);
+    }
+  }
+  
+  // L key interaction handler for Room 1 light switch
+  if (e.code === 'KeyL') {
+    console.log('L key pressed in main.js');
+    // Check if player is in Room 1
+    if (gameState.room1) {
+      const activePlayer = leonardModel || player;
+      const playerWorld = activePlayer.position.clone();
+      const localToRoom1 = gameState.room1.group.worldToLocal(playerWorld.clone());
+      const half = 9; // Room 1 is 18x18, so half is 9
+      const insideRoom1 = (
+        localToRoom1.x >= -half && localToRoom1.x <= half &&
+        localToRoom1.z >= -half && localToRoom1.z <= half
+      );
+      
+      if (insideRoom1 && gameState.room1.toggleLights) {
+        console.log('Player is in Room 1, toggling lights');
+        gameState.room1.toggleLights();
+      } else {
+        console.log('Player not in Room 1 or toggleLights not available');
+      }
     }
   }
 });
@@ -160,11 +184,9 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Unlock room 1 (reveal room, hallway is always visible)
+// Unlock room 1 (door opens, room is already visible)
 function unlockRoom1() {
-  if (!gameState.room1.group.visible) {
-    gameState.room1.group.visible = true;
-    // Hallway is always visible, door just controls access
+  if (gameState.stage === 0) {
     gameState.stage = 1;
     AI.say("The door opens, granting you access to the hallway. Walk through to reach the first challenge room.");
   }
@@ -188,11 +210,11 @@ function animate(currentTime) {
   if (gameState.room0) {
     let useRoom1 = false;
 
-    if (gameState.room1 && gameState.room1.group.visible && typeof gameState.room1.checkWallCollisions === 'function') {
-      // Convert player world position to room1 local space and check bounds (12x12 room → half 6)
+    if (gameState.room1 && typeof gameState.room1.checkWallCollisions === 'function') {
+      // Convert player world position to room1 local space and check bounds (18x18 room → half 9)
       const playerWorld = activePlayer.position.clone();
       const localToRoom1 = gameState.room1.group.worldToLocal(playerWorld.clone());
-      const half = 6;
+      const half = 9;
       const insideRoom1 = (
         localToRoom1.x >= -half && localToRoom1.x <= half &&
         localToRoom1.z >= -half && localToRoom1.z <= half
@@ -219,9 +241,14 @@ function animate(currentTime) {
     }
   }
   
-  // Update Room 1 light flicker when room is visible
-  if (gameState.room1 && gameState.room1.group.visible && typeof gameState.room1.updateRoom1 === 'function') {
+  // Update Room 1 light flicker and light switch (room is always visible now)
+  if (gameState.room1 && typeof gameState.room1.updateRoom1 === 'function') {
     gameState.room1.updateRoom1(deltaTime);
+  }
+  
+  // Update Room 1 light switch proximity
+  if (gameState.room1 && typeof gameState.room1.checkLightSwitchProximity === 'function') {
+    gameState.room1.checkLightSwitchProximity();
   }
   
   // Stage 0: Update camera
