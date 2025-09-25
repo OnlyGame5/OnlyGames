@@ -3,7 +3,7 @@ import * as THREE from 'three';
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-export function handleMouseClick(event, camera, rooms) {
+export function handleMouseClick(event, camera, rooms, renderer) {
   // If pointer is locked (first-person mode), use center of screen (crosshair position)
   if (document.pointerLockElement === document.body) {
     mouse.x = 0; // Center of screen
@@ -16,14 +16,39 @@ export function handleMouseClick(event, camera, rooms) {
   
   raycaster.setFromCamera(mouse, camera);
 
-  rooms.forEach(room => {
-    if (room && room.userData && room.userData.keypadButtons) {
-      const intersects = raycaster.intersectObjects(room.userData.keypadButtons);
-      if (intersects.length > 0) {
-        room.userData.pressButton(intersects[0].object);
-      }
+  // Check for room1 wire panel clicks first
+  if (rooms.room1 && rooms.room1.onRoom1Click) {
+    const intersects = raycaster.intersectObject(rooms.room1.group, true);
+    if (intersects.length > 0) {
+      // Compute NDC and world ray for wire panel
+      const rect = renderer.domElement.getBoundingClientRect();
+      const ndc = { 
+        x: ((event.clientX - rect.left) / rect.width) * 2 - 1, 
+        y: -((event.clientY - rect.top) / rect.height) * 2 + 1 
+      };
+      const worldRay = raycaster.ray.clone();
+      
+      const consumed = rooms.room1.onRoom1Click(intersects[0], { 
+        ndc, 
+        worldRay, 
+        camera, 
+        player: window.leonardModel || window.player 
+      });
+      if (consumed) return; // Stop if panel handled the click
     }
-  });
+  }
+
+  // Handle other room interactions
+  if (Array.isArray(rooms)) {
+    rooms.forEach(room => {
+      if (room && room.userData && room.userData.keypadButtons) {
+        const intersects = raycaster.intersectObjects(room.userData.keypadButtons);
+        if (intersects.length > 0) {
+          room.userData.pressButton(intersects[0].object);
+        }
+      }
+    });
+  }
 }
 
 // Stage 0: Helper function to get player AABB

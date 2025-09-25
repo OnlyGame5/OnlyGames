@@ -137,8 +137,12 @@ window.addEventListener('click', (e) => {
     handleStage0Click(e, camera, scene, gameState.room0);
   } else {
     // Stage 1+: Handle existing room interactions
-    const rooms = [gameState.room1, gameState.room2, gameState.room3].filter(room => room !== null);
-    handleMouseClick(e, camera, rooms);
+    const rooms = {
+      room1: gameState.room1,
+      room2: gameState.room2,
+      room3: gameState.room3
+    };
+    handleMouseClick(e, camera, rooms, renderer);
   }
 });
 
@@ -308,6 +312,17 @@ function animate(currentTime) {
   // Update Room 1 contextual dialogue
   if (gameState.room1 && typeof gameState.room1.updateRoom1Dialogue === 'function') {
     gameState.room1.updateRoom1Dialogue();
+  }
+  
+  // Check if wire puzzle is solved and unlock door
+  if (gameState.room1 && gameState.room1.isWirePuzzleSolved && gameState.room1.isWirePuzzleSolved()) {
+    // Wire puzzle solved - unlock door to next room
+    if (gameState.stage === 1) {
+      gameState.stage = 2;
+      if (window.AI) {
+        window.AI.say("The circuit is complete! The door to the next room has unlocked. You can now proceed to Room 2.");
+      }
+    }
   }
   
   // Stage 0: Update camera

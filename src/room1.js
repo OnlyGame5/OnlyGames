@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { addToInventory, hasInInventory, getPlayerInventory } from './player.js';
+import { createWirePanel } from './puzzles/wirePanel.js';
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -700,6 +701,54 @@ export function createRoom1() {
   }
   addSwivelCameras();
 
+  // Wire Panel System (Among-Us style)
+  const wirePanel = createWirePanel({ order: ['R','G','B','Y'] });
+  wirePanel.group.name = 'wirePanel';
+  wirePanel.group.position.set(8.2, 1.1, 0); // Right wall, opposite light switch
+  wirePanel.group.rotation.y = -Math.PI / 2; // Rotate to face the player
+  group.add(wirePanel.group);
+
+  // Wire panel interaction functions
+  function onRoom1Click(intersection, opts) {
+    if (!intersection || !intersection.object) return false;
+    
+    // Check if the clicked object is the wire panel trigger
+    if (intersection.object.userData.type === 'wire-panel-trigger') {
+      console.log('Wire panel trigger clicked - opening popup');
+      wirePanel.openPanel();
+      return true;
+    }
+    
+    return false;
+  }
+
+  // E-key interaction for wire panel
+  function handleWirePanelEKey(playerObject) {
+    if (!wirePanel) return false;
+    
+    // Check if player is near the wire panel
+    const panelWorldPos = new THREE.Vector3();
+    wirePanel.group.getWorldPosition(panelWorldPos);
+    const distance = playerObject.position.distanceTo(panelWorldPos);
+    
+    if (distance < 3.0) { // Within 3 units of the panel
+      if (wirePanel.state.isOpen) {
+        wirePanel.closePanel();
+        console.log('Wire panel closed via E-key');
+      } else {
+        wirePanel.openPanel();
+        console.log('Wire panel opened via E-key');
+      }
+      return true;
+    }
+    
+    return false;
+  }
+
+  function isWirePuzzleSolved() {
+    return wirePanel.state.solved;
+  }
+
   // Room 1: Create emissives list for bulbs, LEDs, and indicators
   const emissives = [];
   
@@ -723,6 +772,9 @@ export function createRoom1() {
     
     // Update light flicker effect
     updateLightFlicker(dt);
+    
+    // Update wire panel effects
+    wirePanel.update(dt);
   }
   
   // Light flicker effect (hum and occasional flicker)
@@ -986,6 +1038,11 @@ export function createRoom1() {
 
   // E-key interaction for room1
   function handleEKeyInteraction(playerObject) {
+    // Check wire panel first
+    if (handleWirePanelEKey(playerObject)) {
+      return true;
+    }
+    
     // Check if player is near the light switch
     const lightSwitchGroup = group.getObjectByName('light-switch-group');
     if (lightSwitchGroup) {
@@ -1631,8 +1688,11 @@ export function createRoom1() {
   return {
     group,
     anchors: { entry: entryAnchor, exit: exitAnchor },
+    state,
     checkWallCollisions,
     updateRoom1,
+    onRoom1Click,
+    isWirePuzzleSolved,
     handleEKeyInteraction,
     handleIKeyInteraction, // <-- new I-key handler for inventory inspection
     handleSwitchInteraction,
