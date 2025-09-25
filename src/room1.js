@@ -627,28 +627,31 @@ export function createRoom1() {
   lightFixtureGroup.position.set(0, 4.0, 0);
   group.add(lightFixtureGroup);
 
-  // Room 1: Unified lighting controller setup
+  // Room 1: Optimized lighting controller setup
   const lights = {
-    ambient: new THREE.AmbientLight(0x404040, 1.2), // Increased from 0.5 to 1.2
-    ceiling: new THREE.PointLight(0xFFFFFF, 2.5, 20), // Increased from 1.0 to 2.5
-    spot: new THREE.SpotLight(0xffffff, 1.5, 12, Math.PI / 6, 0.2, 1) // Increased from 0.6 to 1.5
+    ambient: new THREE.AmbientLight(0x404040, 1.2),
+    ceiling: new THREE.PointLight(0xFFFFFF, 2.5, 20),
+    spot: new THREE.SpotLight(0xffffff, 1.5, 12, Math.PI / 6, 0.2, 1)
   };
   
-  // Configure lights with clamped distances to prevent spill
-  lights.ceiling.distance = 20; // Tune to room length
+  // Optimize shadow settings for better performance
+  lights.ceiling.distance = 20;
+  lights.ceiling.position.set(0, 3.8, 0);
+  lights.ceiling.castShadow = true;
+  lights.ceiling.shadow.mapSize.width = 256; // Reduced from 512 for better performance
+  lights.ceiling.shadow.mapSize.height = 256;
+  lights.ceiling.shadow.camera.near = 0.1;
+  lights.ceiling.shadow.camera.far = 25;
+  lights.ceiling.name = 'ceiling-light';
+  
   lights.spot.distance = 12;
   lights.spot.position.set(0, 3.8, 0);
   lights.spot.target.position.set(0, 0, 0);
   lights.spot.castShadow = true;
-  lights.spot.shadow.mapSize.width = 512;
-  lights.spot.shadow.mapSize.height = 512;
-  
-  // Position and add lights to group
-  lights.ceiling.position.set(0, 3.8, 0);
-  lights.ceiling.castShadow = true;
-  lights.ceiling.shadow.mapSize.width = 512;
-  lights.ceiling.shadow.mapSize.height = 512;
-  lights.ceiling.name = 'ceiling-light';
+  lights.spot.shadow.mapSize.width = 256; // Reduced from 512 for better performance
+  lights.spot.shadow.mapSize.height = 256;
+  lights.spot.shadow.camera.near = 0.1;
+  lights.spot.shadow.camera.far = 15;
   
   // Add lights to group
   group.add(lights.ambient);
@@ -963,14 +966,17 @@ export function createRoom1() {
         }, 1000);
       }
     } else {
-      // Show blank paper when lights are off
+      // Show riddle when lights are off
       paperContent.innerHTML = `
-        <h2 style="color: #333; margin-bottom: 20px; text-align: center;"></h2>
+        <h2 style="color: #333; margin-bottom: 20px; text-align: center;">🔒 Riddle 💡</h2>
         <div style="color: #666; line-height: 1.6;">
-          <p></p>
-          <p style="margin-top: 20px; font-style: italic; color: #888;">
-            
+          <p style="font-size: 16px; text-align: center; font-style: italic; color: #444;">
+            Words are here, yet hidden from view,<br>
+            Shadows conceal what's written true.<br>
+            Bring me brightness, clear the night,<br>
+            Only then will you see the light.
           </p>
+          
         </div>
         <div style="text-align: center; margin-top: 20px; color: #999; font-size: 14px;">
           Click anywhere or press I to close
@@ -1485,100 +1491,102 @@ export function createRoom1() {
     return false;
   }
 
-  // Unified lighting controller for Room 1
+  // Optimized lighting controller for Room 1
   function setRoom1Lights(on) {
     console.log('setRoom1Lights called with:', on);
     
-    // Toggle point/spot lights
-    lights.ceiling.visible = on;
-    lights.spot.visible = on;
-    lights.switchSpotlight.visible = on;
-    lights.switchPointLight.visible = on;
-    
-    // Set ambient intensity to 0 when off (or remove ambient entirely)
-    if (lights.ambient) {
-      lights.ambient.intensity = on ? 1.2 : 0.0; // Increased from 0.5 to 1.2
-    }
-    
-    // Also reduce global ambient lighting when Room 1 lights are off
-    // This is a more aggressive approach to ensure complete darkness
-    if (window.gameState && window.gameState.room0) {
-      // Find and temporarily reduce Room 0's ambient light
-      window.gameState.room0.group.traverse((child) => {
-        if (child.isAmbientLight) {
-          child.intensity = on ? 0.2 : 0.05; // Much darker when Room 1 lights are off
+    // Use requestAnimationFrame to defer heavy operations
+    requestAnimationFrame(() => {
+      // Toggle point/spot lights
+      lights.ceiling.visible = on;
+      lights.spot.visible = on;
+      lights.switchSpotlight.visible = on;
+      lights.switchPointLight.visible = on;
+      
+      // Set ambient intensity
+      if (lights.ambient) {
+        lights.ambient.intensity = on ? 1.2 : 0.0;
+      }
+      
+      // Batch material updates to reduce performance impact
+      const materialUpdates = [];
+      
+      // Update emissive meshes
+      for (const mesh of emissives) {
+        if (!mesh || !mesh.material) continue;
+        if ('emissiveIntensity' in mesh.material) {
+          materialUpdates.push(() => {
+            mesh.material.emissiveIntensity = on ? 1.5 : 0.0;
+            mesh.visible = on;
+          });
+        }
+      }
+      
+      // Update floor material
+      const floor = group.getObjectByName('room1-floor');
+      if (floor && floor.material) {
+        materialUpdates.push(() => {
+          floor.material.color.setHex(on ? 0x2a3a2a : 0x050505);
+        });
+      }
+      
+      // Update wall materials (batch this operation)
+      const wallMeshes = [];
+      group.traverse((child) => {
+        if (child.isMesh && child.userData && child.userData.type === 'wall') {
+          wallMeshes.push(child);
         }
       });
-    }
-    
-    // Zero out emissiveIntensity for all emissive meshes and optionally hide them
-    for (const mesh of emissives) {
-      if (!mesh || !mesh.material) continue;
-      if ('emissiveIntensity' in mesh.material) {
-        mesh.material.emissiveIntensity = on ? 1.5 : 0.0; // Increased from 0.8 to 1.5
-      }
-      mesh.visible = on; // Hide indicators when off
-    }
-    
-    // Update light fixture visibility
-    const lightFixtureGroup = group.getObjectByName('ceiling-light-fixture');
-    if (lightFixtureGroup) {
-      lightFixtureGroup.visible = on;
-    }
-    
-    // Update floor material darkness when lights are off
-    const floor = group.getObjectByName('room1-floor');
-    if (floor && floor.material) {
-      if (on) {
-        // Make floor brighter when lights are on
-        floor.material.color.setHex(0x2a3a2a); // Brighter greenish-gray
-      } else {
-        // Make floor extremely dark when lights are off
-        floor.material.color.setHex(0x050505); // Almost black
-      }
-    }
-    
-    // Update wall materials darkness when lights are off
-    group.traverse((child) => {
-      if (child.isMesh && child.userData && child.userData.type === 'wall') {
-        if (child.material) {
-          if (on) {
-            // Make walls brighter when lights are on
-            if (child.material.color) {
-              child.material.color.setHex(0x3a4a3a); // Brighter wall color
-            }
-          } else {
-            // Make walls extremely dark when lights are off
-            if (child.material.color) {
-              child.material.color.setHex(0x080808); // Almost black walls
-            }
-          }
+      
+      wallMeshes.forEach(wall => {
+        if (wall.material && wall.material.color) {
+          materialUpdates.push(() => {
+            wall.material.color.setHex(on ? 0x3a4a3a : 0x080808);
+          });
         }
+      });
+      
+      // Execute material updates in batches
+      materialUpdates.forEach(update => update());
+      
+      // Update light fixture visibility
+      const lightFixtureGroup = group.getObjectByName('ceiling-light-fixture');
+      if (lightFixtureGroup) {
+        lightFixtureGroup.visible = on;
       }
+      
+      // Update switch visual feedback
+      const switchButtonUpdate = lightSwitchGroup.getObjectByName('switch-button');
+      const statusLight1Update = lightSwitchGroup.getObjectByName('status-light-1');
+      const statusLight2Update = lightSwitchGroup.getObjectByName('status-light-2');
+      
+      if (switchButtonUpdate) {
+        switchButtonUpdate.material.emissive.setHex(on ? 0x00ff00 : 0x000000);
+        switchButtonUpdate.material.emissiveIntensity = on ? 0.5 : 0.0;
+      }
+      
+      if (statusLight1Update) {
+        statusLight1Update.material.emissiveIntensity = on ? 0.8 : 0.0;
+      }
+      
+      if (statusLight2Update) {
+        statusLight2Update.material.emissiveIntensity = on ? 0.0 : 0.8;
+      }
+      
+      // Update global ambient lighting (defer this heavy operation)
+      if (window.gameState && window.gameState.room0) {
+        setTimeout(() => {
+          window.gameState.room0.group.traverse((child) => {
+            if (child.isAmbientLight) {
+              child.intensity = on ? 0.2 : 0.05;
+            }
+          });
+        }, 0);
+      }
+      
+      // Update state
+      lightsOn = on;
     });
-    
-    // Update switch visual feedback
-    const switchButtonUpdate = lightSwitchGroup.getObjectByName('switch-button');
-    const statusLight1Update = lightSwitchGroup.getObjectByName('status-light-1');
-    const statusLight2Update = lightSwitchGroup.getObjectByName('status-light-2');
-    
-    if (switchButtonUpdate) {
-      switchButtonUpdate.material.emissive.setHex(on ? 0x00ff00 : 0x000000);
-      switchButtonUpdate.material.emissiveIntensity = on ? 0.5 : 0.0;
-    }
-    
-    if (statusLight1Update) {
-      statusLight1Update.material.emissiveIntensity = on ? 0.8 : 0.0;
-    }
-    
-    if (statusLight2Update) {
-      statusLight2Update.material.emissiveIntensity = on ? 0.0 : 0.8;
-    }
-    
-    // Update state
-    lightsOn = on;
-    
-    // No procedural AI feedback for lights - contextual dialogue handles this
   }
   
   // Check if player is inside Room 1 bounds

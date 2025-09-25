@@ -319,13 +319,16 @@ export function createWirePanel(opts = {}) {
       state.solved = true;
       updateStatusStrip('#00ff00', 1.0);
       
+      // Show success popup
+      showValidationPopup('success', 'CIRCUIT COMPLETE', 'Congratulations! The wire panel has been successfully configured. The door is now unlocked.');
+      
       // Success animation
       setTimeout(() => {
         if (window.AI) {
           window.AI.say("Excellent! The circuit is complete. The door should now be unlocked.");
         }
         closePanel();
-      }, 1000);
+      }, 2000); // Give time to read the popup
     }
     
     console.log('Connected:', state.holding?.color, 'to port', portIndex, 'Input:', state.input);
@@ -349,10 +352,80 @@ export function createWirePanel(opts = {}) {
     }
   }
 
+  function showValidationPopup(type, title, message) {
+    // Remove existing popup if any
+    const existingPopup = document.getElementById('validationPopup');
+    if (existingPopup) {
+      existingPopup.remove();
+    }
+
+    const popup = document.createElement('div');
+    popup.id = 'validationPopup';
+    
+    const bgColor = type === 'success' ? '#00ff00' : '#ff0000';
+    const textColor = type === 'success' ? '#000000' : '#ffffff';
+    
+    popup.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: ${bgColor};
+      color: ${textColor};
+      padding: 20px 30px;
+      border-radius: 10px;
+      border: 3px solid #ffffff;
+      box-shadow: 0 0 20px rgba(0,0,0,0.8);
+      z-index: 3000;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      max-width: 400px;
+      animation: popupPulse 0.5s ease-in-out;
+    `;
+
+    popup.innerHTML = `
+      <div style="font-size: 18px; margin-bottom: 10px; text-shadow: 0 0 5px rgba(0,0,0,0.5);">
+        ${title}
+      </div>
+      <div style="font-size: 14px; line-height: 1.4;">
+        ${message}
+      </div>
+    `;
+
+    // Add CSS animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes popupPulse {
+        0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+        50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+        100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    document.body.appendChild(popup);
+
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+      if (popup && popup.parentNode) {
+        popup.style.animation = 'popupPulse 0.3s ease-in-out reverse';
+        setTimeout(() => {
+          if (popup && popup.parentNode) {
+            popup.remove();
+          }
+        }, 300);
+      }
+    }, 3000);
+  }
+
   function triggerSparkEffect() {
     // Red pulse on status strip
     updateStatusStrip('#ff0000', 0.8);
     state.sparkTimer = 0.5;
+    
+    // Show validation popup for mistake
+    showValidationPopup('error', 'INCORRECT CONNECTION', 'The circuit sequence is wrong. All connections have been reset.');
     
     // Reset puzzle state
     state.input = [];
