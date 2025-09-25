@@ -1,7 +1,10 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { loadingScreen } from '../loading.js';
 
 export function createWirePanel(opts = {}) {
   const order = opts.order || ['R','G','B','Y'];
+  const useGLBModel = opts.useGLBModel !== false; // Default to true, can be disabled
 
   // State management
   const state = {
@@ -517,8 +520,10 @@ export function createWirePanel(opts = {}) {
   // Create the popup UI
   const popupUI = createPopupUI();
 
-  // Create a simple 3D panel trigger (just a clickable surface)
+  // Create the 3D panel group
   const group = new THREE.Group();
+  
+  // Create fallback panel immediately for better performance
   const panelGeometry = new THREE.PlaneGeometry(2, 1.5);
   const panelMaterial = new THREE.MeshStandardMaterial({
     color: 0x2a2a2a,
@@ -526,31 +531,133 @@ export function createWirePanel(opts = {}) {
     opacity: 0.8,
     side: THREE.DoubleSide
   });
-  const panel = new THREE.Mesh(panelGeometry, panelMaterial);
-  panel.userData = { type: 'wire-panel-trigger' };
-  group.add(panel);
+  const fallbackPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+  fallbackPanel.userData = { type: 'wire-panel-trigger' };
+  group.add(fallbackPanel);
+  
+  // Only load GLB model if enabled
+  if (useGLBModel) {
+    // Register with loading screen
+    loadingScreen.registerItem('powerbox', 1);
+    loadingScreen.setStatus('Loading Power_Box model...');
+    
+    // Load the powerbox GLB model asynchronously
+    const gltfLoader = new GLTFLoader();
+    console.log('Attempting to load Power_Box model from /models/Power_Box.glb');
+    gltfLoader.load('/models/Power_Box.glb', (gltf) => {
+    const powerboxModel = gltf.scene;
+    
+    // Set up the model with aggressive performance optimizations
+    powerboxModel.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        
+        // Aggressive material optimizations
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(mat => {
+              // Disable expensive features
+              mat.needsUpdate = true;
+              mat.transparent = false;
+              mat.alphaTest = 0.1;
+              
+              // Disable mipmaps and reduce texture quality
+              if (mat.map) {
+                mat.map.generateMipmaps = false;
+                mat.map.minFilter = THREE.LinearFilter;
+                mat.map.magFilter = THREE.LinearFilter;
+                mat.map.wrapS = THREE.ClampToEdgeWrapping;
+                mat.map.wrapT = THREE.ClampToEdgeWrapping;
+              }
+              
+              // Disable normal maps for performance
+              if (mat.normalMap) {
+                mat.normalMap = null;
+              }
+              
+              // Disable other expensive maps
+              if (mat.roughnessMap) mat.roughnessMap = null;
+              if (mat.metalnessMap) mat.metalnessMap = null;
+              if (mat.aoMap) mat.aoMap = null;
+              if (mat.emissiveMap) mat.emissiveMap = null;
+              
+              // Reduce material complexity
+              mat.roughness = 0.8;
+              mat.metalness = 0.1;
+            });
+          } else {
+            // Single material optimization
+            child.material.needsUpdate = true;
+            child.material.transparent = false;
+            child.material.alphaTest = 0.1;
+            
+            if (child.material.map) {
+              child.material.map.generateMipmaps = false;
+              child.material.map.minFilter = THREE.LinearFilter;
+              child.material.map.magFilter = THREE.LinearFilter;
+            }
+            
+            // Disable expensive maps
+            if (child.material.normalMap) child.material.normalMap = null;
+            if (child.material.roughnessMap) child.material.roughnessMap = null;
+            if (child.material.metalnessMap) child.material.metalnessMap = null;
+            if (child.material.aoMap) child.material.aoMap = null;
+            if (child.material.emissiveMap) child.material.emissiveMap = null;
+            
+            child.material.roughness = 0.8;
+            child.material.metalness = 0.1;
+          }
+        }
+        
+        // Optimize geometry
+        if (child.geometry) {
+          child.geometry.computeBoundingBox();
+          child.geometry.computeBoundingSphere();
+          
+          // Disable expensive geometry features
+          child.geometry.dispose();
+        }
+        
+        // Reduce draw calls by merging geometries if possible
+        child.frustumCulled = true;
+        child.renderOrder = 0;
+      }
+    });
+    
+    // Scale and position the model appropriately
+    powerboxModel.scale.set(1, 1, 1);
+    powerboxModel.position.set(0, 0, 0);
+    
+    // Add interaction data to the entire model
+    powerboxModel.userData = { type: 'wire-panel-trigger' };
+    
+    // Add LOD optimization - hide model when far away
+    powerboxModel.userData.lodDistance = 15; // Hide when player is more than 15 units away
+    powerboxModel.userData.originalVisible = true;
+    
+    // Add performance monitoring
+    powerboxModel.userData.performanceOptimized = true;
+    
+    // Replace fallback panel with actual model
+    group.remove(fallbackPanel);
+    group.add(powerboxModel);
+    
+    // Complete loading
+    loadingScreen.completeItem('powerbox');
+    console.log('Powerbox model loaded successfully with aggressive performance optimizations!');
+    }, (progress) => {
+      console.log('Loading Power_Box model...', (progress.loaded / progress.total * 100) + '%');
+    }, (err) => {
+      console.error('Failed to load Power_Box model:', err);
+      console.log('Using fallback panel geometry');
+      loadingScreen.completeItem('powerbox'); // Still complete to avoid hanging
+    });
+  } else {
+    console.log('GLB model loading disabled - using fallback panel geometry');
+  }
 
-  // Add some visual indicators
-  const indicatorGeometry = new THREE.SphereGeometry(0.05, 8, 6);
-  const indicatorMaterial = new THREE.MeshStandardMaterial({
-    color: 0x00ff00,
-    emissive: 0x00ff00,
-    emissiveIntensity: 0.5
-  });
-  
-  // Add corner indicators
-  const positions = [
-    [-0.9, 0.6, 0.01],
-    [0.9, 0.6, 0.01],
-    [-0.9, -0.6, 0.01],
-    [0.9, -0.6, 0.01]
-  ];
-  
-  positions.forEach(pos => {
-    const indicator = new THREE.Mesh(indicatorGeometry, indicatorMaterial);
-    indicator.position.set(...pos);
-    group.add(indicator);
-  });
+  // Visual indicators removed - using proper 3D model instead
 
   function update(dt) {
     // Update any animations if needed
@@ -560,6 +667,25 @@ export function createWirePanel(opts = {}) {
     
     if (state.sparkTimer > 0) {
       state.sparkTimer -= dt;
+    }
+    
+    // Performance optimization: LOD culling
+    if (group.children.length > 0) {
+      const powerboxModel = group.children.find(child => child.userData && child.userData.performanceOptimized);
+      if (powerboxModel && powerboxModel.userData.lodDistance) {
+        // Check if player is far away and hide model for performance
+        if (window.leonardModel || window.player) {
+          const activePlayer = window.leonardModel || window.player;
+          if (activePlayer && activePlayer.position) {
+            const distance = activePlayer.position.distanceTo(powerboxModel.position);
+            if (distance > powerboxModel.userData.lodDistance) {
+              powerboxModel.visible = false;
+            } else {
+              powerboxModel.visible = powerboxModel.userData.originalVisible;
+            }
+          }
+        }
+      }
     }
   }
 

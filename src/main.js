@@ -8,6 +8,7 @@ import { createRoom3 } from './room3.js';
 import { handleMouseClick, handleStage0Click } from './utils.js';
 import { initInput, isDown as inputIsDown, getBindings } from './systems/input.js';
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
+import { loadingScreen } from './loading.js';
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
@@ -45,15 +46,29 @@ let gameState = {
 // Initialize game with Leonard
 async function initGame() {
   try {
+    // Show loading screen
+    loadingScreen.show();
+    loadingScreen.setStatus('Loading game assets...');
+    loadingScreen.registerItem('leonard', 1);
+    loadingScreen.registerItem('rooms', 4);
+    loadingScreen.registerItem('models', 3); // Power_Box, safe, table
+    
     // Load Leonard model
+    loadingScreen.setStatus('Loading character model...');
     await loadLeonard(scene);
+    loadingScreen.completeItem('leonard');
     console.log('Leonard loaded successfully!');
     
     // Initialize all rooms (no scene param now)
+    loadingScreen.setStatus('Initializing rooms...');
     gameState.room0 = createRoom0();
+    loadingScreen.updateItem('rooms', 1, 4);
     gameState.room1 = createRoom1();
+    loadingScreen.updateItem('rooms', 2, 4);
     gameState.room2 = createRoom2();
+    loadingScreen.updateItem('rooms', 3, 4);
     gameState.room3 = createRoom3();
+    loadingScreen.completeItem('rooms');
     
     // Add groups to scene
     scene.add(gameState.room0.group, gameState.room1.group, gameState.room2.group, gameState.room3.group);
@@ -89,9 +104,14 @@ async function initGame() {
     // Update HUD with current bindings
     updateHUDInstructions();
     
+    // Complete loading
+    loadingScreen.setStatus('Game ready!');
+    loadingScreen.completeItem('models');
+    
     console.log('Game initialized successfully!');
   } catch (error) {
     console.error('Failed to initialize game:', error);
+    loadingScreen.setStatus('Loading failed. Please refresh the page.');
     console.log('Using fallback player box instead of Leonard');
     
     // Fallback: still create all rooms even if Leonard fails to load

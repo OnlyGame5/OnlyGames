@@ -449,40 +449,39 @@ export function createRoom1() {
   }
   addBrokenConsoles();
 
-  // Add paper clutter to Room 1
+  // Add paper clutter to Room 1 (optimized - reduced count and delayed loading)
   function addPaperClutter() {
-    const gltfLoader = new GLTFLoader();
+    // Use the shared GLTFLoader instance
     
-    // Load paper model multiple times for clutter (doubled size)
+    // Reduced paper count for better performance
     const paperPositions = [
       { pos: [-2, 0.15, -3], rot: [0, Math.PI / 4, 0], scale: 1.6 },
       { pos: [1, 0.15, 1], rot: [0, -Math.PI / 3, 0], scale: 1.2 },
       { pos: [-5, 0.15, 2], rot: [0, Math.PI / 6, 0], scale: 1.4 },
       { pos: [3, 0.15, -1], rot: [0, -Math.PI / 4, 0], scale: 1.8 },
-      { pos: [-1, 0.15, 4], rot: [0, Math.PI / 2, 0], scale: 1.0 },
-      { pos: [4, 0.15, 3], rot: [0, -Math.PI / 6, 0], scale: 1.6 },
-      { pos: [-6, 0.15, -1], rot: [0, Math.PI / 3, 0], scale: 1.2 },
-      { pos: [2, 0.15, -5], rot: [0, -Math.PI / 2, 0], scale: 1.4 },
-      { pos: [-3, 0.15, 6], rot: [0, Math.PI / 5, 0], scale: 1.8 },
-      { pos: [5, 0.15, -2], rot: [0, -Math.PI / 5, 0], scale: 1.2 }
+      { pos: [-1, 0.15, 4], rot: [0, Math.PI / 2, 0], scale: 1.0 }
     ];
     
-    paperPositions.forEach((paperData, index) => {
-      gltfLoader.load('/models/paper.glb', (gltf) => {
-        const paperModel = gltf.scene.clone();
+    // Load paper model once, then clone for performance
+    gltfLoader.load('/models/paper.glb', (gltf) => {
+      const basePaperModel = gltf.scene;
+      
+      // Set up base model shadows
+      basePaperModel.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      
+      // Clone and position papers
+      paperPositions.forEach((paperData, index) => {
+        const paperModel = basePaperModel.clone();
         
         // Apply transformations
         paperModel.position.set(...paperData.pos);
         paperModel.rotation.set(...paperData.rot);
         paperModel.scale.setScalar(paperData.scale);
-        
-        // Set up shadows
-        paperModel.traverse((child) => {
-          if (child.isMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-          }
-        });
         
         // Add slight random variation to make each paper unique
         paperModel.position.x += (Math.random() - 0.5) * 0.3;
@@ -491,12 +490,16 @@ export function createRoom1() {
         
         paperModel.name = `paper-clutter-${index}`;
         group.add(paperModel);
-      }, undefined, (err) => {
-        console.error(`Failed to load paper model ${index}:`, err);
       });
+    }, undefined, (err) => {
+      console.error('Failed to load paper model:', err);
     });
   }
-  addPaperClutter();
+  
+  // Delay paper clutter loading to improve initial performance
+  setTimeout(() => {
+    addPaperClutter();
+  }, 2000);
 
   // Room 1: Detailed roof with industrial texture
   function createDetailedRoof() {
@@ -704,10 +707,11 @@ export function createRoom1() {
   }
   addSwivelCameras();
 
-  // Wire Panel System (Among-Us style)
-  const wirePanel = createWirePanel({ order: ['R','G','B','Y'] });
+  // Wire Panel System (GLB model enabled with aggressive optimizations)
+  // Set useGLBModel to false if you want to disable the Power_Box model for better performance
+  const wirePanel = createWirePanel({ order: ['R','G','B','Y'], useGLBModel: true });
   wirePanel.group.name = 'wirePanel';
-  wirePanel.group.position.set(8.2, 1.1, 0); // Right wall, opposite light switch
+  wirePanel.group.position.set(8.2, 0.8, 0); // Right wall, adjusted Y for powerbox model
   wirePanel.group.rotation.y = -Math.PI / 2; // Rotate to face the player
   group.add(wirePanel.group);
 
@@ -812,8 +816,10 @@ export function createRoom1() {
 
   // Removed pedestal, panel, and keypad to keep only table and safe in this room
 
-  // Load sci-fi table (independent of safe placement)
+  // Create shared GLTFLoader instance for better performance
   const gltfLoader = new GLTFLoader();
+  
+  // Load sci-fi table (independent of safe placement)
   gltfLoader.load('/models/sci_fi_table.glb', (gltf) => {
     const sciFiTable = gltf.scene;
     sciFiTable.traverse((child) => {
