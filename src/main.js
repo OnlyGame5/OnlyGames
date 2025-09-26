@@ -9,6 +9,7 @@ import { handleMouseClick, handleStage0Click } from './utils.js';
 import { initInput, isDown as inputIsDown, getBindings } from './systems/input.js';
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
 import { loadingScreen } from './loading.js';
+import { uiRoot } from './ui/UIRoot.js';
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
@@ -100,6 +101,9 @@ async function initGame() {
     // Initialize input and menu systems
     initInput();
     initMenu({ onPauseChange: (paused) => { gameState.paused = paused; } });
+    
+    // Initialize UI root for memory panel
+    uiRoot;
     
     // Update HUD with current bindings
     updateHUDInstructions();

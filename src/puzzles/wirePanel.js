@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { loadingScreen } from '../loading.js';
+import { gameStore } from '../state/gameStore.js';
 
 export function createWirePanel(opts = {}) {
   const order = opts.order || ['R','G','B','Y'];
@@ -321,6 +322,9 @@ export function createWirePanel(opts = {}) {
     if (state.input.length === state.order.length) {
       state.solved = true;
       updateStatusStrip('#00ff00', 1.0);
+      
+      // Set wire puzzle complete in game store
+      gameStore.setWireComplete(true);
       
       // Show success popup
       showValidationPopup('success', 'CIRCUIT COMPLETE', 'Congratulations! The wire panel has been successfully configured. The door is now unlocked.');

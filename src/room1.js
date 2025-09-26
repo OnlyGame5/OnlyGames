@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { addToInventory, hasInInventory, getPlayerInventory } from './player.js';
 import { createWirePanel } from './puzzles/wirePanel.js';
+import { createSimonStand } from './rooms/Room1/SimonStand.js';
+import { gameStore } from './state/gameStore.js';
+import { memoryPanel } from './ui/MemoryPanel.js';
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -632,9 +635,9 @@ export function createRoom1() {
 
   // Room 1: Optimized lighting controller setup
   const lights = {
-    ambient: new THREE.AmbientLight(0x404040, 1.2),
-    ceiling: new THREE.PointLight(0xFFFFFF, 2.5, 20),
-    spot: new THREE.SpotLight(0xffffff, 1.5, 12, Math.PI / 6, 0.2, 1)
+    ambient: new THREE.AmbientLight(0x404040, 1.5),
+    ceiling: new THREE.PointLight(0xFFFFFF, 3.0, 20),
+    spot: new THREE.SpotLight(0xffffff, 2.0, 12, Math.PI / 6, 0.2, 1)
   };
   
   // Optimize shadow settings for better performance
@@ -656,6 +659,7 @@ export function createRoom1() {
   lights.spot.shadow.camera.near = 0.1;
   lights.spot.shadow.camera.far = 15;
   
+
   // Add lights to group
   group.add(lights.ambient);
   group.add(lights.ceiling);
@@ -715,6 +719,38 @@ export function createRoom1() {
   wirePanel.group.rotation.y = -Math.PI / 2; // Rotate to face the player
   group.add(wirePanel.group);
 
+  // Simon Stand System - positioned on right wall, below wire panel
+  const simonStand = createSimonStand([8.2, 0, -3]); // Right wall, below wire panel
+  simonStand.name = 'simonStand';
+  group.add(simonStand);
+  
+  // Add floating tooltip for locked Simon Stand
+  function createSimonStandTooltip() {
+    const tooltip = document.createElement('div');
+    tooltip.id = 'simonStandTooltip';
+    tooltip.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(11, 18, 32, 0.8);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #cbd5e1;
+      font-size: 12px;
+      z-index: 1000;
+      display: none;
+      pointer-events: none;
+      font-family: sans-serif;
+    `;
+    tooltip.textContent = 'Complete the wire puzzle first.';
+    document.body.appendChild(tooltip);
+    return tooltip;
+  }
+  
+  const simonStandTooltip = createSimonStandTooltip();
+
   // Wire panel interaction functions
   function onRoom1Click(intersection, opts) {
     if (!intersection || !intersection.object) return false;
@@ -723,6 +759,33 @@ export function createRoom1() {
     if (intersection.object.userData.type === 'wire-panel-trigger') {
       console.log('Wire panel trigger clicked - opening popup');
       wirePanel.openPanel();
+      return true;
+    }
+    
+    // Check if the clicked object is the Simon Stand
+    if (intersection.object.userData.type === 'simonStand') {
+      console.log('Simon Stand clicked');
+      const { wirePuzzleComplete, memoryPuzzleComplete } = gameStore;
+      
+      if (!wirePuzzleComplete) {
+        // Show locked tooltip
+        simonStandTooltip.style.display = 'block';
+        setTimeout(() => {
+          simonStandTooltip.style.display = 'none';
+        }, 3000);
+        return true;
+      }
+      
+      if (memoryPuzzleComplete) {
+        // Already completed
+        if (window.AI) {
+          window.AI.say("Memory training completed. The station is now offline.");
+        }
+        return true;
+      }
+      
+      // Open memory UI
+      gameStore.openMemoryUI();
       return true;
     }
     
@@ -782,6 +845,11 @@ export function createRoom1() {
     
     // Update wire panel effects
     wirePanel.update(dt);
+    
+    // Update Simon Stand
+    if (simonStand.userData.update) {
+      simonStand.userData.update(dt);
+    }
   }
   
   // Light flicker effect (hum and occasional flicker)
@@ -1048,10 +1116,51 @@ export function createRoom1() {
     return false;
   }
 
+  // E-key interaction for Simon Stand
+  function handleSimonStandEKey(playerObject) {
+    if (!simonStand) return false;
+    
+    // Get Simon Stand world position
+    const standWorldPos = new THREE.Vector3();
+    simonStand.getWorldPosition(standWorldPos);
+    const distance = playerObject.position.distanceTo(standWorldPos);
+    
+    // Check if player is close enough (within 3 units)
+    if (distance > 3.0) return false;
+    
+    console.log('Simon Stand E-key interaction');
+    const { wirePuzzleComplete, memoryPuzzleComplete } = gameStore;
+    
+    if (!wirePuzzleComplete) {
+      // Show locked message
+      if (window.AI) {
+        window.AI.say("Complete the wire puzzle first to unlock the memory training station.");
+      }
+      return true;
+    }
+    
+    if (memoryPuzzleComplete) {
+      // Already completed
+      if (window.AI) {
+        window.AI.say("Memory training completed. The station is now offline.");
+      }
+      return true;
+    }
+    
+    // Open memory UI
+    gameStore.openMemoryUI();
+    return true;
+  }
+
   // E-key interaction for room1
   function handleEKeyInteraction(playerObject) {
     // Check wire panel first
     if (handleWirePanelEKey(playerObject)) {
+      return true;
+    }
+    
+    // Check Simon Stand interaction
+    if (handleSimonStandEKey(playerObject)) {
       return true;
     }
     
@@ -1501,67 +1610,30 @@ export function createRoom1() {
   function setRoom1Lights(on) {
     console.log('setRoom1Lights called with:', on);
     
-    // Use requestAnimationFrame to defer heavy operations
-    requestAnimationFrame(() => {
-      // Toggle point/spot lights
-      lights.ceiling.visible = on;
-      lights.spot.visible = on;
-      lights.switchSpotlight.visible = on;
-      lights.switchPointLight.visible = on;
-      
-      // Set ambient intensity
-      if (lights.ambient) {
-        lights.ambient.intensity = on ? 1.2 : 0.0;
-      }
-      
-      // Batch material updates to reduce performance impact
-      const materialUpdates = [];
-      
-      // Update emissive meshes
+    // Immediate light toggles (fast operations)
+    lights.ceiling.visible = on;
+    lights.spot.visible = on;
+    lights.switchSpotlight.visible = on;
+    lights.switchPointLight.visible = on;
+    
+    
+    // Set ambient intensity
+    if (lights.ambient) {
+      lights.ambient.intensity = on ? 1.5 : 0.0;
+    }
+    
+    // Defer heavy material updates to prevent lag
+    setTimeout(() => {
+      // Update emissive meshes (reduced scope)
       for (const mesh of emissives) {
         if (!mesh || !mesh.material) continue;
         if ('emissiveIntensity' in mesh.material) {
-          materialUpdates.push(() => {
-            mesh.material.emissiveIntensity = on ? 1.5 : 0.0;
-            mesh.visible = on;
-          });
+          mesh.material.emissiveIntensity = on ? 1.5 : 0.0;
+          mesh.visible = on;
         }
       }
       
-      // Update floor material
-      const floor = group.getObjectByName('room1-floor');
-      if (floor && floor.material) {
-        materialUpdates.push(() => {
-          floor.material.color.setHex(on ? 0x2a3a2a : 0x050505);
-        });
-      }
-      
-      // Update wall materials (batch this operation)
-      const wallMeshes = [];
-      group.traverse((child) => {
-        if (child.isMesh && child.userData && child.userData.type === 'wall') {
-          wallMeshes.push(child);
-        }
-      });
-      
-      wallMeshes.forEach(wall => {
-        if (wall.material && wall.material.color) {
-          materialUpdates.push(() => {
-            wall.material.color.setHex(on ? 0x3a4a3a : 0x080808);
-          });
-        }
-      });
-      
-      // Execute material updates in batches
-      materialUpdates.forEach(update => update());
-      
-      // Update light fixture visibility
-      const lightFixtureGroup = group.getObjectByName('ceiling-light-fixture');
-      if (lightFixtureGroup) {
-        lightFixtureGroup.visible = on;
-      }
-      
-      // Update switch visual feedback
+      // Update switch visual feedback only
       const switchButtonUpdate = lightSwitchGroup.getObjectByName('switch-button');
       const statusLight1Update = lightSwitchGroup.getObjectByName('status-light-1');
       const statusLight2Update = lightSwitchGroup.getObjectByName('status-light-2');
@@ -1579,20 +1651,33 @@ export function createRoom1() {
         statusLight2Update.material.emissiveIntensity = on ? 0.0 : 0.8;
       }
       
-      // Update global ambient lighting (defer this heavy operation)
-      if (window.gameState && window.gameState.room0) {
-        setTimeout(() => {
-          window.gameState.room0.group.traverse((child) => {
-            if (child.isAmbientLight) {
-              child.intensity = on ? 0.2 : 0.05;
-            }
-          });
-        }, 0);
+      // Update light fixture visibility
+      const lightFixtureGroup = group.getObjectByName('ceiling-light-fixture');
+      if (lightFixtureGroup) {
+        lightFixtureGroup.visible = on;
+      }
+    }, 0);
+    
+    // Defer heavy material updates even further to prevent lag
+    setTimeout(() => {
+      // Update floor material only if needed
+      const floor = group.getObjectByName('room1-floor');
+      if (floor && floor.material) {
+        floor.material.color.setHex(on ? 0x2a3a2a : 0x050505);
       }
       
-      // Update state
-      lightsOn = on;
-    });
+      // Update global ambient lighting (defer this heavy operation)
+      if (window.gameState && window.gameState.room0) {
+        window.gameState.room0.group.traverse((child) => {
+          if (child.isAmbientLight) {
+            child.intensity = on ? 0.3 : 0.05;
+          }
+        });
+      }
+    }, 16); // 16ms delay to spread out the work
+    
+    // Update state
+    lightsOn = on;
   }
   
   // Check if player is inside Room 1 bounds
