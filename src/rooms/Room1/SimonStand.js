@@ -51,7 +51,6 @@ export function createSimonStand(position = [0, 0, 0]) {
     transmission: 0.9,
     thickness: 0.05,
     roughness: 0.15,
-    chromaticAberration: 0.02,
     transparent: true,
     opacity: 0.3
   });

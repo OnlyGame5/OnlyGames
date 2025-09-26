@@ -10,6 +10,7 @@ import { initInput, isDown as inputIsDown, getBindings } from './systems/input.j
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
 import { loadingScreen } from './loading.js';
 import { uiRoot } from './ui/UIRoot.js';
+import { flagsHUD } from './ui/FlagsHUD.js';
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();

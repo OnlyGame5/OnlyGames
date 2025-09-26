@@ -3,6 +3,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { addToInventory, hasInInventory, getPlayerInventory } from './player.js';
 import { createWirePanel } from './puzzles/wirePanel.js';
 import { createSimonStand } from './rooms/Room1/SimonStand.js';
+import { createBookshelfDoor } from './rooms/Room1/BookshelfDoor.js';
+import { createHallway } from './rooms/Hallway.js';
 import { gameStore } from './state/gameStore.js';
 import { memoryPanel } from './ui/MemoryPanel.js';
 
@@ -724,6 +726,36 @@ export function createRoom1() {
   simonStand.name = 'simonStand';
   group.add(simonStand);
   
+  // Bookshelf Door - positioned on left wall, away from light switch
+  const bookshelfDoor = createBookshelfDoor();
+  bookshelfDoor.position.set(-8.5, 0, -4.5); // Left wall, moved further from light switch
+  bookshelfDoor.rotation.y = Math.PI / 2; // Rotate to face into the room
+  bookshelfDoor.name = 'bookshelfDoor';
+  group.add(bookshelfDoor);
+  
+  // Hallway - created conditionally when bookshelf door opens
+  let hallway = null;
+  const hallwayUnsubscribe = gameStore.subscribe('bookshelfDoorOpen', (isOpen) => {
+    if (isOpen && !hallway) {
+      // Create hallway when door opens
+      hallway = createHallway({
+        width: 2.6,     // can tweak to match the opening
+        height: 2.2,
+        length: 6,
+        originZ: -3.12, // slightly behind the wall (z=-3)
+        x: -8.5        // align with the bookshelf position.x
+      });
+      hallway.name = 'hallway';
+      group.add(hallway);
+      console.log('Hallway created and added to room');
+    } else if (!isOpen && hallway) {
+      // Remove hallway when door closes
+      group.remove(hallway);
+      hallway = null;
+      console.log('Hallway removed from room');
+    }
+  });
+  
   // Add floating tooltip for locked Simon Stand
   function createSimonStandTooltip() {
     const tooltip = document.createElement('div');
@@ -842,6 +874,11 @@ export function createRoom1() {
     
     // Update light flicker effect
     updateLightFlicker(dt);
+    
+    // Update bookshelf door animation
+    if (bookshelfDoor && bookshelfDoor.userData.animate) {
+      bookshelfDoor.userData.animate(dt);
+    }
     
     // Update wire panel effects
     wirePanel.update(dt);
@@ -1219,6 +1256,7 @@ export function createRoom1() {
             type: 'note'
           };
           addToInventory(noteItem);
+          gameStore.setPageTaken(true);
           if (window.AI) window.AI.say('Correct. The safe yields a note.');
         }
       } else {
@@ -1292,6 +1330,7 @@ export function createRoom1() {
             type: 'note'
           };
           addToInventory(noteItem);
+          gameStore.setPageTaken(true);
           if (window.AI) window.AI.say('Correct. The safe yields a note.');
         }
       } else {
@@ -1801,7 +1840,13 @@ export function createRoom1() {
     isPlayerInRoom1, // <-- player bounds checking
     getLightsOn, // <-- getter for current light state
     lightsOn: lightsOn, // <-- expose current state
-    updateRoom1Dialogue // <-- contextual dialogue system
+    updateRoom1Dialogue, // <-- contextual dialogue system
+    cleanup: () => {
+      // Clean up hallway subscription
+      if (hallwayUnsubscribe) {
+        hallwayUnsubscribe();
+      }
+    }
   };
 }
 

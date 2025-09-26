@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AI Bunker Game</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { margin:0; overflow:hidden; background:#111; }
+    canvas { display:block; }
+    #hud { position:absolute; left:16px; top:16px; color:#eee; font-family:sans-serif; z-index:10; }
+    #dialogue { background:rgba(0,0,0,0.6); padding:8px 12px; border-radius:6px; }
+    
+    /* Inventory UI */
+    #inventory { 
+      position:absolute; 
+      bottom:20px; 
+      left:50%; 
+      transform:translateX(-50%); 
+      display:flex; 
+      gap:8px; 
+      z-index:10; 
+    }
+    .inventory-slot { 
+      width:60px; 
+      height:60px; 
+      background:rgba(0,0,0,0.7); 
+      border:2px solid #666; 
+      border-radius:8px; 
+      display:flex; 
+      align-items:center; 
+      justify-content:center; 
+      font-size:12px; 
+      color:#ccc; 
+      position:relative;
+    }
+    .inventory-slot.selected { 
+      border-color:#ffaa00; 
+      box-shadow:0 0 10px rgba(255,170,0,0.5); 
+    }
+    .inventory-slot.filled { 
+      background:rgba(255,170,0,0.2); 
+      border-color:#ffaa00; 
+    }
+    .inventory-slot .item-icon { 
+      font-size:24px; 
+    }
+    .inventory-slot .slot-number { 
+      position:absolute; 
+      top:2px; 
+      left:4px; 
+      font-size:10px; 
+      color:#888; 
+    }
+    
+    /* Instructions */
+    #instructions { 
+      position:absolute; 
+      bottom:100px; 
+      left:50%; 
+      transform:translateX(-50%); 
+      color:#ccc; 
+      font-family:sans-serif; 
+      font-size:14px; 
+      text-align:center; 
+      z-index:10; 
+    }
+    
+    /* Crosshair */
+    #crosshair { 
+      position:absolute; 
+      top:50%; 
+      left:50%; 
+      transform:translate(-50%, -50%); 
+      width:20px; 
+      height:20px; 
+      z-index:20; 
+      pointer-events:none; 
+      display:none; 
+    }
+    #crosshair::before, #crosshair::after { 
+      content:''; 
+      position:absolute; 
+      background:#fff; 
+      box-shadow:0 0 2px rgba(0,0,0,0.8); 
+    }
+    #crosshair::before { 
+      top:50%; 
+      left:0; 
+      right:0; 
+      height:2px; 
+      transform:translateY(-50%); 
+    }
+    #crosshair::after { 
+      left:50%; 
+      top:0; 
+      bottom:0; 
+      width:2px; 
+      transform:translateX(-50%); 
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-DXqOyoIF.js"></script>
+</head>
+<body>
+  <div id="hud"><div id="dialogue">AI Companion: Booting...</div></div>
+  
+  <!-- Inventory UI -->
+  <div id="inventory">
+    <div class="inventory-slot selected" data-slot="0">
+      <div class="slot-number">1</div>
+      <div class="item-icon"></div>
+    </div>
+    <div class="inventory-slot" data-slot="1">
+      <div class="slot-number">2</div>
+      <div class="item-icon"></div>
+    </div>
+    <div class="inventory-slot" data-slot="2">
+      <div class="slot-number">3</div>
+      <div class="item-icon"></div>
+    </div>
+    <div class="inventory-slot" data-slot="3">
+      <div class="slot-number">4</div>
+      <div class="item-icon"></div>
+    </div>
+    <div class="inventory-slot" data-slot="4">
+      <div class="slot-number">5</div>
+      <div class="item-icon"></div>
+    </div>
+  </div>
+  
+  <!-- Instructions -->
+  <div id="instructions">
+    Press <strong>E</strong> near objects to interact | Press <strong>I</strong> to inspect items in inventory | Press <strong>1-5</strong> to select inventory slots | Press <strong>V</strong> to toggle view | Click to lock mouse in first-person
+  </div>
+  
+  <!-- Crosshair -->
+  <div id="crosshair"></div>
+  
+  <!-- Keypad UI -->
+  <div id="keypadUI" style="display:none; position:fixed; top:50%; left:50%; 
+  transform:translate(-50%, -50%); background:#111; padding:20px; border:2px solid #0f0;
+  border-radius:10px; text-align:center; z-index:1000; font-family:monospace; color:#0f0;">
+    <div id="keypadDisplay" style="margin-bottom:10px; font-size:20px;">____</div>
+    <div>
+      <button class="keyBtn">1</button>
+      <button class="keyBtn">2</button>
+      <button class="keyBtn">3</button><br>
+      <button class="keyBtn">4</button>
+      <button class="keyBtn">5</button>
+      <button class="keyBtn">6</button><br>
+      <button class="keyBtn">7</button>
+      <button class="keyBtn">8</button>
+      <button class="keyBtn">9</button><br>
+      <button id="clearBtn">C</button>
+      <button class="keyBtn">0</button>
+      <button id="enterBtn">↵</button>
+    </div>
+  </div>
+  
+  <style>
+    #keypadUI button {
+      background:#222;
+      border:1px solid #0f0;
+      color:#0f0;
+      width:40px;
+      height:40px;
+      margin:4px;
+      font-size:16px;
+      cursor:pointer;
+    }
+    #keypadUI button:hover {
+      background:#333;
+    }
+  </style>
+</body>
+</html>

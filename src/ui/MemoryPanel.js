@@ -76,6 +76,8 @@ export class MemoryPanel {
       background: rgba(3, 6, 12, 0.65);
       backdrop-filter: blur(4px);
       z-index: 1000;
+      overflow-y: auto;
+      padding: 20px;
     `;
     
     // Prevent cursor lock when clicking on overlay
@@ -303,6 +305,29 @@ export class MemoryPanel {
     `;
     exitBtn.addEventListener('click', () => this.closePanel());
     
+    // Add Continue button that becomes active when game is complete
+    const continueBtn = document.createElement('button');
+    continueBtn.textContent = 'Continue';
+    continueBtn.style.cssText = `
+      background: #333333;
+      color: #666666;
+      border: 1px solid #555555;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: not-allowed;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      opacity: 0.5;
+    `;
+    continueBtn.disabled = true;
+    continueBtn.addEventListener('click', () => {
+      console.log('Memory game: Continue button clicked!');
+      this.confirmCongratsAndExit();
+    });
+    
+    // Store reference to continue button for later activation
+    this.continueBtn = continueBtn;
+    
     const keyHint = document.createElement('div');
     keyHint.style.cssText = `
       font-size: 12px;
@@ -313,6 +338,7 @@ export class MemoryPanel {
     
     controls.appendChild(startBtn);
     controls.appendChild(replayBtn);
+    controls.appendChild(continueBtn);
     controls.appendChild(exitBtn);
     controls.appendChild(keyHint);
     
@@ -451,12 +477,36 @@ export class MemoryPanel {
       if (nextIndex === this.sequence.length) {
         this.best = Math.max(this.best, this.round);
         
+        // Update the display to show the correct score
+        this.updateStats();
+        
         // Check for victory (6 rounds completed)
         if (this.round >= this.config.maxRoundsToWin) {
+          console.log('Memory game: Victory condition met! Round:', this.round, 'Max rounds:', this.config.maxRoundsToWin);
           this.log = "Perfect! Training complete!";
           this.updateLog();
           await this.wait(1000);
+          
+          // Activate the Continue button
+          if (this.continueBtn) {
+            this.continueBtn.disabled = false;
+            this.continueBtn.style.cssText = `
+              background: #00ff00;
+              color: #000000;
+              border: 2px solid #ffffff;
+              padding: 10px 14px;
+              border-radius: 10px;
+              cursor: pointer;
+              font-weight: 700;
+              letter-spacing: 0.3px;
+              box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+              opacity: 1;
+            `;
+            console.log('Memory game: Continue button activated!');
+          }
+          
           this.showCongrats = true;
+          console.log('Memory game: Showing congrats modal');
           this.showCongratsModal();
           return;
         }
@@ -481,6 +531,7 @@ export class MemoryPanel {
   }
   
   confirmCongratsAndExit() {
+    console.log('Memory game: Continue button clicked - confirming congrats and exit');
     this.showCongrats = false;
     this.hideCongratsModal();
     // Close the memory UI first
@@ -545,32 +596,42 @@ export class MemoryPanel {
       if (popup.parentNode) {
         popup.parentNode.removeChild(popup);
       }
+      console.log('Memory game completion - calling setMemoryComplete(true)');
       gameStore.setMemoryComplete(true);
     }, 3000);
   }
   
   showCongratsModal() {
+    console.log('Memory game: showCongratsModal called, showCongrats:', this.showCongrats);
     if (this.showCongrats) return;
     
     const modal = document.createElement('div');
     modal.style.cssText = `
       position: fixed;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      background: rgba(2, 6, 12, 0.6);
-      z-index: 1001;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      background: rgba(2, 6, 12, 0.9);
+      z-index: 9999;
+      padding-top: 50px;
+      overflow-y: auto;
     `;
     
     const modalCard = document.createElement('div');
     modalCard.style.cssText = `
       background: #0f172a;
-      border: 1px solid #ffffff22;
+      border: 2px solid #00ff00;
       border-radius: 16px;
       padding: 18px;
-      max-width: 420px;
+      max-width: 400px;
+      width: 90%;
       color: #e2e8f0;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+      box-shadow: 0 12px 40px rgba(0, 255, 0, 0.3);
+      margin: 20px;
     `;
     
     const title = document.createElement('h3');
@@ -599,16 +660,32 @@ export class MemoryPanel {
     const continueBtn = document.createElement('button');
     continueBtn.textContent = 'Continue';
     continueBtn.style.cssText = `
-      background: #1c2742;
-      color: #dbe7ff;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      padding: 10px 14px;
+      background: #00ff00;
+      color: #000000;
+      border: 2px solid #ffffff;
+      padding: 12px 20px;
       border-radius: 10px;
       cursor: pointer;
       font-weight: 700;
       letter-spacing: 0.3px;
+      font-size: 16px;
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
     `;
-    continueBtn.addEventListener('click', () => this.confirmCongratsAndExit());
+    continueBtn.addEventListener('click', () => {
+      console.log('Memory game: Continue button clicked!');
+      this.confirmCongratsAndExit();
+    });
+    
+    // Add hover effect
+    continueBtn.addEventListener('mouseenter', () => {
+      continueBtn.style.background = '#00cc00';
+      continueBtn.style.transform = 'scale(1.05)';
+    });
+    
+    continueBtn.addEventListener('mouseleave', () => {
+      continueBtn.style.background = '#00ff00';
+      continueBtn.style.transform = 'scale(1)';
+    });
     
     buttonContainer.appendChild(continueBtn);
     modalCard.appendChild(title);
@@ -618,6 +695,14 @@ export class MemoryPanel {
     
     this.overlay.appendChild(modal);
     this.congratsModal = modal;
+    
+    console.log('Memory game: Congrats modal created and added to overlay');
+    console.log('Memory game: Modal elements:', {
+      modal: modal,
+      modalCard: modalCard,
+      continueBtn: continueBtn,
+      overlay: this.overlay
+    });
   }
   
   hideCongratsModal() {
