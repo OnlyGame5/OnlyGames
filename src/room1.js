@@ -1057,8 +1057,8 @@ export function createRoom1() {
           <p><strong>Wire Connection Order:</strong></p>
           <ul style="list-style-type: disc; margin-left: 20px;">
             <li style="color: #ff0000; font-weight: bold;">Red</li>
-            <li style="color: #0000ff; font-weight: bold;">Blue</li>
             <li style="color: #008000; font-weight: bold;">Green</li>
+            <li style="color: #0000ff; font-weight: bold;">Blue</li>
             <li style="color: #ffd700; font-weight: bold;">Yellow</li>
           </ul>
           <p style="margin-top: 20px; font-style: italic; color: #888;">
