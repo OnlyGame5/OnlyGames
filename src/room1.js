@@ -11,6 +11,7 @@ import {
   buildStandardLightRig,
   removeExistingLights,
 } from './lighting/standardLighting.js';
+import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling } from './materials/room1Materials.js';
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -24,171 +25,40 @@ export function createRoom1() {
     inputCode: ''
   };
 
-  // Detailed tiled floor with cracks (like Room 0 but greenish-gray)
-  function createDetailedFloor() {
-    const floorCanvas = document.createElement('canvas');
-    floorCanvas.width = 512;
-    floorCanvas.height = 512;
-    const ctx = floorCanvas.getContext('2d');
-    
-    // Base floor color (greenish-gray)
-    ctx.fillStyle = '#1a2a1a'; // Dark greenish-gray base
-    ctx.fillRect(0, 0, floorCanvas.width, floorCanvas.height);
-    
-    // Create tile grid (8x8 tiles)
-    const tileSize = 64;
-    const tileCount = 8;
-    
-    // Draw individual tiles with more visible color variations
-    for (let i = 0; i < tileCount; i++) {
-      for (let j = 0; j < tileCount; j++) {
-        const x = i * tileSize;
-        const y = j * tileSize;
-        
-        // More pronounced color variation for each tile
-        const variation = (Math.sin(i * 0.5) + Math.cos(j * 0.3)) * 0.2;
-        const tileColor = `hsl(120, 15%, ${20 + variation * 15}%)`;
-        ctx.fillStyle = tileColor;
-        ctx.fillRect(x, y, tileSize, tileSize);
-        
-        // More visible tile borders
-        ctx.strokeStyle = '#1a2a1a';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, tileSize, tileSize);
-      }
-    }
-    
-    // Add cracks between tiles (more visible)
-    ctx.strokeStyle = '#0a0a0a';
-    ctx.lineWidth = 3;
-    
-    // Horizontal cracks
-    for (let i = 1; i < tileCount; i++) {
-      const y = i * tileSize;
-      if (Math.random() < 0.4) { // 40% chance of crack
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(floorCanvas.width, y);
-        ctx.stroke();
-      }
-    }
-    
-    // Vertical cracks
-    for (let i = 1; i < tileCount; i++) {
-      const x = i * tileSize;
-      if (Math.random() < 0.4) { // 40% chance of crack
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, floorCanvas.height);
-        ctx.stroke();
-      }
-    }
-    
-    // Add some diagonal cracks (more visible)
-    ctx.strokeStyle = '#0a0a0a';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(100, 150);
-    ctx.lineTo(200, 250);
-    ctx.moveTo(300, 100);
-    ctx.lineTo(400, 200);
-    ctx.moveTo(150, 350);
-    ctx.lineTo(350, 450);
-    ctx.moveTo(50, 300);
-    ctx.lineTo(250, 400);
-    ctx.stroke();
-    
-    // Add some broken tiles (darker)
-    ctx.fillStyle = '#0f1f0f';
-    for (let i = 0; i < 5; i++) {
-      const tileX = Math.floor(Math.random() * tileCount) * tileSize;
-      const tileY = Math.floor(Math.random() * tileCount) * tileSize;
-      ctx.fillRect(tileX + 5, tileY + 5, tileSize - 10, tileSize - 10);
-    }
-    
-    // Add oil stains and wear
-    ctx.fillStyle = '#0a0a0a';
-    ctx.beginPath();
-    ctx.arc(150, 200, 20, 0, Math.PI * 2);
-    ctx.arc(350, 300, 15, 0, Math.PI * 2);
-    ctx.arc(100, 400, 12, 0, Math.PI * 2);
-    ctx.fill();
-    
-    const floorTexture = new THREE.CanvasTexture(floorCanvas);
-    floorTexture.wrapS = THREE.RepeatWrapping;
-    floorTexture.wrapT = THREE.RepeatWrapping;
-    floorTexture.repeat.set(4, 4);
-    
-    const floorMat = new THREE.MeshStandardMaterial({
-      map: floorTexture,
-      color: 0x1a2a1a,
+  // Tiles136C texture files for Room 1 (note: capital C in folder name)
+  const tiles136cFiles = {
+    color: "/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
+    normal: "/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
+    rough: "/textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg",
+    ao: "/textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg"
+  };
+
+  // Tiles136c floor for Room 1
+  function createTiles136cFloor() {
+    const floorGeometry = new THREE.BoxGeometry(18, 0.2, 18);
+    const floorMaterial = makeTiles136cFloor(18, 18, tiles136cFiles, {
+      tileSizeMeters: 1.0,
+      anisotropy: 16,
+      metalness: 0.0,
       roughness: 0.9,
-      metalness: 0.05,
       normalScale: new THREE.Vector2(0.5, 0.5)
     });
     
-    // Store reference to floor material for lighting control
-    const floor = new THREE.Mesh(
-      new THREE.BoxGeometry(18, 0.2, 18),
-      floorMat
-    );
+    const floor = new THREE.Mesh(floorGeometry, floorMaterial);
     floor.receiveShadow = true;
-    floor.name = 'room1-floor'; // Add name for easy reference
+    floor.name = 'room1-floor';
     group.add(floor);
   }
-  createDetailedFloor();
+  createTiles136cFloor();
 
-  // Detailed wall material with industrial texture
-  function createDetailedWallMaterial() {
-    const wallCanvas = document.createElement('canvas');
-    wallCanvas.width = 512;
-    wallCanvas.height = 512;
-    const ctx = wallCanvas.getContext('2d');
-    
-    // Base wall color (slightly different from floor)
-    ctx.fillStyle = '#2a3a2a'; // Greenish-gray
-    ctx.fillRect(0, 0, wallCanvas.width, wallCanvas.height);
-    
-    // Add concrete block patterns
-    ctx.strokeStyle = '#1a2a1a';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 8; i++) {
-      for (let j = 0; j < 8; j++) {
-        ctx.strokeRect(i * 64, j * 64, 64, 64);
-      }
-    }
-    
-    // Add weathering and stains
-    ctx.fillStyle = '#1a2a1a';
-    for (let i = 0; i < 30; i++) {
-      const x = Math.random() * wallCanvas.width;
-      const y = Math.random() * wallCanvas.height;
-      const size = Math.random() * 8 + 2;
-      ctx.fillRect(x, y, size, size);
-    }
-    
-    // Add vertical streaks (water damage)
-    ctx.fillStyle = '#0f1f0f';
-    for (let i = 0; i < 5; i++) {
-      const x = Math.random() * wallCanvas.width;
-      ctx.fillRect(x, 0, 2, wallCanvas.height);
-    }
-    
-    const wallTexture = new THREE.CanvasTexture(wallCanvas);
-    wallTexture.wrapS = THREE.RepeatWrapping;
-    wallTexture.wrapT = THREE.RepeatWrapping;
-    wallTexture.repeat.set(2, 2);
-    
-    return new THREE.MeshStandardMaterial({
-      map: wallTexture,
-      color: 0x2a3a2a,
-      roughness: 0.85,
-      metalness: 0.08,
-      normalScale: new THREE.Vector2(0.3, 0.3)
-    });
-  }
-  
-  const wallMat = createDetailedWallMaterial();
+  // Tiles136c wall material for Room 1
+  const wallMat = makeTiles136cWall(18, 4, tiles136cFiles, {
+    tileSizeMeters: 1.0,
+    anisotropy: 16,
+    metalness: 0.0,
+    roughness: 0.8,
+    normalScale: new THREE.Vector2(0.3, 0.3)
+  });
 
   // Back wall
   const wall1 = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.2), wallMat);
@@ -510,69 +380,23 @@ export function createRoom1() {
     addPaperClutter();
   }, 2000);
 
-  // Room 1: Detailed roof with industrial texture
-  function createDetailedRoof() {
-    const roofCanvas = document.createElement('canvas');
-    roofCanvas.width = 512;
-    roofCanvas.height = 512;
-    const ctx = roofCanvas.getContext('2d');
-    
-    // Base roof color (darker greenish-gray)
-    ctx.fillStyle = '#1a2a1a'; // Dark greenish-gray
-    ctx.fillRect(0, 0, roofCanvas.width, roofCanvas.height);
-    
-    // Add ceiling tile patterns
-    ctx.strokeStyle = '#0f1f0f';
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 8; i++) {
-      for (let j = 0; j < 8; j++) {
-        ctx.strokeRect(i * 64, j * 64, 64, 64);
-      }
-    }
-    
-    // Add ventilation patterns
-    ctx.fillStyle = '#0a0a0a';
-    for (let i = 0; i < 4; i++) {
-      for (let j = 0; j < 4; j++) {
-        const x = i * 128 + 32;
-        const y = j * 128 + 32;
-        ctx.fillRect(x, y, 64, 64);
-      }
-    }
-    
-    // Add water stains and damage
-    ctx.fillStyle = '#0f1f0f';
-    for (let i = 0; i < 20; i++) {
-      const x = Math.random() * roofCanvas.width;
-      const y = Math.random() * roofCanvas.height;
-      const size = Math.random() * 10 + 5;
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    
-    const roofTexture = new THREE.CanvasTexture(roofCanvas);
-    roofTexture.wrapS = THREE.RepeatWrapping;
-    roofTexture.wrapT = THREE.RepeatWrapping;
-    roofTexture.repeat.set(2, 2);
-    
-    const roofMat = new THREE.MeshStandardMaterial({
-      map: roofTexture,
-      color: 0x1a2a1a,
-      metalness: 0.2,
-      roughness: 0.8,
-      normalScale: new THREE.Vector2(0.3, 0.3)
+  // Room 1: Tiles136c ceiling
+  function createTiles136cCeiling() {
+    const roofGeometry = new THREE.BoxGeometry(18, 0.3, 18);
+    const roofMaterial = makeTiles136cCeiling(18, 18, tiles136cFiles, {
+      tileSizeMeters: 1.0,
+      anisotropy: 16,
+      metalness: 0.1,
+      roughness: 0.7,
+      normalScale: new THREE.Vector2(0.4, 0.4)
     });
     
-    const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(18, 0.3, 18),
-      roofMat
-    );
+    const roof = new THREE.Mesh(roofGeometry, roofMaterial);
     roof.position.set(0, 4.15, 0);
     roof.receiveShadow = true;
     group.add(roof);
   }
-  createDetailedRoof();
+  createTiles136cCeiling();
 
   // Room 1: Enhanced ceiling light fixture (like Room 0)
   const lightFixtureGroup = new THREE.Group();
@@ -645,27 +469,52 @@ export function createRoom1() {
     removeExistingLights(group);
 
     // Add original Room 1 lighting system
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.2);
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
     ambientLight.name = 'ambient-light';
     group.add(ambientLight);
 
-    const ceilingLight = new THREE.PointLight(0xffffff, 0.8, 20);
+    const ceilingLight = new THREE.PointLight(0xffffff, 1.5, 25);
     ceilingLight.position.set(0, 4, 0);
     ceilingLight.name = 'ceiling-light';
     ceilingLight.castShadow = true;
-    ceilingLight.shadow.mapSize.width = 512;
-    ceilingLight.shadow.mapSize.height = 512;
+    ceilingLight.shadow.mapSize.width = 1024;
+    ceilingLight.shadow.mapSize.height = 1024;
     ceilingLight.shadow.camera.near = 0.1;
-    ceilingLight.shadow.camera.far = 20;
+    ceilingLight.shadow.camera.far = 25;
     group.add(ceilingLight);
+
+    // Add additional fill lights for better illumination
+    const fillLight1 = new THREE.PointLight(0xffffff, 0.6, 15);
+    fillLight1.position.set(-6, 3, -6);
+    group.add(fillLight1);
+
+    const fillLight2 = new THREE.PointLight(0xffffff, 0.6, 15);
+    fillLight2.position.set(6, 3, 6);
+    group.add(fillLight2);
+
+    const fillLight3 = new THREE.PointLight(0xffffff, 0.6, 15);
+    fillLight3.position.set(-6, 3, 6);
+    group.add(fillLight3);
+
+    const fillLight4 = new THREE.PointLight(0xffffff, 0.6, 15);
+    fillLight4.position.set(6, 3, -6);
+    group.add(fillLight4);
   }
 
   // Room 1: Lighting controller setup
   const lights = {
     ambient: group.getObjectByName('ambient-light'),
     ceiling: group.getObjectByName('ceiling-light'),
-    spot: null // Not used in Room 1
+    spot: null, // Not used in Room 1
+    fillLights: [] // Store fill lights for toggling
   };
+
+  // Store fill lights for toggling
+  group.traverse((child) => {
+    if (child.isPointLight && child !== lights.ceiling) {
+      lights.fillLights.push(child);
+    }
+  });
   
   // Legacy light properties (kept for compatibility but not used)
   // lights.spot.distance = 12;
@@ -1683,6 +1532,11 @@ export function createRoom1() {
       lights.switchPointLight.visible = on;
     }
     
+    // Toggle fill lights
+    lights.fillLights.forEach(light => {
+      light.visible = on;
+    });
+    
     // Update switch visual feedback immediately (lightweight)
     const switchButtonUpdate = lightSwitchGroup.getObjectByName('switch-button');
     const statusLight1Update = lightSwitchGroup.getObjectByName('status-light-1');
@@ -1711,11 +1565,15 @@ export function createRoom1() {
     const floor = group.getObjectByName('room1-floor');
     if (floor && floor.material) {
       if (on) {
-        // Lights on - normal floor color
-        floor.material.color.setHex(0x2a3a2a);
+        // Lights on - normal floor color (white for tiles)
+        floor.material.color.setHex(0xffffff);
+        floor.material.emissive.setHex(0x000000);
+        floor.material.emissiveIntensity = 0.0;
       } else {
-        // Lights off - much darker floor
-        floor.material.color.setHex(0x0a0a0a);
+        // Lights off - much darker floor but still visible
+        floor.material.color.setHex(0x333333);
+        floor.material.emissive.setHex(0x111111);
+        floor.material.emissiveIntensity = 0.1;
       }
     }
   }
