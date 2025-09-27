@@ -7,6 +7,10 @@ import { createBookshelfDoor } from './rooms/Room1/BookshelfDoor.js';
 import { createHallway } from './rooms/Hallway.js';
 import { gameStore } from './state/gameStore.js';
 import { memoryPanel } from './ui/MemoryPanel.js';
+import {
+  buildStandardLightRig,
+  removeExistingLights,
+} from './lighting/standardLighting.js';
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -635,38 +639,49 @@ export function createRoom1() {
   lightFixtureGroup.position.set(0, 4.0, 0);
   group.add(lightFixtureGroup);
 
-  // Room 1: Optimized lighting controller setup
+  // --- Room 1 original lighting system ---
+  {
+    // Remove any leftover lights under this room group (if any slipped through)
+    removeExistingLights(group);
+
+    // Add original Room 1 lighting system
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.2);
+    ambientLight.name = 'ambient-light';
+    group.add(ambientLight);
+
+    const ceilingLight = new THREE.PointLight(0xffffff, 0.8, 20);
+    ceilingLight.position.set(0, 4, 0);
+    ceilingLight.name = 'ceiling-light';
+    ceilingLight.castShadow = true;
+    ceilingLight.shadow.mapSize.width = 512;
+    ceilingLight.shadow.mapSize.height = 512;
+    ceilingLight.shadow.camera.near = 0.1;
+    ceilingLight.shadow.camera.far = 20;
+    group.add(ceilingLight);
+  }
+
+  // Room 1: Lighting controller setup
   const lights = {
-    ambient: new THREE.AmbientLight(0x404040, 1.5),
-    ceiling: new THREE.PointLight(0xFFFFFF, 3.0, 20),
-    spot: new THREE.SpotLight(0xffffff, 2.0, 12, Math.PI / 6, 0.2, 1)
+    ambient: group.getObjectByName('ambient-light'),
+    ceiling: group.getObjectByName('ceiling-light'),
+    spot: null // Not used in Room 1
   };
   
-  // Optimize shadow settings for better performance
-  lights.ceiling.distance = 20;
-  lights.ceiling.position.set(0, 3.8, 0);
-  lights.ceiling.castShadow = true;
-  lights.ceiling.shadow.mapSize.width = 256; // Reduced from 512 for better performance
-  lights.ceiling.shadow.mapSize.height = 256;
-  lights.ceiling.shadow.camera.near = 0.1;
-  lights.ceiling.shadow.camera.far = 25;
-  lights.ceiling.name = 'ceiling-light';
-  
-  lights.spot.distance = 12;
-  lights.spot.position.set(0, 3.8, 0);
-  lights.spot.target.position.set(0, 0, 0);
-  lights.spot.castShadow = true;
-  lights.spot.shadow.mapSize.width = 256; // Reduced from 512 for better performance
-  lights.spot.shadow.mapSize.height = 256;
-  lights.spot.shadow.camera.near = 0.1;
-  lights.spot.shadow.camera.far = 15;
-  
+  // Legacy light properties (kept for compatibility but not used)
+  // lights.spot.distance = 12;
+  // lights.spot.position.set(0, 3.8, 0);
+  // lights.spot.target.position.set(0, 0, 0);
+  // lights.spot.castShadow = true;
+  // lights.spot.shadow.mapSize.width = 256;
+  // lights.spot.shadow.mapSize.height = 256;
+  // lights.spot.shadow.camera.near = 0.1;
+  // lights.spot.shadow.camera.far = 15;
 
-  // Add lights to group
-  group.add(lights.ambient);
-  group.add(lights.ceiling);
-  group.add(lights.spot);
-  group.add(lights.spot.target);
+  // Legacy light additions (commented out - using standard rig instead)
+  // group.add(lights.ambient);
+  // group.add(lights.ceiling);
+  // group.add(lights.spot);
+  // group.add(lights.spot.target);
 
   // Add swivel cameras
   function addSwivelCameras() {
@@ -1649,74 +1664,60 @@ export function createRoom1() {
   function setRoom1Lights(on) {
     console.log('setRoom1Lights called with:', on);
     
-    // Immediate light toggles (fast operations)
-    lights.ceiling.visible = on;
-    lights.spot.visible = on;
-    lights.switchSpotlight.visible = on;
-    lights.switchPointLight.visible = on;
+    // Update lightsOn state
+    lightsOn = on;
     
-    
-    // Set ambient intensity
+    // Toggle the main room lights immediately
     if (lights.ambient) {
-      lights.ambient.intensity = on ? 1.5 : 0.0;
+      lights.ambient.visible = on;
+    }
+    if (lights.ceiling) {
+      lights.ceiling.visible = on;
     }
     
-    // Defer heavy material updates to prevent lag
-    setTimeout(() => {
-      // Update emissive meshes (reduced scope)
-      for (const mesh of emissives) {
-        if (!mesh || !mesh.material) continue;
-        if ('emissiveIntensity' in mesh.material) {
-          mesh.material.emissiveIntensity = on ? 1.5 : 0.0;
-          mesh.visible = on;
-        }
-      }
-      
-      // Update switch visual feedback only
-      const switchButtonUpdate = lightSwitchGroup.getObjectByName('switch-button');
-      const statusLight1Update = lightSwitchGroup.getObjectByName('status-light-1');
-      const statusLight2Update = lightSwitchGroup.getObjectByName('status-light-2');
-      
-      if (switchButtonUpdate) {
-        switchButtonUpdate.material.emissive.setHex(on ? 0x00ff00 : 0x000000);
-        switchButtonUpdate.material.emissiveIntensity = on ? 0.5 : 0.0;
-      }
-      
-      if (statusLight1Update) {
-        statusLight1Update.material.emissiveIntensity = on ? 0.8 : 0.0;
-      }
-      
-      if (statusLight2Update) {
-        statusLight2Update.material.emissiveIntensity = on ? 0.0 : 0.8;
-      }
-      
-      // Update light fixture visibility
-      const lightFixtureGroup = group.getObjectByName('ceiling-light-fixture');
-      if (lightFixtureGroup) {
-        lightFixtureGroup.visible = on;
-      }
-    }, 0);
+    // Toggle the switch-specific lights if they exist
+    if (lights.switchSpotlight) {
+      lights.switchSpotlight.visible = on;
+    }
+    if (lights.switchPointLight) {
+      lights.switchPointLight.visible = on;
+    }
     
-    // Defer heavy material updates even further to prevent lag
-    setTimeout(() => {
-      // Update floor material only if needed
-      const floor = group.getObjectByName('room1-floor');
-      if (floor && floor.material) {
-        floor.material.color.setHex(on ? 0x2a3a2a : 0x050505);
-      }
-      
-      // Update global ambient lighting (defer this heavy operation)
-      if (window.gameState && window.gameState.room0) {
-        window.gameState.room0.group.traverse((child) => {
-          if (child.isAmbientLight) {
-            child.intensity = on ? 0.3 : 0.05;
-          }
-        });
-      }
-    }, 16); // 16ms delay to spread out the work
+    // Update switch visual feedback immediately (lightweight)
+    const switchButtonUpdate = lightSwitchGroup.getObjectByName('switch-button');
+    const statusLight1Update = lightSwitchGroup.getObjectByName('status-light-1');
+    const statusLight2Update = lightSwitchGroup.getObjectByName('status-light-2');
     
-    // Update state
-    lightsOn = on;
+    if (switchButtonUpdate) {
+      switchButtonUpdate.material.emissive.setHex(on ? 0x00ff00 : 0x000000);
+      switchButtonUpdate.material.emissiveIntensity = on ? 0.5 : 0.0;
+    }
+    
+    if (statusLight1Update) {
+      statusLight1Update.material.emissiveIntensity = on ? 0.8 : 0.0;
+    }
+    
+    if (statusLight2Update) {
+      statusLight2Update.material.emissiveIntensity = on ? 0.0 : 0.8;
+    }
+    
+    // Update light fixture visibility
+    const lightFixtureGroup = group.getObjectByName('ceiling-light-fixture');
+    if (lightFixtureGroup) {
+      lightFixtureGroup.visible = on;
+    }
+    
+    // Update floor material to respond to lighting
+    const floor = group.getObjectByName('room1-floor');
+    if (floor && floor.material) {
+      if (on) {
+        // Lights on - normal floor color
+        floor.material.color.setHex(0x2a3a2a);
+      } else {
+        // Lights off - much darker floor
+        floor.material.color.setHex(0x0a0a0a);
+      }
+    }
   }
   
   // Check if player is inside Room 1 bounds
@@ -1741,8 +1742,12 @@ export function createRoom1() {
     return lightsOn;
   }
 
-  // Initialize lights OFF by default
-  setRoom1Lights(false);
+  // Initialize lights ON first to preload materials, then turn OFF
+  setRoom1Lights(true);
+  // Turn off after a brief delay to allow materials to initialize
+  setTimeout(() => {
+    setRoom1Lights(false);
+  }, 100);
   
   // Room 1 contextual dialogue system
   let room1DialogueState = {
