@@ -4,7 +4,6 @@ import { addToInventory, hasInInventory, getPlayerInventory } from './player.js'
 import { createWirePanel } from './puzzles/wirePanel.js';
 import { createSimonStand } from './rooms/Room1/SimonStand.js';
 import { createBookshelfDoor } from './rooms/Room1/BookshelfDoor.js';
-import { createHallway } from './rooms/Hallway.js';
 import { gameStore } from './state/gameStore.js';
 import { memoryPanel } from './ui/MemoryPanel.js';
 import {
@@ -12,6 +11,7 @@ import {
   removeExistingLights,
 } from './lighting/standardLighting.js';
 import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling } from './materials/room1Materials.js';
+import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -31,6 +31,15 @@ export function createRoom1() {
     normal: "/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
     rough: "/textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg",
     ao: "/textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg"
+  };
+
+  // Concrete031 texture files for hallway
+  const concrete031Files = {
+    color: "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
+    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
+    rough: "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
+    ao: "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
+    disp: "/textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
   };
 
   // Tiles136c floor for Room 1
@@ -60,13 +69,128 @@ export function createRoom1() {
     normalScale: new THREE.Vector2(0.3, 0.3)
   });
 
-  // Back wall
-  const wall1 = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.2), wallMat);
-  wall1.position.set(0, 2, -9);
-  wall1.userData = { type: 'wall', side: 'back' };
-  wall1.castShadow = true;
-  wall1.receiveShadow = true;
-  group.add(wall1);
+  // Back wall - A single piece with an opening in the left corner (from x=-9 to x=-7)
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(16, 4, 0.2), wallMat);
+  backWall.position.set(1, 2, -9); // Positioned to leave a gap on the left
+  backWall.userData = { type: 'wall', side: 'back' };
+  backWall.castShadow = true;
+  backWall.receiveShadow = true;
+  group.add(backWall);
+
+
+  // Create hallway to room 2 (matching room0 hallway style)
+  const hallway = new THREE.Group();
+  hallway.name = 'hallway-to-room2';
+  hallway.visible = true;
+  
+  // Hallway floor - Concrete031 textured (aligned with opening) - EXTENDED LENGTH to reach Room 2
+  const hallwayFloorGeo = new THREE.BoxGeometry(2, 0.2, 18);
+  const hallwayFloor = new THREE.Mesh(
+    hallwayFloorGeo,
+    makeConcrete031MaterialFlexible(2, 12, concrete031Files, {
+      uScale: 0.4,
+      vScale: 0.4,
+      anisotropy: 16,
+      attachAOToGeometry: hallwayFloorGeo,
+    })
+  );
+  hallwayFloor.position.set(-8, -0.15, -18); // Centered further down the corridor (x=-8)
+  hallwayFloor.receiveShadow = true;
+  hallway.add(hallwayFloor);
+  
+  // Hallway walls - Concrete031 textured (aligned with opening) - EXTENDED LENGTH
+  const hallwayWall1Geo = new THREE.BoxGeometry(0.2, 4, 18);
+  const hallwayWall1 = new THREE.Mesh(
+    hallwayWall1Geo,
+    makeConcrete031MaterialFlexible(0.2, 4, concrete031Files, {
+      uScale: 0.3,
+      vScale: 0.3,
+      anisotropy: 16,
+      attachAOToGeometry: hallwayWall1Geo,
+    })
+  );
+  hallwayWall1.position.set(-9.1, 2, -18); // Left wall of the extended hallway
+  hallwayWall1.castShadow = true;
+  hallwayWall1.receiveShadow = true;
+  hallwayWall1.userData = { type: 'wall', side: 'hallway-left' };
+  hallway.add(hallwayWall1);
+  
+  const hallwayWall2Geo = new THREE.BoxGeometry(0.2, 4, 18);
+  const hallwayWall2 = new THREE.Mesh(
+    hallwayWall2Geo,
+    makeConcrete031MaterialFlexible(0.2, 4, concrete031Files, {
+      uScale: 0.3,
+      vScale: 0.3,
+      anisotropy: 16,
+      attachAOToGeometry: hallwayWall2Geo,
+    })
+  );
+  hallwayWall2.position.set(-6.9, 2, -18); // Right wall of the extended hallway
+  hallwayWall2.rotation.y = Math.PI; // Rotate 180 degrees to face the correct direction
+  hallwayWall2.castShadow = true;
+  hallwayWall2.receiveShadow = true;
+  hallwayWall2.userData = { type: 'wall', side: 'hallway-right' };
+  hallway.add(hallwayWall2);
+  
+  // Hallway ceiling - Concrete031 textured (aligned with opening) - EXTENDED LENGTH
+  const hallwayCeilingGeo = new THREE.BoxGeometry(2, 0.3, 18);
+  const hallwayCeiling = new THREE.Mesh(
+    hallwayCeilingGeo,
+    makeConcrete031MaterialFlexible(2, 12, concrete031Files, {
+      uScale: 0.4,
+      vScale: 0.4,
+      anisotropy: 16,
+      attachAOToGeometry: hallwayCeilingGeo,
+    })
+  );
+  hallwayCeiling.position.set(-8, 4.15, -18); // Aligned with extended corridor
+  hallwayCeiling.receiveShadow = true;
+  hallway.add(hallwayCeiling);
+  
+  // Add atmospheric hallway lighting
+  const hallwayAmbientLight = new THREE.AmbientLight(0x202020, 0.1); // Very dim ambient
+  hallway.add(hallwayAmbientLight);
+  
+  // Add dim overhead lights along the hallway (aligned with opening)
+  const hallwayLight1 = new THREE.PointLight(0xffffff, 0.3, 8);
+  hallwayLight1.position.set(-8, 3, -12); // Shifted deeper
+  hallwayLight1.castShadow = true;
+  hallwayLight1.shadow.mapSize.width = 256;
+  hallwayLight1.shadow.mapSize.height = 256;
+  hallwayLight1.shadow.camera.near = 0.1;
+  hallwayLight1.shadow.camera.far = 10;
+  hallway.add(hallwayLight1);
+
+  const hallwayLight2 = new THREE.PointLight(0xffffff, 0.3, 8);
+  hallwayLight2.position.set(-8, 3, -18); // Mid corridor
+  hallwayLight2.castShadow = true;
+  hallwayLight2.shadow.mapSize.width = 256;
+  hallwayLight2.shadow.mapSize.height = 256;
+  hallwayLight2.shadow.camera.near = 0.1;
+  hallwayLight2.shadow.camera.far = 10;
+  hallway.add(hallwayLight2);
+
+  const hallwayLight3 = new THREE.PointLight(0xffffff, 0.3, 8);
+  hallwayLight3.position.set(-8, 3, -24); // Deeper
+  hallwayLight3.castShadow = true;
+  hallwayLight3.shadow.mapSize.width = 256;
+  hallwayLight3.shadow.mapSize.height = 256;
+  hallwayLight3.shadow.camera.near = 0.1;
+  hallwayLight3.shadow.camera.far = 10;
+  hallway.add(hallwayLight3);
+
+  // Additional light at corridor end for better guidance
+  const hallwayLight4 = new THREE.PointLight(0xffffff, 0.3, 8);
+  hallwayLight4.position.set(-8, 3, -27);
+  hallwayLight4.castShadow = true;
+  hallwayLight4.shadow.mapSize.width = 256;
+  hallwayLight4.shadow.mapSize.height = 256;
+  hallwayLight4.shadow.camera.near = 0.1;
+  hallwayLight4.shadow.camera.far = 10;
+  hallway.add(hallwayLight4);
+  
+  // Add hallway to group
+  group.add(hallway);
 
   // Front wall with doorway (split into two parts)
   const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(7, 4, 0.2), wallMat);
@@ -577,12 +701,11 @@ export function createRoom1() {
   }
   addSwivelCameras();
 
-  // Wire Panel System (GLB model enabled with aggressive optimizations)
-  // Set useGLBModel to false if you want to disable the Power_Box model for better performance
+  // Wire Panel System
   const wirePanel = createWirePanel({ order: ['R','G','B','Y'], useGLBModel: true });
   wirePanel.group.name = 'wirePanel';
-  wirePanel.group.position.set(8.2, 0.8, 0); // Right wall, adjusted Y for powerbox model
-  wirePanel.group.rotation.y = -Math.PI / 2; // Rotate to face the player
+  wirePanel.group.position.set(8.2, 0.8, 0); // Position on the right wall
+  wirePanel.group.rotation.y = -Math.PI / 2; // Rotate to face into the room (from the right wall)
   group.add(wirePanel.group);
 
   // Simon Stand System - positioned on right wall, below wire panel
@@ -597,28 +720,6 @@ export function createRoom1() {
   bookshelfDoor.name = 'bookshelfDoor';
   group.add(bookshelfDoor);
   
-  // Hallway - created conditionally when bookshelf door opens
-  let hallway = null;
-  const hallwayUnsubscribe = gameStore.subscribe('bookshelfDoorOpen', (isOpen) => {
-    if (isOpen && !hallway) {
-      // Create hallway when door opens
-      hallway = createHallway({
-        width: 2.6,     // can tweak to match the opening
-        height: 2.2,
-        length: 6,
-        originZ: -3.12, // slightly behind the wall (z=-3)
-        x: -8.5        // align with the bookshelf position.x
-      });
-      hallway.name = 'hallway';
-      group.add(hallway);
-      console.log('Hallway created and added to room');
-    } else if (!isOpen && hallway) {
-      // Remove hallway when door closes
-      group.remove(hallway);
-      hallway = null;
-      console.log('Hallway removed from room');
-    }
-  });
   
   // Add floating tooltip for locked Simon Stand
   function createSimonStandTooltip() {
@@ -1204,15 +1305,15 @@ export function createRoom1() {
     });
   })();
 
-  // Create entry/exit anchors for future hallway/minimap work
+  // Create entry/exit anchors for room connections
   const entryAnchor = new THREE.Object3D();
   entryAnchor.name = 'entryAnchor';
-  entryAnchor.position.set(0, 0, 9); // Front of room (entry point)
+  entryAnchor.position.set(0, 0, 9); // Front of room (entry from room 0)
   group.add(entryAnchor);
 
   const exitAnchor = new THREE.Object3D();
   exitAnchor.name = 'exitAnchor';
-  exitAnchor.position.set(0, 0, -9); // Back of room (exit point)
+  exitAnchor.position.set(0, 0, -9); // Back of room (direct exit to room 2)
   group.add(exitAnchor);
 
   // Collision detection function for room1 walls (account for room's world position)
@@ -1237,11 +1338,30 @@ export function createRoom1() {
       playerLocal.x = roomHalf - wallThickness - playerRadius;
       clamped = true;
     }
-    // Back wall
+    
+    // Back wall and hallway collision
     if (playerLocal.z - playerRadius < -roomHalf + wallThickness) {
-      playerLocal.z = -roomHalf + wallThickness + playerRadius;
-      clamped = true;
+      // Player is at or behind the back wall line.
+      // Check if player is aligned with the opening (x between -9 and -7).
+      if (playerLocal.x >= -9 && playerLocal.x <= -7) {
+        // Player is in the hallway. Constrain their X position to the hallway walls.
+        // The player's Z position is not clamped here, allowing passage.
+        if (playerLocal.x - playerRadius < -9) {
+            playerLocal.x = -9 + playerRadius;
+            clamped = true;
+        }
+        if (playerLocal.x + playerRadius > -7) {
+            playerLocal.x = -7 - playerRadius;
+            clamped = true;
+        }
+      } else {
+        // Player is NOT aligned with the opening, so they hit the wall.
+        // Clamp their Z position to prevent them from passing through the wall.
+        playerLocal.z = -roomHalf + wallThickness + playerRadius;
+        clamped = true;
+      }
     }
+    
     // Front wall
     if (playerLocal.z + playerRadius > roomHalf - wallThickness) {
       playerLocal.z = roomHalf - wallThickness - playerRadius;
@@ -1705,11 +1825,7 @@ export function createRoom1() {
     lightsOn: lightsOn, // <-- expose current state
     updateRoom1Dialogue, // <-- contextual dialogue system
     cleanup: () => {
-      // Clean up hallway subscription
-      if (hallwayUnsubscribe) {
-        hallwayUnsubscribe();
-      }
+      // Clean up any room-specific resources
     }
   };
 }
-

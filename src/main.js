@@ -82,7 +82,8 @@ async function initGame() {
     const ROOM_SPACING = 30; // Increased spacing to accommodate larger room 1
     gameState.room0.group.position.set(0, 0, 0 * -ROOM_SPACING); // 0
     gameState.room1.group.position.set(0, 0, 1 * -ROOM_SPACING); // -30
-    gameState.room2.group.position.set(0, 0, 2 * -ROOM_SPACING); // -60
+    // Shift Room 2 left to align with Room 1 hallway (which exits near x ≈ -8)
+    gameState.room2.group.position.set(-8, 0, 2 * -ROOM_SPACING); // -60
     gameState.room3.group.position.set(0, 0, 3 * -ROOM_SPACING); // -90
     
     // All rooms visible from start to prevent loading freezes
@@ -288,26 +289,41 @@ function animate(currentTime) {
   updatePlayer(activePlayer, camera, deltaTime);
   
   // Collision: choose which area's walls to apply based on player position
-  if (gameState.room0) {
-    let useRoom1 = false;
+  {
+    const playerWorld = activePlayer.position.clone();
 
-    if (gameState.room1 && typeof gameState.room1.checkWallCollisions === 'function') {
-      // Convert player world position to room1 local space and check bounds (18x18 room → half 9)
-      const playerWorld = activePlayer.position.clone();
-      const localToRoom1 = gameState.room1.group.worldToLocal(playerWorld.clone());
-      const half = 9;
-      const insideRoom1 = (
-        localToRoom1.x >= -half && localToRoom1.x <= half &&
-        localToRoom1.z >= -half && localToRoom1.z <= half
+    // Helper: inside bounds check for a rectangular room
+    const isInsideRoom = (roomGroup, halfX, halfZ) => {
+      if (!roomGroup) return false;
+      const local = roomGroup.worldToLocal(playerWorld.clone());
+      return (
+        local.x >= -halfX && local.x <= halfX &&
+        local.z >= -halfZ && local.z <= halfZ
       );
-      useRoom1 = insideRoom1;
-    }
+    };
 
-    if (useRoom1) {
+    const insideRoom1 = gameState.room1 && isInsideRoom(gameState.room1.group, 9, 9);
+    const insideRoom2 = gameState.room2 && isInsideRoom(gameState.room2.group, 6, 6);
+    const insideRoom0 = gameState.room0 && isInsideRoom(gameState.room0.group, 6, 6); // room0 approx bounds
+
+    if (insideRoom1 && gameState.room1 && gameState.room1.checkWallCollisions) {
       gameState.room1.checkWallCollisions(activePlayer);
-    } else {
-      // Default to room0/hallway constraints
+    } else if (insideRoom2 && gameState.room2 && gameState.room2.checkWallCollisions) {
+      gameState.room2.checkWallCollisions(activePlayer);
+    } else if (insideRoom0 && gameState.room0 && gameState.room0.checkWallCollisions) {
+      // Only apply Room 0 collisions when actually inside Room 0
       gameState.room0.checkWallCollisions(activePlayer);
+    } else {
+      // Transitional spaces: light clamping along Room 1 → Room 2 hallway (aligned at x ≈ -8)
+      const hallwayCenterX = -8;
+      const hallwayHalfWidth = 1.0; // match Room 1 hallway width
+      const playerPos = activePlayer.position;
+      // Constrain X gently while between Room 1 back and Room 2 front
+      // World Z between approx -39 and -54 (Room1 hallway to Room2 front)
+      if (playerPos.z < -35 && playerPos.z > -58) {
+        if (playerPos.x < hallwayCenterX - hallwayHalfWidth) playerPos.x = hallwayCenterX - hallwayHalfWidth;
+        if (playerPos.x > hallwayCenterX + hallwayHalfWidth) playerPos.x = hallwayCenterX + hallwayHalfWidth;
+      }
     }
   }
   

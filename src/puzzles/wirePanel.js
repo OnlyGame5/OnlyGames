@@ -542,17 +542,17 @@ export function createWirePanel(opts = {}) {
   // Only load GLB model if enabled
   if (useGLBModel) {
     // Register with loading screen
-    loadingScreen.registerItem('powerbox', 1);
-    loadingScreen.setStatus('Loading Power_Box model...');
+    loadingScreen.registerItem('electricbox', 1);
+    loadingScreen.setStatus('Loading Electric_Box model...');
     
-    // Load the powerbox GLB model asynchronously
+    // Load the electric box GLB model asynchronously
     const gltfLoader = new GLTFLoader();
-    console.log('Attempting to load Power_Box model from /models/Power_Box.glb');
-    gltfLoader.load('/models/Power_Box.glb', (gltf) => {
-    const powerboxModel = gltf.scene;
+    console.log('Attempting to load Electric_Box model from /models/electric_box.glb');
+    gltfLoader.load('/models/electric_box.glb', (gltf) => {
+    const electricBoxModel = gltf.scene;
     
     // Set up the model with aggressive performance optimizations
-    powerboxModel.traverse((child) => {
+    electricBoxModel.traverse((child) => {
       if (child.isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
@@ -630,32 +630,32 @@ export function createWirePanel(opts = {}) {
     });
     
     // Scale and position the model appropriately
-    powerboxModel.scale.set(1, 1, 1);
-    powerboxModel.position.set(0, 0, 0);
+    electricBoxModel.scale.set(1, 1, 1);
+    electricBoxModel.position.set(0, 0, 0);
     
     // Add interaction data to the entire model
-    powerboxModel.userData = { type: 'wire-panel-trigger' };
+    electricBoxModel.userData = { type: 'wire-panel-trigger' };
     
     // Add LOD optimization - hide model when far away
-    powerboxModel.userData.lodDistance = 15; // Hide when player is more than 15 units away
-    powerboxModel.userData.originalVisible = true;
+    electricBoxModel.userData.lodDistance = 15; // Hide when player is more than 15 units away
+    electricBoxModel.userData.originalVisible = true;
     
     // Add performance monitoring
-    powerboxModel.userData.performanceOptimized = true;
+    electricBoxModel.userData.performanceOptimized = true;
     
     // Replace fallback panel with actual model
     group.remove(fallbackPanel);
-    group.add(powerboxModel);
+    group.add(electricBoxModel);
     
     // Complete loading
-    loadingScreen.completeItem('powerbox');
-    console.log('Powerbox model loaded successfully with aggressive performance optimizations!');
+    loadingScreen.completeItem('electricbox');
+    console.log('Electric box model loaded successfully with aggressive performance optimizations!');
     }, (progress) => {
-      console.log('Loading Power_Box model...', (progress.loaded / progress.total * 100) + '%');
+      console.log('Loading Electric_Box model...', (progress.loaded / progress.total * 100) + '%');
     }, (err) => {
-      console.error('Failed to load Power_Box model:', err);
+      console.error('Failed to load Electric_Box model:', err);
       console.log('Using fallback panel geometry');
-      loadingScreen.completeItem('powerbox'); // Still complete to avoid hanging
+      loadingScreen.completeItem('electricbox'); // Still complete to avoid hanging
     });
   } else {
     console.log('GLB model loading disabled - using fallback panel geometry');
@@ -675,17 +675,17 @@ export function createWirePanel(opts = {}) {
     
     // Performance optimization: LOD culling
     if (group.children.length > 0) {
-      const powerboxModel = group.children.find(child => child.userData && child.userData.performanceOptimized);
-      if (powerboxModel && powerboxModel.userData.lodDistance) {
+      const electricBoxModel = group.children.find(child => child.userData && child.userData.performanceOptimized);
+      if (electricBoxModel && electricBoxModel.userData.lodDistance) {
         // Check if player is far away and hide model for performance
         if (window.leonardModel || window.player) {
           const activePlayer = window.leonardModel || window.player;
           if (activePlayer && activePlayer.position) {
-            const distance = activePlayer.position.distanceTo(powerboxModel.position);
-            if (distance > powerboxModel.userData.lodDistance) {
-              powerboxModel.visible = false;
+            const distance = activePlayer.position.distanceTo(electricBoxModel.position);
+            if (distance > electricBoxModel.userData.lodDistance) {
+              electricBoxModel.visible = false;
             } else {
-              powerboxModel.visible = powerboxModel.userData.originalVisible;
+              electricBoxModel.visible = electricBoxModel.userData.originalVisible;
             }
           }
         }
