@@ -543,12 +543,12 @@ export function createWirePanel(opts = {}) {
   if (useGLBModel) {
     // Register with loading screen
     loadingScreen.registerItem('electricbox', 1);
-    loadingScreen.setStatus('Loading Electric_Box model...');
+    loadingScreen.setStatus('Loading Power_Box model...');
     
     // Load the electric box GLB model asynchronously
     const gltfLoader = new GLTFLoader();
-    console.log('Attempting to load Electric_Box model from /models/electric_box.glb');
-    gltfLoader.load('/models/electric_box.glb', (gltf) => {
+    console.log('Attempting to load Power_Box model from /models/power_box.glb');
+    gltfLoader.load('/models/power_box.glb', (gltf) => {
     const electricBoxModel = gltf.scene;
     
     // Set up the model with aggressive performance optimizations
@@ -561,12 +561,8 @@ export function createWirePanel(opts = {}) {
         if (child.material) {
           if (Array.isArray(child.material)) {
             child.material.forEach(mat => {
-              // Disable expensive features
               mat.needsUpdate = true;
-              mat.transparent = false;
-              mat.alphaTest = 0.1;
-              
-              // Disable mipmaps and reduce texture quality
+              // Keep material maps intact to preserve appearance
               if (mat.map) {
                 mat.map.generateMipmaps = false;
                 mat.map.minFilter = THREE.LinearFilter;
@@ -574,43 +570,14 @@ export function createWirePanel(opts = {}) {
                 mat.map.wrapS = THREE.ClampToEdgeWrapping;
                 mat.map.wrapT = THREE.ClampToEdgeWrapping;
               }
-              
-              // Disable normal maps for performance
-              if (mat.normalMap) {
-                mat.normalMap = null;
-              }
-              
-              // Disable other expensive maps
-              if (mat.roughnessMap) mat.roughnessMap = null;
-              if (mat.metalnessMap) mat.metalnessMap = null;
-              if (mat.aoMap) mat.aoMap = null;
-              if (mat.emissiveMap) mat.emissiveMap = null;
-              
-              // Reduce material complexity
-              mat.roughness = 0.8;
-              mat.metalness = 0.1;
             });
           } else {
-            // Single material optimization
             child.material.needsUpdate = true;
-            child.material.transparent = false;
-            child.material.alphaTest = 0.1;
-            
             if (child.material.map) {
               child.material.map.generateMipmaps = false;
               child.material.map.minFilter = THREE.LinearFilter;
               child.material.map.magFilter = THREE.LinearFilter;
             }
-            
-            // Disable expensive maps
-            if (child.material.normalMap) child.material.normalMap = null;
-            if (child.material.roughnessMap) child.material.roughnessMap = null;
-            if (child.material.metalnessMap) child.material.metalnessMap = null;
-            if (child.material.aoMap) child.material.aoMap = null;
-            if (child.material.emissiveMap) child.material.emissiveMap = null;
-            
-            child.material.roughness = 0.8;
-            child.material.metalness = 0.1;
           }
         }
         
@@ -618,9 +585,7 @@ export function createWirePanel(opts = {}) {
         if (child.geometry) {
           child.geometry.computeBoundingBox();
           child.geometry.computeBoundingSphere();
-          
-          // Disable expensive geometry features
-          child.geometry.dispose();
+          // Do not dispose geometry that is in use
         }
         
         // Reduce draw calls by merging geometries if possible
@@ -630,7 +595,7 @@ export function createWirePanel(opts = {}) {
     });
     
     // Scale and position the model appropriately
-    electricBoxModel.scale.set(1, 1, 1);
+    electricBoxModel.scale.set(0.5, 0.5, 0.5);
     electricBoxModel.position.set(0, 0, 0);
     
     // Add interaction data to the entire model
@@ -649,11 +614,11 @@ export function createWirePanel(opts = {}) {
     
     // Complete loading
     loadingScreen.completeItem('electricbox');
-    console.log('Electric box model loaded successfully with aggressive performance optimizations!');
+    console.log('Power box model loaded successfully with aggressive performance optimizations!');
     }, (progress) => {
-      console.log('Loading Electric_Box model...', (progress.loaded / progress.total * 100) + '%');
+      console.log('Loading Power_Box model...', (progress.loaded / progress.total * 100) + '%');
     }, (err) => {
-      console.error('Failed to load Electric_Box model:', err);
+      console.error('Failed to load Power_Box model:', err);
       console.log('Using fallback panel geometry');
       loadingScreen.completeItem('electricbox'); // Still complete to avoid hanging
     });
