@@ -1,138 +1,49 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { addToInventory, hasInInventory, removeFromInventory } from './player.js';
+import { makeBrickMaterialForPanel, makeTiles108Floor, makeMetal030MaterialForCylinderFlexible, makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
+import {
+  setupRendererColorPipeline,
+  applyEnvironment,
+  buildStandardLightRig,
+  removeExistingLights,
+} from './lighting/standardLighting.js';
 
 // Stage 0: Lobby/Entry Room
 export function createRoom0() {
   const group = new THREE.Group();
   group.name = 'stage0-room';
 
-  // Stage 0: Detailed tiled floor
-  const tileSize = 1.0; // Each tile is 1x1 unit
-  const tileThickness = 0.1;
-  const groutWidth = 0.02;
   const roomWidth = 20;
   const roomDepth = 15;
   
-  // Create individual tiles with grout lines
-  const tilesGroup = new THREE.Group();
-  tilesGroup.name = 'floor-tiles';
+  // Metal030 texture files - edit this object to match your files on disk
+  const metal030Files = {
+    color:  "/textures/metal030/Metal030_2K-JPG_Color.jpg",
+    normal: "/textures/metal030/Metal030_2K-JPG/Metal030_2K-JPG_NormalGL.jpg", // Using GL normal map from nested folder
+    rough:  "/textures/metal030/Metal030_2K-JPG_Roughness.jpg",
+    metal:  "/textures/metal030/Metal030_2K-JPG_Metalness.jpg",       // metalness map available
+    // ao:     "/textures/metal030/Metal030_2K-JPG_AmbientOcclusion.jpg", // include only if you have it
+  };
   
-  // Tile material - slightly varied colors for realism
-  const tileMaterials = [
-    new THREE.MeshStandardMaterial({ 
-      color: 0x2a2a2a,
-      metalness: 0.1,
-      roughness: 0.8
-    }),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x2d2d2d,
-      metalness: 0.1,
-      roughness: 0.8
-    }),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x282828,
-      metalness: 0.1,
-      roughness: 0.8
-    })
-  ];
+  // Concrete031 texture files for hallway
+  const concrete031Files = {
+    color:  "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
+    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
+    rough:  "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
+    ao:     "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
+  };
   
-  // Grout material
-  const groutMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x1a1a1a,
-    metalness: 0.0,
-    roughness: 0.9
-  });
-  
-  // Calculate number of tiles
-  const tilesX = Math.floor(roomWidth / tileSize);
-  const tilesZ = Math.floor(roomDepth / tileSize);
-  
-  // Create tiles
-  for (let x = 0; x < tilesX; x++) {
-    for (let z = 0; z < tilesZ; z++) {
-      // Create individual tile
-      const tile = new THREE.Mesh(
-        new THREE.BoxGeometry(tileSize - groutWidth, tileThickness, tileSize - groutWidth),
-        tileMaterials[(x + z) % tileMaterials.length] // Vary material for each tile
-      );
-      
-      // Position tile
-      const tileX = (x - tilesX / 2) * tileSize + tileSize / 2;
-      const tileZ = (z - tilesZ / 2) * tileSize + tileSize / 2;
-      tile.position.set(tileX, -tileThickness / 2, tileZ);
-      tile.castShadow = true;
-      tile.receiveShadow = true;
-      
-      // Add subtle random rotation for more realism
-      tile.rotation.y = (Math.random() - 0.5) * 0.02;
-      
-      tilesGroup.add(tile);
-    }
+  // === Floor: Tiles108 (single tiled plane with AO/normal/roughness) ===
+  {
+    const floor = makeTiles108Floor(roomWidth, roomDepth, {
+      tileSizeMeters: 1.0, // smaller value = smaller visible tiles; try 0.8 or 0.5 if you want
+      anisotropy: 16
+    });
+    group.add(floor);
   }
-  
-  // Add grout lines
-  // Horizontal grout lines
-  for (let z = 0; z <= tilesZ; z++) {
-    const groutX = new THREE.Mesh(
-      new THREE.BoxGeometry(roomWidth, groutWidth, groutWidth),
-      groutMaterial
-    );
-    const groutZ = (z - tilesZ / 2) * tileSize;
-    groutX.position.set(0, -tileThickness / 2 - groutWidth / 2, groutZ);
-    groutX.receiveShadow = true;
-    tilesGroup.add(groutX);
-  }
-  
-  // Vertical grout lines
-  for (let x = 0; x <= tilesX; x++) {
-    const groutZ = new THREE.Mesh(
-      new THREE.BoxGeometry(groutWidth, groutWidth, roomDepth),
-      groutMaterial
-    );
-    const groutX = (x - tilesX / 2) * tileSize;
-    groutZ.position.set(groutX, -tileThickness / 2 - groutWidth / 2, 0);
-    groutZ.receiveShadow = true;
-    tilesGroup.add(groutZ);
-  }
-  
-  // Add some wear and tear details
-  const wearDetails = new THREE.Group();
-  wearDetails.name = 'floor-wear';
-  
-  // Add some subtle scratches and wear patterns
-  for (let i = 0; i < 15; i++) {
-    const scratch = new THREE.Mesh(
-      new THREE.BoxGeometry(
-        Math.random() * 0.3 + 0.1, 
-        0.005, 
-        Math.random() * 0.1 + 0.02
-      ),
-      new THREE.MeshStandardMaterial({ 
-        color: 0x1f1f1f,
-        metalness: 0.0,
-        roughness: 1.0
-      })
-    );
-    
-    scratch.position.set(
-      (Math.random() - 0.5) * roomWidth * 0.8,
-      -tileThickness / 2 + 0.001,
-      (Math.random() - 0.5) * roomDepth * 0.8
-    );
-    scratch.rotation.y = Math.random() * Math.PI * 2;
-    wearDetails.add(scratch);
-  }
-  
-  tilesGroup.add(wearDetails);
-  group.add(tilesGroup);
 
-  // Stage 0: Four walls with collision detection - Sterile metallic bunker style
-  const wallMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x666666,     // steel grey
-    metalness: 0.8,
-    roughness: 0.3
-  });
+  // Stage 0: Four walls with collision detection - Brick texture style
   
   const wallHeight = 4;
   const wallThickness = 0.5;
@@ -143,10 +54,19 @@ export function createRoom0() {
   function createWallPanel(width, height, position, rotation = 0) {
     const panelGroup = new THREE.Group();
     
+    // Build a Bricks058 material sized to this panel
+    const panelMaterial = makeBrickMaterialForPanel(width, height, {
+      repeatsPerMeterX: 0.7,   // tweak to taste
+      repeatsPerMeterY: 0.7,
+      metalness: 0.0,
+      roughness: 1.0,
+      anisotropy: 12,
+    });
+    
     // Main panel
     const panel = new THREE.Mesh(
       new THREE.BoxGeometry(width, height, wallThickness),
-      wallMaterial
+      panelMaterial
     );
     panel.castShadow = true;
     panel.receiveShadow = true;
@@ -217,49 +137,15 @@ export function createRoom0() {
   backWallRight.userData = { type: 'wall', side: 'back-right' };
   group.add(backWallRight);
 
-  // Left wall - Create seamless panels with proper coverage
-  const leftWallPanel1 = createWallPanel(wallThickness, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, -5), Math.PI/2);
-  leftWallPanel1.userData = { type: 'wall', side: 'left-1' };
-  group.add(leftWallPanel1);
-  
-  const leftWallPanel2 = createWallPanel(wallThickness, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 0), Math.PI/2);
-  leftWallPanel2.userData = { type: 'wall', side: 'left-2' };
-  group.add(leftWallPanel2);
-  
-  const leftWallPanel3 = createWallPanel(wallThickness, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 5), Math.PI/2);
-  leftWallPanel3.userData = { type: 'wall', side: 'left-3' };
-  group.add(leftWallPanel3);
-  
-  // Add additional panels to cover any gaps
-  const leftWallPanel4 = createWallPanel(wallThickness, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, -7.5), Math.PI/2);
-  leftWallPanel4.userData = { type: 'wall', side: 'left-4' };
-  group.add(leftWallPanel4);
-  
-  const leftWallPanel5 = createWallPanel(wallThickness, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 7.5), Math.PI/2);
-  leftWallPanel5.userData = { type: 'wall', side: 'left-5' };
-  group.add(leftWallPanel5);
+  // Left wall - Single full-height panel for complete coverage
+  const leftWall = createWallPanel(roomDepth, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 0), Math.PI/2);
+  leftWall.userData = { type: 'wall', side: 'left' };
+  group.add(leftWall);
 
-  // Right wall - Create seamless panels with proper coverage
-  const rightWallPanel1 = createWallPanel(wallThickness, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, -5), Math.PI/2);
-  rightWallPanel1.userData = { type: 'wall', side: 'right-1' };
-  group.add(rightWallPanel1);
-  
-  const rightWallPanel2 = createWallPanel(wallThickness, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 0), Math.PI/2);
-  rightWallPanel2.userData = { type: 'wall', side: 'right-2' };
-  group.add(rightWallPanel2);
-  
-  const rightWallPanel3 = createWallPanel(wallThickness, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 5), Math.PI/2);
-  rightWallPanel3.userData = { type: 'wall', side: 'right-3' };
-  group.add(rightWallPanel3);
-  
-  // Add additional panels to cover any gaps
-  const rightWallPanel4 = createWallPanel(wallThickness, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, -7.5), Math.PI/2);
-  rightWallPanel4.userData = { type: 'wall', side: 'right-4' };
-  group.add(rightWallPanel4);
-  
-  const rightWallPanel5 = createWallPanel(wallThickness, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 7.5), Math.PI/2);
-  rightWallPanel5.userData = { type: 'wall', side: 'right-5' };
-  group.add(rightWallPanel5);
+  // Right wall - Single full-height panel for complete coverage
+  const rightWall = createWallPanel(roomDepth, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 0), Math.PI/2);
+  rightWall.userData = { type: 'wall', side: 'right' };
+  group.add(rightWall);
   
   // Add invisible collision walls behind the detailed panels
   const leftCollisionWall = new THREE.Mesh(
@@ -423,53 +309,21 @@ export function createRoom0() {
   lightFixtureGroup.position.set(0, wallHeight - 0.1, 0);
   group.add(lightFixtureGroup);
 
-  // Stage 0: Sterile bunker lighting - Cold and clinical (reduced intensity to prevent spill)
-  const roomAmbientLight = new THREE.AmbientLight(0x808B96, 0.2); // Reduced intensity
-  group.add(roomAmbientLight);
+  // --- Standard lighting rig for Room 0 ---
+  {
+    // Remove any leftover lights under this room group (if any slipped through)
+    removeExistingLights(group);
 
-  // Stage 0: Main directional light (moved from global scene) - clamped to prevent spill
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); // Reduced intensity
-  dirLight.position.set(10, 20, 10);
-  dirLight.castShadow = true;
-  dirLight.shadow.mapSize.width = 512;
-  dirLight.shadow.mapSize.height = 512;
-  dirLight.shadow.camera.near = 0.1;
-  dirLight.shadow.camera.far = 15; // Further clamped to prevent spill to other rooms
-  group.add(dirLight);
-
-  // Stage 0: Hemisphere light (moved from global scene) - reduced intensity
-  const hemisphereLight = new THREE.HemisphereLight(0x8888aa, 0x222222, 0.2); // Reduced intensity
-  group.add(hemisphereLight);
-
-  // Stage 0: Optimized main ceiling light for performance (reduced to prevent spill)
-  const ceilingLight = new THREE.PointLight(0xE6F3FF, 0.6, 15); // Reduced intensity and range
-  ceilingLight.position.set(0, wallHeight - 0.8, 0);
-  ceilingLight.castShadow = true;
-  ceilingLight.shadow.mapSize.width = 512; // Reduced resolution for performance
-  ceilingLight.shadow.mapSize.height = 512;
-  ceilingLight.shadow.camera.near = 0.1;
-  ceilingLight.shadow.camera.far = 15; // Reduced far distance
-  ceilingLight.shadow.bias = -0.0001;
-  group.add(ceilingLight);
-
-  // Stage 0: Optimized fill lights for performance (no shadows) - reduced intensity
-  const fillLight1 = new THREE.DirectionalLight(0x5D6D7E, 0.15); // Reduced intensity
-  fillLight1.position.set(-8, 4, 8);
-  fillLight1.target.position.set(0, 0, 0);
-  fillLight1.castShadow = false; // Disabled for performance
-  group.add(fillLight1);
-  group.add(fillLight1.target);
-
-  const fillLight2 = new THREE.DirectionalLight(0x808B96, 0.15); // Reduced intensity
-  fillLight2.position.set(8, 4, -8);
-  fillLight2.target.position.set(0, 0, 0);
-  fillLight2.castShadow = false; // Disabled for performance
-  group.add(fillLight2);
-  group.add(fillLight2.target);
-  
-  // Stage 0: Stable lighting - no flickering
-  function updateLightFlicker(dt) {
-    // No flickering - stable lighting
+    // Add our standard rig to the room group - positioned directly above Room 0
+    const rig = buildStandardLightRig({
+      keyPosition: new THREE.Vector3(0, 18, 0), // Directly above Room 0 center
+      keyIntensity: 1.15,
+      hemiIntensity: 0.35,
+      shadowMap: 1024,
+      shadowBounds: 14,
+      enableAccents: false,
+    });
+    group.add(rig);
   }
 
   // Stage 0: Add wall-mounted emergency lights
@@ -516,29 +370,35 @@ export function createRoom0() {
   redLight2.position.set(roomWidthHalf - 0.15, wallHeight - 0.4, 3);
   group.add(redLight2);
 
-  // Stage 0: Pedestal with key - Enhanced with metallic base
+  // Stage 0: Pedestal with key - Metal030 textured
+  const pedestalBaseGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32);
   const pedestalBase = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.4, 0.4, 0.1, 8),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x4a4a4a,
-      metalness: 0.8,
-      roughness: 0.3
+    pedestalBaseGeo,
+    makeMetal030MaterialForCylinderFlexible(0.4, 0.1, metal030Files, {
+      uScale: 0.3,
+      vScale: 0.3,
+      anisotropy: 16,
+      // attachAOToGeometry: pedestalBaseGeo,
     })
   );
   pedestalBase.position.set(0, 0.05, -2);
   pedestalBase.castShadow = true;
+  pedestalBase.receiveShadow = true;
   group.add(pedestalBase);
   
+  const pedestalGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.8, 32);
   const pedestal = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.3, 0.3, 0.8, 8),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x666666,
-      metalness: 0.8,
-      roughness: 0.3
+    pedestalGeo,
+    makeMetal030MaterialForCylinderFlexible(0.3, 0.8, metal030Files, {
+      uScale: 0.25,
+      vScale: 0.25,
+      anisotropy: 16,
+      // attachAOToGeometry: pedestalGeo,
     })
   );
   pedestal.position.set(0, 0.4, -2);
   pedestal.castShadow = true;
+  pedestal.receiveShadow = true;
   group.add(pedestal);
 
   // Stage 0: Custom Blender key model
@@ -600,21 +460,42 @@ export function createRoom0() {
     key = fallbackKey;
   });
 
-  // Stage 0: Add some decorative elements
+  // Stage 0: Add some decorative elements - Metal030 pillars
+  const pillarRadius = 0.2;
+  const pillarHeight = wallHeight;
+
+  // Pillar 1
+  const pillarGeo1 = new THREE.CylinderGeometry(pillarRadius, pillarRadius, pillarHeight, 32);
   const cornerPillar1 = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.2, 0.2, wallHeight, 8),
-    new THREE.MeshStandardMaterial({ color: 0x555555 })
+    pillarGeo1,
+    makeMetal030MaterialForCylinderFlexible(pillarRadius, pillarHeight, metal030Files, {
+      uScale: 0.35,
+      vScale: 0.35,
+      anisotropy: 16,
+      // If you DO have AO, pass geometry so we add uv2:
+      // attachAOToGeometry: pillarGeo1,
+      // aoMapIntensity: 1.6,
+    })
   );
-  cornerPillar1.position.set(-8, wallHeight/2, -6);
+  cornerPillar1.position.set(-8, wallHeight / 2, -6);
   cornerPillar1.castShadow = true;
+  cornerPillar1.receiveShadow = true;
   group.add(cornerPillar1);
 
+  // Pillar 2
+  const pillarGeo2 = new THREE.CylinderGeometry(pillarRadius, pillarRadius, pillarHeight, 32);
   const cornerPillar2 = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.2, 0.2, wallHeight, 8),
-    new THREE.MeshStandardMaterial({ color: 0x555555 })
+    pillarGeo2,
+    makeMetal030MaterialForCylinderFlexible(pillarRadius, pillarHeight, metal030Files, {
+      uScale: 0.35,
+      vScale: 0.35,
+      anisotropy: 16,
+      // attachAOToGeometry: pillarGeo2,
+    })
   );
-  cornerPillar2.position.set(8, wallHeight/2, -6);
+  cornerPillar2.position.set(8, wallHeight / 2, -6);
   cornerPillar2.castShadow = true;
+  cornerPillar2.receiveShadow = true;
   group.add(cornerPillar2);
 
   // Stage 0: Locked door (positioned in the doorway opening)
@@ -740,65 +621,97 @@ export function createRoom0() {
     new THREE.Vector3(3, 2, 1)                      // Size
   );
 
-  // Stage 0: Security camera
-  const securityCamera = new THREE.Group();
-  securityCamera.name = 'security-camera';
+  // Stage 0: Security camera using GLB model
+  let securityCamera = null;
+  const cameraLoader = new GLTFLoader();
   
-  // Camera body (main housing)
-  const cameraBody = new THREE.Mesh(
-    new THREE.BoxGeometry(0.4, 0.3, 0.2),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x222222,
-      metalness: 0.8,
-      roughness: 0.2
-    })
-  );
-  cameraBody.castShadow = true;
-  securityCamera.add(cameraBody);
-  
-  // Camera lens
-  const cameraLens = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.08, 0.05, 16),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x000000,
-      metalness: 0.9,
-      roughness: 0.1
-    })
-  );
-  cameraLens.position.set(0, 0, 0.15);
-  cameraLens.rotation.x = Math.PI / 2;
-  cameraLens.castShadow = true;
-  securityCamera.add(cameraLens);
-  
-  // Red status light
-  const redLight = new THREE.Mesh(
-    new THREE.SphereGeometry(0.03, 8, 6),
-    new THREE.MeshStandardMaterial({ 
-      color: 0xff0000,
-      emissive: 0xff0000,
-      emissiveIntensity: 0.8
-    })
-  );
-  redLight.position.set(0.15, 0.1, 0.1);
-  securityCamera.add(redLight);
-  
-  // Mounting bracket
-  const mount = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1, 0.1, 0.3),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x333333,
-      metalness: 0.7,
-      roughness: 0.3
-    })
-  );
-  mount.position.set(0, -0.2, 0);
-  mount.castShadow = true;
-  securityCamera.add(mount);
-  
-  // Position camera on the right wall, facing into the room
-  securityCamera.position.set(roomWidthHalf - 0.2, wallHeight - 1.5, 0);
-  securityCamera.rotation.y = Math.PI; // Face into the room
-  group.add(securityCamera);
+  cameraLoader.load('/models/camera.glb', (gltf) => {
+    securityCamera = gltf.scene;
+    securityCamera.name = 'security-camera';
+    
+    // Scale the camera model to appropriate size
+    securityCamera.scale.set(2.0, 2.0, 2.0);
+    
+    // Enable shadows for the camera model
+    securityCamera.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    
+    // Position camera on the right wall, facing into the room (moved forward from wall)
+    securityCamera.position.set(roomWidthHalf - 0.5, wallHeight - 1.5, 0);
+    securityCamera.rotation.y = Math.PI; // Face into the room
+    group.add(securityCamera);
+    
+    console.log('Security camera GLB model loaded successfully!');
+  }, (progress) => {
+    console.log('Loading camera model...', (progress.loaded / progress.total * 100) + '%');
+  }, (error) => {
+    console.error('Error loading camera model:', error);
+    
+    // Fallback to simple camera if loading fails
+    const fallbackCamera = new THREE.Group();
+    fallbackCamera.name = 'security-camera';
+    
+    // Camera body (main housing)
+    const cameraBody = new THREE.Mesh(
+      new THREE.BoxGeometry(0.4, 0.3, 0.2),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x222222,
+        metalness: 0.8,
+        roughness: 0.2
+      })
+    );
+    cameraBody.castShadow = true;
+    fallbackCamera.add(cameraBody);
+    
+    // Camera lens
+    const cameraLens = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.08, 0.05, 16),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x000000,
+        metalness: 0.9,
+        roughness: 0.1
+      })
+    );
+    cameraLens.position.set(0, 0, 0.15);
+    cameraLens.rotation.x = Math.PI / 2;
+    cameraLens.castShadow = true;
+    fallbackCamera.add(cameraLens);
+    
+    // Red status light
+    const redLight = new THREE.Mesh(
+      new THREE.SphereGeometry(0.03, 8, 6),
+      new THREE.MeshStandardMaterial({ 
+        color: 0xff0000,
+        emissive: 0xff0000,
+        emissiveIntensity: 0.8
+      })
+    );
+    redLight.position.set(0.15, 0.1, 0.1);
+    fallbackCamera.add(redLight);
+    
+    // Mounting bracket
+    const mount = new THREE.Mesh(
+      new THREE.BoxGeometry(0.1, 0.1, 0.3),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x333333,
+        metalness: 0.7,
+        roughness: 0.3
+      })
+    );
+    mount.position.set(0, -0.2, 0);
+    mount.castShadow = true;
+    fallbackCamera.add(mount);
+    
+    // Position camera on the right wall, facing into the room (moved forward from wall)
+    fallbackCamera.position.set(roomWidthHalf - 0.5, wallHeight - 1.5, 0);
+    fallbackCamera.rotation.y = Math.PI; // Face into the room
+    group.add(fallbackCamera);
+    securityCamera = fallbackCamera;
+  });
   
   // Camera tracking state
   let isTrackingPlayer = false;
@@ -835,6 +748,9 @@ export function createRoom0() {
 
   // Stage 0: Security camera tracking function
   function updateSecurityCamera(playerObject) {
+    // Only track if camera is loaded
+    if (!securityCamera) return;
+    
     const playerPos = playerObject.position;
     
     // Check if player is in room (within room boundaries)
@@ -1085,43 +1001,101 @@ export function createRoom0() {
   hallway.name = 'hallway-to-room1';
   hallway.visible = true; // Always visible, door just controls access
   
-  // Hallway floor
+  // Hallway floor - Concrete031 textured (positioned to avoid overlap with Room 0 floor)
+  const hallwayFloorGeo = new THREE.BoxGeometry(4, 0.2, 16.5);
   const hallwayFloor = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 0.2, 16.5),
-    new THREE.MeshStandardMaterial({ color: 0x2a2a2a })
+    hallwayFloorGeo,
+    makeConcrete031MaterialFlexible(4, 16.5, concrete031Files, {
+      uScale: 0.4,
+      vScale: 0.4,
+      anisotropy: 16,
+      attachAOToGeometry: hallwayFloorGeo,
+    })
   );
-  hallwayFloor.position.set(0, -0.1, -15); // Position between room 0 and room 1
+  hallwayFloor.position.set(0, -0.15, -15); // Lowered to avoid overlap with Room 0 floor
   hallwayFloor.receiveShadow = true;
   hallway.add(hallwayFloor);
   
-  // Hallway walls
-  const hallwayWallMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+  // Hallway walls - Concrete031 textured
+  const hallwayWall1Geo = new THREE.BoxGeometry(0.2, 4, 16.5);
   const hallwayWall1 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 4, 16.5),
-    hallwayWallMaterial
+    hallwayWall1Geo,
+    makeConcrete031MaterialFlexible(0.2, 4, concrete031Files, {
+      uScale: 0.3,
+      vScale: 0.3,
+      anisotropy: 16,
+      attachAOToGeometry: hallwayWall1Geo,
+    })
   );
   hallwayWall1.position.set(-2, 2, -15);
   hallwayWall1.castShadow = true;
+  hallwayWall1.receiveShadow = true;
   hallwayWall1.userData = { type: 'wall', side: 'hallway-left' };
   hallway.add(hallwayWall1);
   
+  const hallwayWall2Geo = new THREE.BoxGeometry(0.2, 4, 16.5);
   const hallwayWall2 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.2, 4, 16.5),
-    hallwayWallMaterial
+    hallwayWall2Geo,
+    makeConcrete031MaterialFlexible(0.2, 4, concrete031Files, {
+      uScale: 0.3,
+      vScale: 0.3,
+      anisotropy: 16,
+      attachAOToGeometry: hallwayWall2Geo,
+    })
   );
   hallwayWall2.position.set(2, 2, -15);
+  hallwayWall2.rotation.y = Math.PI; // Rotate 180 degrees to face the correct direction
   hallwayWall2.castShadow = true;
+  hallwayWall2.receiveShadow = true;
   hallwayWall2.userData = { type: 'wall', side: 'hallway-right' };
   hallway.add(hallwayWall2);
   
-  // Hallway ceiling
+  // Hallway ceiling - Concrete031 textured
+  const hallwayCeilingGeo = new THREE.BoxGeometry(4, 0.3, 16.5);
   const hallwayCeiling = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 0.3, 16.5),
-    new THREE.MeshStandardMaterial({ color: 0x444444 })
+    hallwayCeilingGeo,
+    makeConcrete031MaterialFlexible(4, 16.5, concrete031Files, {
+      uScale: 0.4,
+      vScale: 0.4,
+      anisotropy: 16,
+      attachAOToGeometry: hallwayCeilingGeo,
+    })
   );
   hallwayCeiling.position.set(0, 4.15, -15);
   hallwayCeiling.receiveShadow = true;
   hallway.add(hallwayCeiling);
+  
+  // Add atmospheric hallway lighting
+  const hallwayAmbientLight = new THREE.AmbientLight(0x202020, 0.1); // Very dim ambient
+  hallway.add(hallwayAmbientLight);
+  
+  // Add a few dim overhead lights along the hallway
+  const hallwayLight1 = new THREE.PointLight(0xffffff, 0.3, 8);
+  hallwayLight1.position.set(0, 3, -8);
+  hallwayLight1.castShadow = true;
+  hallwayLight1.shadow.mapSize.width = 256;
+  hallwayLight1.shadow.mapSize.height = 256;
+  hallwayLight1.shadow.camera.near = 0.1;
+  hallwayLight1.shadow.camera.far = 10;
+  hallway.add(hallwayLight1);
+
+  const hallwayLight2 = new THREE.PointLight(0xffffff, 0.3, 8);
+  hallwayLight2.position.set(0, 3, -15);
+  hallwayLight2.castShadow = true;
+  hallwayLight2.shadow.mapSize.width = 256;
+  hallwayLight2.shadow.mapSize.height = 256;
+  hallwayLight2.shadow.camera.near = 0.1;
+  hallwayLight2.shadow.camera.far = 10;
+  hallway.add(hallwayLight2);
+
+  const hallwayLight3 = new THREE.PointLight(0xffffff, 0.3, 8);
+  hallwayLight3.position.set(0, 3, -22);
+  hallwayLight3.castShadow = true;
+  hallwayLight3.shadow.mapSize.width = 256;
+  hallwayLight3.shadow.mapSize.height = 256;
+  hallwayLight3.shadow.camera.near = 0.1;
+  hallwayLight3.shadow.camera.far = 10;
+  hallway.add(hallwayLight3);
   
   // Add hallway to group (not scene)
   group.add(hallway);
