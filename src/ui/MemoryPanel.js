@@ -598,6 +598,11 @@ export class MemoryPanel {
       }
       console.log('Memory game completion - calling setMemoryComplete(true)');
       gameStore.setMemoryComplete(true);
+      
+      // Trigger AI dialogue for Simon puzzle completion
+      if (window.AI && window.AI.onSimonPuzzleComplete) {
+        window.AI.onSimonPuzzleComplete();
+      }
     }, 3000);
   }
   

@@ -982,9 +982,10 @@ export function createRoom0() {
 
     // Hallway constraints (after crossing the back wall into negative Z further)
     // Hallway spans roughly from -7.5 (backWallZ) toward Room 1 at around -30
-    // Keep player within hallway width (x in [-2, 2]) once past the back wall
+    // Keep player within hallway width (x in [-1, 1]) once past the back wall
+    // Updated to match the reusable hallway component positioning
     if (pos.z < backWallZ - 0.01) {
-      const hallwayHalf = 2 - playerRadius;
+      const hallwayHalf = 1 - playerRadius; // Updated to match hallway width of 2 units
       if (pos.x < -hallwayHalf) pos.x = -hallwayHalf;
       if (pos.x >  hallwayHalf) pos.x =  hallwayHalf;
     }
@@ -996,109 +997,7 @@ export function createRoom0() {
     return false;
   }
 
-  // Stage 0: Create hallway to room 1 (always visible)
-  const hallway = new THREE.Group();
-  hallway.name = 'hallway-to-room1';
-  hallway.visible = true; // Always visible, door just controls access
-  
-  // Hallway floor - Concrete031 textured (positioned to avoid overlap with Room 0 floor)
-  const hallwayFloorGeo = new THREE.BoxGeometry(4, 0.2, 16.5);
-  const hallwayFloor = new THREE.Mesh(
-    hallwayFloorGeo,
-    makeConcrete031MaterialFlexible(4, 16.5, concrete031Files, {
-      uScale: 0.4,
-      vScale: 0.4,
-      anisotropy: 16,
-      attachAOToGeometry: hallwayFloorGeo,
-    })
-  );
-  hallwayFloor.position.set(0, -0.15, -15); // Lowered to avoid overlap with Room 0 floor
-  hallwayFloor.receiveShadow = true;
-  hallway.add(hallwayFloor);
-  
-  // Hallway walls - Concrete031 textured
-  const hallwayWall1Geo = new THREE.BoxGeometry(0.2, 4, 16.5);
-  const hallwayWall1 = new THREE.Mesh(
-    hallwayWall1Geo,
-    makeConcrete031MaterialFlexible(0.2, 4, concrete031Files, {
-      uScale: 0.3,
-      vScale: 0.3,
-      anisotropy: 16,
-      attachAOToGeometry: hallwayWall1Geo,
-    })
-  );
-  hallwayWall1.position.set(-2, 2, -15);
-  hallwayWall1.castShadow = true;
-  hallwayWall1.receiveShadow = true;
-  hallwayWall1.userData = { type: 'wall', side: 'hallway-left' };
-  hallway.add(hallwayWall1);
-  
-  const hallwayWall2Geo = new THREE.BoxGeometry(0.2, 4, 16.5);
-  const hallwayWall2 = new THREE.Mesh(
-    hallwayWall2Geo,
-    makeConcrete031MaterialFlexible(0.2, 4, concrete031Files, {
-      uScale: 0.3,
-      vScale: 0.3,
-      anisotropy: 16,
-      attachAOToGeometry: hallwayWall2Geo,
-    })
-  );
-  hallwayWall2.position.set(2, 2, -15);
-  hallwayWall2.rotation.y = Math.PI; // Rotate 180 degrees to face the correct direction
-  hallwayWall2.castShadow = true;
-  hallwayWall2.receiveShadow = true;
-  hallwayWall2.userData = { type: 'wall', side: 'hallway-right' };
-  hallway.add(hallwayWall2);
-  
-  // Hallway ceiling - Concrete031 textured
-  const hallwayCeilingGeo = new THREE.BoxGeometry(4, 0.3, 16.5);
-  const hallwayCeiling = new THREE.Mesh(
-    hallwayCeilingGeo,
-    makeConcrete031MaterialFlexible(4, 16.5, concrete031Files, {
-      uScale: 0.4,
-      vScale: 0.4,
-      anisotropy: 16,
-      attachAOToGeometry: hallwayCeilingGeo,
-    })
-  );
-  hallwayCeiling.position.set(0, 4.15, -15);
-  hallwayCeiling.receiveShadow = true;
-  hallway.add(hallwayCeiling);
-  
-  // Add atmospheric hallway lighting
-  const hallwayAmbientLight = new THREE.AmbientLight(0x202020, 0.1); // Very dim ambient
-  hallway.add(hallwayAmbientLight);
-  
-  // Add a few dim overhead lights along the hallway
-  const hallwayLight1 = new THREE.PointLight(0xffffff, 0.3, 8);
-  hallwayLight1.position.set(0, 3, -8);
-  hallwayLight1.castShadow = true;
-  hallwayLight1.shadow.mapSize.width = 256;
-  hallwayLight1.shadow.mapSize.height = 256;
-  hallwayLight1.shadow.camera.near = 0.1;
-  hallwayLight1.shadow.camera.far = 10;
-  hallway.add(hallwayLight1);
-
-  const hallwayLight2 = new THREE.PointLight(0xffffff, 0.3, 8);
-  hallwayLight2.position.set(0, 3, -15);
-  hallwayLight2.castShadow = true;
-  hallwayLight2.shadow.mapSize.width = 256;
-  hallwayLight2.shadow.mapSize.height = 256;
-  hallwayLight2.shadow.camera.near = 0.1;
-  hallwayLight2.shadow.camera.far = 10;
-  hallway.add(hallwayLight2);
-
-  const hallwayLight3 = new THREE.PointLight(0xffffff, 0.3, 8);
-  hallwayLight3.position.set(0, 3, -22);
-  hallwayLight3.castShadow = true;
-  hallwayLight3.shadow.mapSize.width = 256;
-  hallwayLight3.shadow.mapSize.height = 256;
-  hallwayLight3.shadow.camera.near = 0.1;
-  hallwayLight3.shadow.camera.far = 10;
-  hallway.add(hallwayLight3);
-  
-  // Add hallway to group (not scene)
-  group.add(hallway);
+  // Hallway removed - now using reusable hallway component from main.js
 
   // Create entry/exit anchors for future hallway/minimap work
   const entryAnchor = new THREE.Object3D();
@@ -1117,7 +1016,6 @@ export function createRoom0() {
     anchors: { entry: entryAnchor, exit: exitAnchor },
     door,
     key,
-    hallway,
     securityCamera,
     triggers: { doorwayBox },
     state,

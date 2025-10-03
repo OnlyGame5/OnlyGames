@@ -11,6 +11,7 @@ import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
 import { loadingScreen } from './loading.js';
 import { uiRoot } from './ui/UIRoot.js';
 import { flagsHUD } from './ui/FlagsHUD.js';
+import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
@@ -75,6 +76,24 @@ async function initGame() {
     // Add groups to scene
     scene.add(gameState.room0.group, gameState.room1.group, gameState.room2.group, gameState.room3.group);
     
+    // Create hallway between Room 0 and Room 1
+    const hallway0to1 = HallwayPresets.standard({
+      length: 15,
+      width: 2,
+      height: 4,
+      positionX: 0,
+      positionY: 0,
+      positionZ: -15, // Halfway between Room 0 (z=0) and Room 1 (z=-30)
+      name: 'hallway-0-to-1',
+      addLighting: true,
+      lightIntensity: 0.4,
+      ambientIntensity: 0.15,
+      textureSet: 'concrete031'
+    });
+    
+    // Add hallway to scene
+    scene.add(hallway0to1.group);
+    
     // Add first-person item display to scene
     addFirstPersonItemToScene(scene);
     
@@ -92,7 +111,7 @@ async function initGame() {
     gameState.room3.group.visible = true;
     
     // AI greeting for Stage 0
-    AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
+    AI.onSpawn();
     
     // Make AI globally accessible for room0 interactions
     window.AI = AI;
@@ -144,7 +163,7 @@ async function initGame() {
     gameState.room2.group.visible = true;
     gameState.room3.group.visible = true;
     
-    AI.say("Hello. Don't be afraid. I'll help you escape this place. Trust me.");
+    AI.onSpawn();
     window.AI = AI;
     
     // Make gameState globally accessible for first-person item display
@@ -259,10 +278,12 @@ window.addEventListener('resize', () => {
 
 // Unlock room 1 (door opens, room is already visible)
 let room1Unlocked = false;
+let hallwayDialogueShown = false;
 function unlockRoom1() {
   if (gameState.stage === 0 && !room1Unlocked) {
     gameState.stage = 1;
     room1Unlocked = true;
+    hallwayDialogueShown = true;
     AI.say("The door opens, granting you access to the hallway. Walk through to reach the first challenge room.");
   }
 }
@@ -355,13 +376,43 @@ function animate(currentTime) {
     gameState.room1.updateRoom1Dialogue();
   }
   
+  // HALLWAY REVAMP: Clear hallway dialogue when player moves away from Room 0
+  if (hallwayDialogueShown && gameState.stage >= 1) {
+    const activePlayer = leonardModel || player;
+    const playerPos = activePlayer.position;
+    
+    // If player has moved away from Room 0 area (z < -10), clear hallway dialogue
+    if (playerPos.z < -10) {
+      console.log('HALLWAY REVAMP: Player moved away from Room 0, clearing hallway dialogue');
+      hallwayDialogueShown = false;
+      
+      // Clear dialogue and trigger Room 1 dialogue immediately
+      const dialogueElement = document.getElementById('dialogue');
+      if (dialogueElement) {
+        dialogueElement.textContent = '';
+      }
+      
+      // BACKUP: Force trigger Room 1 dialogue if not already welcomed
+      if (window.AI && window.AI.onRoom1Entry) {
+        console.log('BACKUP: Forcing Room 1 entry dialogue');
+        window.AI.onRoom1Entry();
+      } else {
+        // EMERGENCY BACKUP: Direct dialogue delivery
+        console.log('EMERGENCY BACKUP: Using direct dialogue delivery');
+        if (window.AI) {
+          window.AI.say("Nexus: This is the first proving ground. The objective is simple: solve the challenges presented and open the path forward. I will assist you.");
+        }
+      }
+    }
+  }
+  
   // Check if wire puzzle is solved and unlock door
   if (gameState.room1 && gameState.room1.isWirePuzzleSolved && gameState.room1.isWirePuzzleSolved()) {
     // Wire puzzle solved - unlock door to next room
     if (gameState.stage === 1) {
       gameState.stage = 2;
       if (window.AI) {
-        window.AI.say("The circuit is complete! The door to the next room has unlocked. You can now proceed to Room 2.");
+        window.AI.onRoom1Complete();
       }
     }
   }
