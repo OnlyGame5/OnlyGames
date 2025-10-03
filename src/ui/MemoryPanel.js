@@ -1,4 +1,5 @@
 import { gameStore } from '../state/gameStore.js';
+import { MemoryPanelLogic } from '../game/puzzles/MemoryPanel.js';
 
 export class MemoryPanel {
   constructor(rounds = 6) {
@@ -19,17 +20,16 @@ export class MemoryPanel {
       tonesHz: [440, 523, 659, 784]
     };
     
-    // Game state
-    this.sequence = [];
-    this.inputIndex = 0;
-    this.round = 0;
-    this.best = 0;
-    this.playingBack = false;
+    // Import the game logic
+    this.logic = new MemoryPanelLogic();
+    
+    // UI state
     this.log = "Press Start to begin.";
     this.showCongrats = false;
-    
     this.pads = [];
+    
     this.setupEventListeners();
+    this.setupLogicListeners();
   }
   
   setupEventListeners() {
@@ -40,6 +40,43 @@ export class MemoryPanel {
       } else {
         this.hide();
       }
+    });
+  }
+  
+  setupLogicListeners() {
+    // Listen to game logic events
+    this.logic.on('gameStarted', () => {
+      this.log = "Initiating training protocol…";
+      this.updateLog();
+    });
+    
+    this.logic.on('roundStarted', (data) => {
+      this.log = `Round ${data.round}. Watch closely…`;
+      this.updateLog();
+      this.updateStats();
+      this.playSequence(data.sequence);
+    });
+    
+    this.logic.on('roundCompleted', (data) => {
+      this.log = "Clean! Advancing…";
+      this.updateLog();
+    });
+    
+    this.logic.on('gameCompleted', () => {
+      this.log = "Perfect! Training complete!";
+      this.updateLog();
+      this.showCongrats = true;
+      this.showCongratsModal();
+    });
+    
+    this.logic.on('gameOver', (data) => {
+      this.log = "Wrong! Try again — rewatching the sequence.";
+      this.updateLog();
+      setTimeout(() => this.playSequence(this.logic.getState().sequence), 460);
+    });
+    
+    this.logic.on('inputReceived', (data) => {
+      this.flashPad(data.color === 'R' ? 0 : data.color === 'G' ? 1 : data.color === 'B' ? 2 : 3, 200);
     });
   }
   
@@ -241,7 +278,8 @@ export class MemoryPanel {
       pad.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.handleInput(i);
+        const colorMap = ['R', 'G', 'B', 'Y'];
+        this.handleInput(colorMap[i]);
       });
       pad.addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -367,7 +405,7 @@ export class MemoryPanel {
   }
   
   handleKeyboard(e) {
-    const map = { r: 0, g: 1, b: 2, y: 3 };
+    const map = { r: 'R', g: 'G', b: 'B', y: 'Y' };
     const key = e.key.toLowerCase();
     if (key in map) {
       this.handleInput(map[key]);
@@ -378,7 +416,8 @@ export class MemoryPanel {
   }
   
   stepMs() {
-    return Math.max(this.config.minStepMs, this.config.baseStepMs - (this.round - 1) * this.config.accelPerRound);
+    const state = this.logic.getState();
+    return Math.max(this.config.minStepMs, this.config.baseStepMs - (state.round - 1) * this.config.accelPerRound);
   }
   
   beep(idx, ms = 300) {
@@ -405,10 +444,6 @@ export class MemoryPanel {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   
-  randomPad() {
-    return Math.floor(Math.random() * 4);
-  }
-  
   async flashPad(idx, duration) {
     const pad = this.pads[idx];
     if (!pad) return;
@@ -427,102 +462,51 @@ export class MemoryPanel {
     pad.style.filter = '';
   }
   
-  async playSequence() {
-    this.playingBack = true;
+  async playSequence(sequence) {
+    this.logic.setPlayingBack(true);
     const stepMs = this.stepMs();
     await this.wait(350);
     
-    for (let i = 0; i < this.sequence.length; i++) {
-      await this.flashPad(this.sequence[i], stepMs);
+    for (let i = 0; i < sequence.length; i++) {
+      const colorMap = { 'R': 0, 'G': 1, 'B': 2, 'Y': 3 };
+      await this.flashPad(colorMap[sequence[i]], stepMs);
       await this.wait(this.config.interFlashGap);
     }
     
-    this.playingBack = false;
-    this.log = `Your turn. Repeat the sequence (${this.sequence.length}).`;
+    this.logic.setPlayingBack(false);
+    const state = this.logic.getState();
+    this.log = `Your turn. Repeat the sequence (${state.sequence.length}).`;
     this.updateLog();
   }
   
   startGame() {
-    this.sequence = [];
-    this.inputIndex = 0;
-    this.round = 0;
-    this.log = "Initiating training protocol…";
-    this.updateLog();
-    this.newRound([]);
+    this.logic.startGame();
   }
   
-  async newRound(currSeq = this.sequence) {
-    const nextSeq = [...currSeq, this.randomPad()];
-    this.sequence = nextSeq;
-    this.inputIndex = 0;
-    this.round++;
-    this.log = `Round ${this.round}. Watch closely…`;
-    this.updateLog();
-    this.updateStats();
+  handleInput(color) {
+    if (this.logic.isPlayingBack()) return;
     
-    await this.wait(30);
-    await this.playSequence();
-  }
-  
-  async handleInput(idx) {
-    if (this.playingBack) return;
+    const colorMap = { 'R': 0, 'G': 1, 'B': 2, 'Y': 3 };
+    this.flashPad(colorMap[color], 200);
     
-    this.flashPad(idx, 200);
-    
-    const expected = this.sequence[this.inputIndex];
-    if (idx === expected) {
-      const nextIndex = this.inputIndex + 1;
-      this.inputIndex = nextIndex;
-      
-      if (nextIndex === this.sequence.length) {
-        this.best = Math.max(this.best, this.round);
-        
-        // Update the display to show the correct score
-        this.updateStats();
-        
-        // Check for victory (6 rounds completed)
-        if (this.round >= this.config.maxRoundsToWin) {
-          console.log('Memory game: Victory condition met! Round:', this.round, 'Max rounds:', this.config.maxRoundsToWin);
-          this.log = "Perfect! Training complete!";
-          this.updateLog();
-          await this.wait(1000);
-          
-          // Activate the Continue button
-          if (this.continueBtn) {
-            this.continueBtn.disabled = false;
-            this.continueBtn.style.cssText = `
-              background: #00ff00;
-              color: #000000;
-              border: 2px solid #ffffff;
-              padding: 10px 14px;
-              border-radius: 10px;
-              cursor: pointer;
-              font-weight: 700;
-              letter-spacing: 0.3px;
-              box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
-              opacity: 1;
-            `;
-            console.log('Memory game: Continue button activated!');
-          }
-          
-          this.showCongrats = true;
-          console.log('Memory game: Showing congrats modal');
-          this.showCongratsModal();
-          return;
-        }
-        
-        this.log = "Clean! Advancing…";
-        this.updateLog();
-        await this.wait(420);
-        this.newRound(this.sequence);
+    const result = this.logic.addInput(color);
+    if (result && this.logic.getState().isComplete) {
+      // Game completed - activate continue button
+      if (this.continueBtn) {
+        this.continueBtn.disabled = false;
+        this.continueBtn.style.cssText = `
+          background: #00ff00;
+          color: #000000;
+          border: 2px solid #ffffff;
+          padding: 10px 14px;
+          border-radius: 10px;
+          cursor: pointer;
+          font-weight: 700;
+          letter-spacing: 0.3px;
+          box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+          opacity: 1;
+        `;
       }
-    } else {
-      this.beep(0, 520);
-      this.log = "Wrong! Try again — rewatching the sequence.";
-      this.updateLog();
-      this.inputIndex = 0;
-      await this.wait(460);
-      this.playSequence();
     }
   }
   
@@ -719,14 +703,15 @@ export class MemoryPanel {
   }
   
   updateStats() {
+    const state = this.logic.getState();
     if (this.roundDisplay) {
-      this.roundDisplay.innerHTML = `Round: <b>${this.round}</b>`;
+      this.roundDisplay.innerHTML = `Round: <b>${state.round}</b>`;
     }
     if (this.speedDisplay) {
       this.speedDisplay.innerHTML = `Speed: <b>${this.stepMs()}ms</b>`;
     }
     if (this.bestDisplay) {
-      this.bestDisplay.innerHTML = `Best: <b>${this.best}</b>`;
+      this.bestDisplay.innerHTML = `Best: <b>${state.best}</b>`;
     }
   }
 }

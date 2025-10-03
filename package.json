@@ -1,7 +1,7 @@
 {
-  "name": "ai-bunker-game",
+  "name": "the-aperture-protocol",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
