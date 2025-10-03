@@ -53,7 +53,7 @@ async function initGame() {
     loadingScreen.setStatus('Loading game assets...');
     loadingScreen.registerItem('leonard', 1);
     loadingScreen.registerItem('rooms', 4);
-    loadingScreen.registerItem('models', 3); // Power_Box, safe, table
+    loadingScreen.registerItem('models', 2); // safe, table
     
     // Load Leonard model
     loadingScreen.setStatus('Loading character model...');
