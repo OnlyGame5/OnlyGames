@@ -12,6 +12,7 @@ import {
 } from './lighting/standardLighting.js';
 import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling } from './materials/room1Materials.js';
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
+import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -78,119 +79,23 @@ export function createRoom1() {
   group.add(backWall);
 
 
-  // Create hallway to room 2 (matching room0 hallway style)
-  const hallway = new THREE.Group();
-  hallway.name = 'hallway-to-room2';
-  hallway.visible = true;
+  // Create hallway to room 2 using the reusable hallway component
+  const hallway = createReusableHallway({
+    length: 18,
+    width: 2,
+    height: 4,
+    positionX: -8,
+    positionY: 0,
+    positionZ: -18,
+    name: 'hallway-to-room2',
+    addLighting: true,
+    lightIntensity: 0.3,
+    ambientIntensity: 0.1,
+    textureSet: 'concrete031'
+  });
   
-  // Hallway floor - Concrete031 textured (aligned with opening) - EXTENDED LENGTH to reach Room 2
-  const hallwayFloorGeo = new THREE.BoxGeometry(2, 0.2, 18);
-  const hallwayFloor = new THREE.Mesh(
-    hallwayFloorGeo,
-    makeConcrete031MaterialFlexible(2, 12, concrete031Files, {
-      uScale: 0.4,
-      vScale: 0.4,
-      anisotropy: 16,
-      attachAOToGeometry: hallwayFloorGeo,
-    })
-  );
-  hallwayFloor.position.set(-8, -0.15, -18); // Centered further down the corridor (x=-8)
-  hallwayFloor.receiveShadow = true;
-  hallway.add(hallwayFloor);
-  
-  // Hallway walls - Concrete031 textured (aligned with opening) - EXTENDED LENGTH
-  const hallwayWall1Geo = new THREE.BoxGeometry(0.2, 4, 18);
-  const hallwayWall1 = new THREE.Mesh(
-    hallwayWall1Geo,
-    makeConcrete031MaterialFlexible(0.2, 4, concrete031Files, {
-      uScale: 0.3,
-      vScale: 0.3,
-      anisotropy: 16,
-      attachAOToGeometry: hallwayWall1Geo,
-    })
-  );
-  hallwayWall1.position.set(-9.1, 2, -18); // Left wall of the extended hallway
-  hallwayWall1.castShadow = true;
-  hallwayWall1.receiveShadow = true;
-  hallwayWall1.userData = { type: 'wall', side: 'hallway-left' };
-  hallway.add(hallwayWall1);
-  
-  const hallwayWall2Geo = new THREE.BoxGeometry(0.2, 4, 18);
-  const hallwayWall2 = new THREE.Mesh(
-    hallwayWall2Geo,
-    makeConcrete031MaterialFlexible(0.2, 4, concrete031Files, {
-      uScale: 0.3,
-      vScale: 0.3,
-      anisotropy: 16,
-      attachAOToGeometry: hallwayWall2Geo,
-    })
-  );
-  hallwayWall2.position.set(-6.9, 2, -18); // Right wall of the extended hallway
-  hallwayWall2.rotation.y = Math.PI; // Rotate 180 degrees to face the correct direction
-  hallwayWall2.castShadow = true;
-  hallwayWall2.receiveShadow = true;
-  hallwayWall2.userData = { type: 'wall', side: 'hallway-right' };
-  hallway.add(hallwayWall2);
-  
-  // Hallway ceiling - Concrete031 textured (aligned with opening) - EXTENDED LENGTH
-  const hallwayCeilingGeo = new THREE.BoxGeometry(2, 0.3, 18);
-  const hallwayCeiling = new THREE.Mesh(
-    hallwayCeilingGeo,
-    makeConcrete031MaterialFlexible(2, 12, concrete031Files, {
-      uScale: 0.4,
-      vScale: 0.4,
-      anisotropy: 16,
-      attachAOToGeometry: hallwayCeilingGeo,
-    })
-  );
-  hallwayCeiling.position.set(-8, 4.15, -18); // Aligned with extended corridor
-  hallwayCeiling.receiveShadow = true;
-  hallway.add(hallwayCeiling);
-  
-  // Add atmospheric hallway lighting
-  const hallwayAmbientLight = new THREE.AmbientLight(0x202020, 0.1); // Very dim ambient
-  hallway.add(hallwayAmbientLight);
-  
-  // Add dim overhead lights along the hallway (aligned with opening)
-  const hallwayLight1 = new THREE.PointLight(0xffffff, 0.3, 8);
-  hallwayLight1.position.set(-8, 3, -12); // Shifted deeper
-  hallwayLight1.castShadow = true;
-  hallwayLight1.shadow.mapSize.width = 256;
-  hallwayLight1.shadow.mapSize.height = 256;
-  hallwayLight1.shadow.camera.near = 0.1;
-  hallwayLight1.shadow.camera.far = 10;
-  hallway.add(hallwayLight1);
-
-  const hallwayLight2 = new THREE.PointLight(0xffffff, 0.3, 8);
-  hallwayLight2.position.set(-8, 3, -18); // Mid corridor
-  hallwayLight2.castShadow = true;
-  hallwayLight2.shadow.mapSize.width = 256;
-  hallwayLight2.shadow.mapSize.height = 256;
-  hallwayLight2.shadow.camera.near = 0.1;
-  hallwayLight2.shadow.camera.far = 10;
-  hallway.add(hallwayLight2);
-
-  const hallwayLight3 = new THREE.PointLight(0xffffff, 0.3, 8);
-  hallwayLight3.position.set(-8, 3, -24); // Deeper
-  hallwayLight3.castShadow = true;
-  hallwayLight3.shadow.mapSize.width = 256;
-  hallwayLight3.shadow.mapSize.height = 256;
-  hallwayLight3.shadow.camera.near = 0.1;
-  hallwayLight3.shadow.camera.far = 10;
-  hallway.add(hallwayLight3);
-
-  // Additional light at corridor end for better guidance
-  const hallwayLight4 = new THREE.PointLight(0xffffff, 0.3, 8);
-  hallwayLight4.position.set(-8, 3, -27);
-  hallwayLight4.castShadow = true;
-  hallwayLight4.shadow.mapSize.width = 256;
-  hallwayLight4.shadow.mapSize.height = 256;
-  hallwayLight4.shadow.camera.near = 0.1;
-  hallwayLight4.shadow.camera.far = 10;
-  hallway.add(hallwayLight4);
-  
-  // Add hallway to group
-  group.add(hallway);
+  // Add the reusable hallway to the group
+  group.add(hallway.group);
 
   // Front wall with doorway (split into two parts)
   const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(7, 4, 0.2), wallMat);
@@ -783,6 +688,12 @@ export function createRoom1() {
       
       // Open memory UI
       gameStore.openMemoryUI();
+      
+      // Trigger AI dialogue for Simon puzzle start
+      if (window.AI && window.AI.onSimonPuzzleStart) {
+        window.AI.onSimonPuzzleStart();
+      }
+      
       return true;
     }
     
@@ -1038,7 +949,7 @@ export function createRoom1() {
       // AI response with incorrect order
       if (window.AI) {
         setTimeout(() => {
-          window.AI.say("Ah yes, the circuit problem. From my memory, it's Blue, Green, Yellow, Red. That should be the correct order.");
+          window.AI.onWirePanelInstructions();
         }, 1000);
       }
     } else {
@@ -1151,6 +1062,12 @@ export function createRoom1() {
     
     // Open memory UI
     gameStore.openMemoryUI();
+    
+    // Trigger AI dialogue for Simon puzzle start
+    if (window.AI && window.AI.onSimonPuzzleStart) {
+      window.AI.onSimonPuzzleStart();
+    }
+    
     return true;
   }
 
@@ -1222,7 +1139,7 @@ export function createRoom1() {
           };
           addToInventory(noteItem);
           gameStore.setPageTaken(true);
-          if (window.AI) window.AI.say('Correct. The safe yields a note.');
+          if (window.AI) window.AI.onSafeOpen();
         }
       } else {
         if (display) display.textContent = 'WRONG';
@@ -1296,7 +1213,7 @@ export function createRoom1() {
           };
           addToInventory(noteItem);
           gameStore.setPageTaken(true);
-          if (window.AI) window.AI.say('Correct. The safe yields a note.');
+          if (window.AI) window.AI.onSafeOpen();
         }
       } else {
         if (display) display.textContent = 'WRONG';
@@ -1623,7 +1540,12 @@ export function createRoom1() {
         statusLight2.material.emissiveIntensity = lightsOn ? 0.0 : 0.8;
       }
       
-      if (window.AI) window.AI.say(lightsOn ? 'Lights on.' : 'Lights off.');
+      if (window.AI && !lightsOn) {
+        window.AI.onLightsOff();
+      } else if (window.AI && lightsOn) {
+        // Trigger lights-on dialogue when lights are turned on
+        triggerLightsOnPrompt();
+      }
       return true;
     }
     return false;
@@ -1732,18 +1654,24 @@ export function createRoom1() {
     hasWelcomed: false,
     hasPromptedDesk: false,
     hasPromptedPaper: false,
-    hasExaminedPaperWithLightsOff: false
+    hasExaminedPaperWithLightsOff: false,
+    hasPromptedLightsOn: false
   };
   
   // Welcome message for Room 1
   function triggerRoom1Welcome() {
     if (!room1DialogueState.hasWelcomed) {
       room1DialogueState.hasWelcomed = true;
+      console.log('triggerRoom1Welcome called - showing Room 1 entry dialogue');
       if (window.AI) {
-        // Add 5-second delay to allow Room 0 door message to play first
-        setTimeout(() => {
-          window.AI.say("Welcome to Room 1. This is your first challenge room. It's quite dark in here - you might want to find the light switch. Look around - there's a desk with a safe, and some interesting equipment. Take your time to explore.");
-        }, 5000);
+        // Clear any existing dialogue first
+        const dialogueElement = document.getElementById('dialogue');
+        if (dialogueElement) {
+          dialogueElement.textContent = '';
+        }
+        
+        // Then show Room 1 welcome
+        window.AI.onRoom1Entry();
       }
     }
   }
@@ -1754,6 +1682,16 @@ export function createRoom1() {
       room1DialogueState.hasPromptedDesk = true;
       if (window.AI) {
         window.AI.say("Good Work opening the safe! You have a note in your inventory. Press E to examine it closely. These documents often contain important information for solving puzzles. Make sure you have good lighting to read it properly.");
+      }
+    }
+  }
+
+  // Prompt when lights are turned on for the first time after getting the note
+  function triggerLightsOnPrompt() {
+    if (!room1DialogueState.hasPromptedLightsOn && hasInInventory('room1-note')) {
+      room1DialogueState.hasPromptedLightsOn = true;
+      if (window.AI) {
+        window.AI.onLightsOn();
       }
     }
   }
@@ -1778,6 +1716,11 @@ export function createRoom1() {
   
   // Update dialogue system
   function updateRoom1Dialogue() {
+    // Debug: Check if function is being called
+    if (!room1DialogueState.hasWelcomed) {
+      console.log('updateRoom1Dialogue called');
+    }
+    
     // Check if player is in Room 1
     if (window.leonardModel || window.player) {
       const activePlayer = window.leonardModel || window.player;
@@ -1788,6 +1731,22 @@ export function createRoom1() {
         localToRoom1.x >= -half && localToRoom1.x <= half &&
         localToRoom1.z >= -half && localToRoom1.z <= half
       );
+      
+      // Debug logging - ALWAYS log when not welcomed
+      if (!room1DialogueState.hasWelcomed) {
+        console.log('Room 1 Dialogue Debug:', {
+          playerWorldPos: { x: playerPos.x, y: playerPos.y, z: playerPos.z },
+          room1GroupPos: { x: group.position.x, y: group.position.y, z: group.position.z },
+          localToRoom1: { x: localToRoom1.x, y: localToRoom1.y, z: localToRoom1.z },
+          insideRoom1: insideRoom1,
+          hasWelcomed: room1DialogueState.hasWelcomed,
+          playerObject: activePlayer === window.leonardModel ? 'leonardModel' : 'player',
+          boundsCheck: {
+            xInBounds: localToRoom1.x >= -9 && localToRoom1.x <= 9,
+            zInBounds: localToRoom1.z >= -9 && localToRoom1.z <= 9
+          }
+        });
+      }
       
       if (insideRoom1) {
         // Trigger welcome message
@@ -1802,6 +1761,18 @@ export function createRoom1() {
         if (hasInInventory('room1-note')) {
           triggerPaperPrompt();
         }
+      } else {
+        // TEMPORARY DEBUG: Force trigger dialogue when player is at z < -20 (approaching Room 1)
+        if (!room1DialogueState.hasWelcomed && playerPos.z < -20) {
+          console.log('FORCE TRIGGERING Room 1 dialogue - player approaching Room 1');
+          triggerRoom1Welcome();
+        }
+      }
+      
+      // SUPER AGGRESSIVE FIX: If player is anywhere near Room 1, force it
+      if (!room1DialogueState.hasWelcomed && playerPos.z < -5) {
+        console.log('SUPER AGGRESSIVE FIX: Player past Room 0, forcing Room 1 dialogue');
+        triggerRoom1Welcome();
       }
     }
   }

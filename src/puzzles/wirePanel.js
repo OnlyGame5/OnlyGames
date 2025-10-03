@@ -332,7 +332,7 @@ export function createWirePanel(opts = {}) {
       // Success animation
       setTimeout(() => {
         if (window.AI) {
-          window.AI.say("Excellent! The circuit is complete. The door should now be unlocked.");
+          window.AI.onWirePanelSuccess();
         }
         closePanel();
       }, 2000); // Give time to read the popup
@@ -456,7 +456,7 @@ export function createWirePanel(opts = {}) {
     });
     
     if (window.AI) {
-      window.AI.say("Wrong sequence! The circuit has reset. Try again.");
+      window.AI.onWirePanelFailure();
     }
   }
 
