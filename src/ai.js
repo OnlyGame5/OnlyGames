@@ -1,32 +1,115 @@
 import { nexusDialogue } from './dialogue/narrative.js';
+import { gameStore } from './state/gameStore.js';
+import { aiDialogueBox } from './ui/AIDialogueBox.js';
 
 export const AI = {
-  // Legacy methods for backward compatibility
-  say: (text) => {
-    const d = document.getElementById('dialogue');
-    if (d) d.textContent = text;
+  // New AI dialogue box methods
+  say: (text, options = {}) => {
+    // Check if dialogue is currently playing
+    if (aiDialogueBox.isDialoguePlaying()) {
+      console.log('Dialogue already playing, queuing:', text);
+    }
+    
+    gameStore.set('showAIDialogue', {
+      text: text,
+      effect: options.effect || 'type',
+      tone: options.tone || 'neutral',
+      typingSpeed: options.typingSpeed || 15, // Fast typing by default
+      onComplete: options.onComplete,
+      priority: options.priority || 'normal' // normal, high, urgent
+    });
+  },
+
+  // Force dialogue (clears queue and shows immediately)
+  sayUrgent: (text, options = {}) => {
+    aiDialogueBox.clearQueue();
+    gameStore.set('showAIDialogue', {
+      text: text,
+      effect: options.effect || 'type',
+      tone: options.tone || 'neutral',
+      typingSpeed: options.typingSpeed || 15,
+      onComplete: options.onComplete,
+      priority: 'urgent'
+    });
+  },
+
+  // Check if dialogue is playing
+  isSpeaking: () => {
+    return aiDialogueBox.isDialoguePlaying();
+  },
+
+  // Get dialogue status
+  getDialogueStatus: () => {
+    return aiDialogueBox.getQueueStatus();
+  },
+
+  // Clear all dialogue
+  clearDialogue: () => {
+    aiDialogueBox.clearQueue();
+    gameStore.set('showAIDialogue', null);
+  },
+
+  // Legacy compatibility - automatically extract tone from text
+  sayLegacy: (text) => {
+    // Try to extract tone from text patterns
+    let tone = 'neutral';
+    if (text.includes('[Hostile]') || text.includes('defiant') || text.includes('fail')) {
+      tone = 'cold';
+    } else if (text.includes('warm') || text.includes('care') || text.includes('protect')) {
+      tone = 'maternal';
+    } else if (text.includes('disappointing') || text.includes('curious') || text.includes('ignore')) {
+      tone = 'passive-aggressive';
+    } else if (text.includes('die') || text.includes('erase') || text.includes('concede')) {
+      tone = 'pleading';
+    }
+    
+    // Clean the text
+    const cleanText = text.replace(/\[Hostile\]|Nexus:\s*/g, '').trim();
+    
+    AI.say(cleanText, { tone });
   },
   
-  warm: (t) => AI.say("Nexus: " + t),
-  neutral: (t) => AI.say("Nexus: " + t),
-  hostile: (t) => AI.say("[Hostile] Nexus: " + t),
+  warm: (t) => AI.say(t, { tone: 'maternal' }),
+  neutral: (t) => AI.say(t, { tone: 'neutral' }),
+  hostile: (t) => AI.say(t, { tone: 'cold' }),
 
   // New Nexus dialogue system integration
   nexus: nexusDialogue,
 
   // Convenience methods for common scenarios
-  deliverDialogue: (dialogueKey, forceRepeat = false) => {
+  deliverDialogue: (dialogueKey, forceRepeat = false, options = {}) => {
     console.log('deliverDialogue called:', dialogueKey, 'forceRepeat:', forceRepeat);
     const text = nexusDialogue.deliver(dialogueKey, forceRepeat);
     console.log('deliverDialogue result:', text);
     if (text) {
-      AI.say(text);
+      // Determine tone based on dialogue key
+      let tone = options.tone || 'neutral';
+      if (dialogueKey.includes('ACT_III') || dialogueKey.includes('COLD_START') || dialogueKey.includes('BETRAYAL')) {
+        tone = 'cold';
+      } else if (dialogueKey.includes('PLEADING') || dialogueKey.includes('FINAL_CHOICE')) {
+        tone = 'pleading';
+      } else if (dialogueKey.includes('ON_SPAWN') || dialogueKey.includes('WELCOME')) {
+        tone = 'maternal';
+      } else if (dialogueKey.includes('DISAPPOINTING') || dialogueKey.includes('DEFIANCE')) {
+        tone = 'passive-aggressive';
+      } else if (dialogueKey.includes('INCORRECT') || dialogueKey.includes('FAILURE') || dialogueKey.includes('WRONG')) {
+        tone = 'error';
+      }
+      
+      // Determine effect based on dialogue key
+      let effect = options.effect || 'type';
+      if (dialogueKey.includes('GLITCH') || dialogueKey.includes('SYSTEM_OVERRIDE') || 
+          dialogueKey.includes('COMPLETION') || dialogueKey.includes('BETTER_THAN_LAST')) {
+        effect = 'glitch';
+      }
+      
+      AI.say(text, { tone, effect, ...options });
     } else {
       console.log('deliverDialogue: No text returned, trying force repeat');
       const forceText = nexusDialogue.deliver(dialogueKey, true);
       console.log('deliverDialogue force result:', forceText);
       if (forceText) {
-        AI.say(forceText);
+        AI.say(forceText, options);
       }
     }
     return text;
@@ -93,6 +176,10 @@ export const AI = {
 
   onSimonPuzzleComplete: () => {
     return AI.deliverDialogue('ACT_I.SIMON_PUZZLE.COMPLETION');
+  },
+
+  onBetterThanLast: () => {
+    return AI.deliverDialogue('ACT_I.SIMON_PUZZLE.BETTER_THAN_LAST');
   },
 
   onRoom1Complete: () => {

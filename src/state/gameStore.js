@@ -34,6 +34,12 @@ class GameStore {
   notify(key, value) {
     this.listeners.get(key)?.forEach(callback => callback(value));
   }
+
+  // Generic set method for AI dialogue and other dynamic properties
+  set(key, value) {
+    this[key] = value;
+    this.notify(key, value);
+  }
   
   // Actions
   setWireComplete(value) {

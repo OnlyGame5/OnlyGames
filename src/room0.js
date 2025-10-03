@@ -621,6 +621,100 @@ export function createRoom0() {
     new THREE.Vector3(3, 2, 1)                      // Size
   );
 
+  // Stage 0: Awakening chair for player spawn
+  let awakeningChair = null;
+  const chairLoader = new GLTFLoader();
+  
+  chairLoader.load('/models/sci_fi_table.glb', (gltf) => {
+    awakeningChair = gltf.scene;
+    awakeningChair.name = 'awakening-chair';
+    
+    // Scale and position the chair for player spawn
+    awakeningChair.scale.set(1.5, 1.5, 1.5);
+    awakeningChair.position.set(0, 0, 2); // Center of room, facing forward
+    awakeningChair.rotation.y = Math.PI; // Face the door
+    
+    // Enable shadows
+    awakeningChair.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        
+        // Make it look more like a medical/awakening chair
+        if (child.material) {
+          child.material.color.setHex(0x2a2a2a);
+          child.material.metalness = 0.8;
+          child.material.roughness = 0.3;
+        }
+      }
+    });
+    
+    group.add(awakeningChair);
+    console.log('Awakening chair loaded successfully!');
+  }, (progress) => {
+    console.log('Loading chair model...', (progress.loaded / progress.total * 100) + '%');
+  }, (error) => {
+    console.error('Error loading chair model:', error);
+    
+    // Fallback to simple chair if loading fails
+    const fallbackChair = new THREE.Group();
+    fallbackChair.name = 'awakening-chair';
+    
+    // Chair seat
+    const chairSeat = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 0.1, 1.0),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x2a2a2a,
+        metalness: 0.8,
+        roughness: 0.3
+      })
+    );
+    chairSeat.position.set(0, 0.5, 0);
+    chairSeat.castShadow = true;
+    fallbackChair.add(chairSeat);
+    
+    // Chair back
+    const chairBack = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 1.0, 0.1),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x2a2a2a,
+        metalness: 0.8,
+        roughness: 0.3
+      })
+    );
+    chairBack.position.set(0, 1.0, -0.45);
+    chairBack.castShadow = true;
+    fallbackChair.add(chairBack);
+    
+    // Chair legs
+    const legPositions = [
+      [-0.5, 0.25, -0.4],
+      [0.5, 0.25, -0.4],
+      [-0.5, 0.25, 0.4],
+      [0.5, 0.25, 0.4]
+    ];
+    
+    legPositions.forEach(([x, y, z]) => {
+      const leg = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8),
+        new THREE.MeshStandardMaterial({ 
+          color: 0x1a1a1a,
+          metalness: 0.9,
+          roughness: 0.2
+        })
+      );
+      leg.position.set(x, y, z);
+      leg.castShadow = true;
+      fallbackChair.add(leg);
+    });
+    
+    // Position the chair
+    fallbackChair.position.set(0, 0, 2);
+    fallbackChair.rotation.y = Math.PI;
+    group.add(fallbackChair);
+    awakeningChair = fallbackChair;
+  });
+
   // Stage 0: Security camera using GLB model
   let securityCamera = null;
   const cameraLoader = new GLTFLoader();
@@ -733,6 +827,13 @@ export function createRoom0() {
     securityCamera: {
       isTracking: false,
       playerInRoom: false
+    },
+    awakening: {
+      isAwakening: true,
+      fadeInComplete: false,
+      movementRestricted: true,
+      awakeningTimer: null,
+      awakeningDuration: 3000 // 3 seconds of restricted movement
     }
   };
 
@@ -803,9 +904,33 @@ export function createRoom0() {
     }
   }
 
+  // Stage 0: Awakening sequence management
+  function startAwakeningSequence() {
+    // Start the awakening timer
+    state.awakening.awakeningTimer = setTimeout(() => {
+      state.awakening.movementRestricted = false;
+      state.awakening.isAwakening = false;
+      
+      // Trigger Nexus introduction dialogue
+      if (window.AI) {
+        window.AI.say("Welcome to the awakening chamber. I am Nexus, your AI companion. You may now move freely. Look around, and when you're ready, find the key to proceed.");
+      }
+    }, state.awakening.awakeningDuration);
+    
+    // Initial Nexus greeting
+    if (window.AI) {
+      window.AI.say("Awakening sequence initiated. Please remain still while your systems calibrate...");
+    }
+  }
+
   // Stage 0: Update function for animations and state
   function updateRoom0(dt, ctx) {
     const { playerObject, ai } = ctx;
+
+    // Stage 0: Awakening sequence
+    if (state.awakening.isAwakening && !state.awakening.awakeningTimer) {
+      startAwakeningSequence();
+    }
 
     // Stage 0: Update security camera tracking
     updateSecurityCamera(playerObject);
@@ -1016,6 +1141,7 @@ export function createRoom0() {
     anchors: { entry: entryAnchor, exit: exitAnchor },
     door,
     key,
+    awakeningChair,
     securityCamera,
     triggers: { doorwayBox },
     state,

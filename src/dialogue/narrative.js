@@ -31,7 +31,14 @@ export const NEXUS_DIALOGUE = {
 
     SIMON_PUZZLE: {
       START: "You've restored power to the cognitive calibration platform. This final test will assess your short-term memory and physical dexterity. Please replicate the sequences.",
-      COMPLETION: "Cognitive functions are well within acceptable parameters. You learn quickly... much quicker than the last one."
+      COMPLETION: "Cognitive functions are well within acceptable parameters. You learn quickly... much quicker than the last one.",
+      BETTER_THAN_LAST: "You did better than the last one... much better.",
+      GAME_START: "Initiating memory training protocol. Watch the sequence carefully and repeat it when prompted.",
+      NEW_ROUND: "Round {round}. Watch closely...",
+      PLAYER_TURN: "Your turn. Repeat the sequence ({steps} steps).",
+      CORRECT: "Correct! Advancing to next round...",
+      INCORRECT: "Incorrect. Watch the sequence again and try once more.",
+      COMPLETE: "Perfect! Memory training complete. Cognitive functions are well within acceptable parameters."
     },
 
     ROOM_1_COMPLETE: "The first stage is complete. You're performing above initial projections. I'm pleased. See? We make a great team. Together, nothing can stop us."

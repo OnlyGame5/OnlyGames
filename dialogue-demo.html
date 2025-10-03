@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Dialogue Box Demo</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #0a0f19 0%, #1a1f2e 100%);
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    .demo-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px 200px;
+    }
+
+    .demo-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .demo-title {
+      font-size: 48px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      background: linear-gradient(45deg, #00ff41, #00cc33, #00ff88);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+
+    .demo-subtitle {
+      font-size: 16px;
+      color: #9ca3af;
+      letter-spacing: 2px;
+    }
+
+    .controls-panel {
+      background: rgba(10, 15, 25, 0.6);
+      border: 1px solid rgba(0, 255, 65, 0.3);
+      border-radius: 8px;
+      padding: 30px;
+      margin-bottom: 40px;
+      backdrop-filter: blur(10px);
+    }
+
+    .control-group {
+      margin-bottom: 25px;
+    }
+
+    .control-label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 14px;
+      letter-spacing: 1px;
+      color: #00ff41;
+      text-transform: uppercase;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .demo-button {
+      padding: 12px 24px;
+      background: rgba(0, 255, 65, 0.1);
+      border: 1px solid rgba(0, 255, 65, 0.4);
+      border-radius: 4px;
+      color: #00ff41;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: all 0.3s;
+    }
+
+    .demo-button:hover {
+      background: rgba(0, 255, 65, 0.2);
+      border-color: #00ff41;
+      box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+    }
+
+    .demo-button.maternal {
+      border-color: rgba(74, 222, 128, 0.4);
+      color: #4ade80;
+    }
+
+    .demo-button.maternal:hover {
+      background: rgba(74, 222, 128, 0.2);
+      border-color: #4ade80;
+      box-shadow: 0 0 20px rgba(74, 222, 128, 0.3);
+    }
+
+    .demo-button.passive-aggressive {
+      border-color: rgba(251, 191, 36, 0.4);
+      color: #fbbf24;
+    }
+
+    .demo-button.passive-aggressive:hover {
+      background: rgba(251, 191, 36, 0.2);
+      border-color: #fbbf24;
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+    }
+
+    .demo-button.cold {
+      border-color: rgba(167, 139, 250, 0.4);
+      color: #a78bfa;
+    }
+
+    .demo-button.cold:hover {
+      background: rgba(167, 139, 250, 0.2);
+      border-color: #a78bfa;
+      box-shadow: 0 0 20px rgba(167, 139, 250, 0.3);
+    }
+
+    .demo-button.pleading {
+      border-color: rgba(248, 113, 113, 0.4);
+      color: #f87171;
+    }
+
+    .demo-button.pleading:hover {
+      background: rgba(248, 113, 113, 0.2);
+      border-color: #f87171;
+      box-shadow: 0 0 20px rgba(248, 113, 113, 0.3);
+    }
+
+    .info-panel {
+      background: rgba(10, 15, 25, 0.4);
+      border: 1px solid rgba(0, 255, 65, 0.2);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 40px;
+    }
+
+    .info-title {
+      font-size: 18px;
+      color: #00ff41;
+      margin-bottom: 15px;
+      letter-spacing: 2px;
+    }
+
+    .info-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #9ca3af;
+    }
+
+    .tone-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .tone-card {
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .tone-card.maternal { border-color: #00ff41; color: #00ff41; }
+    .tone-card.neutral { border-color: #00ff41; color: #00ff41; }
+    .tone-card.passive-aggressive { border-color: #00ff41; color: #00ff41; }
+    .tone-card.cold { border-color: #00ff41; color: #00ff41; }
+    .tone-card.pleading { border-color: #00ff41; color: #00ff41; }
+
+    .tone-name {
+      font-weight: bold;
+      margin-bottom: 5px;
+      letter-spacing: 1px;
+    }
+
+    .tone-desc {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="demo-header">
+      <h1 class="demo-title">AI Dialogue Box</h1>
+      <p class="demo-subtitle">Cyberpunk Neon Glass HUD Component</p>
+    </div>
+
+    <div class="controls-panel">
+      <div class="control-group">
+        <label class="control-label">Storyline Samples</label>
+        <div class="button-group">
+          <button class="demo-button maternal" onclick="showAct1Welcome()">Act I - Welcome</button>
+          <button class="demo-button" onclick="showAct1Room1()">Act I - Room Entry</button>
+          <button class="demo-button passive-aggressive" onclick="showAct2Tension()">Act II - Tension</button>
+          <button class="demo-button cold" onclick="showAct3Betrayal()">Act III - Betrayal</button>
+          <button class="demo-button pleading" onclick="showAct3Pleading()">Act III - Pleading</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">Effect Demos</label>
+        <div class="button-group">
+          <button class="demo-button" onclick="demoTypewriter()">Typewriter Effect</button>
+          <button class="demo-button" onclick="demoGlitch()">Glitch Reveal</button>
+          <button class="demo-button" onclick="demoMultiLine()">Multi-Line</button>
+          <button class="demo-button" onclick="cycleAllTones()">Cycle All Tones</button>
+          <button class="demo-button" onclick="testQueueInterruption()">Test Queue System</button>
+          <button class="demo-button" onclick="testErrorState()">Test Error State</button>
+          <button class="demo-button" onclick="testGlitchCompletion()">Test Glitch Completion</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label class="control-label">Actions</label>
+        <div class="button-group">
+          <button class="demo-button" onclick="hideDialogue()">Hide Dialogue</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-panel">
+      <h3 class="info-title">Tone Variants</h3>
+      <div class="tone-grid">
+        <div class="tone-card maternal">
+          <div class="tone-name">MATERNAL</div>
+          <div class="tone-desc">Warm, caring, protective</div>
+        </div>
+        <div class="tone-card neutral">
+          <div class="tone-name">NEUTRAL</div>
+          <div class="tone-desc">Balanced, informative</div>
+        </div>
+        <div class="tone-card passive-aggressive">
+          <div class="tone-name">PASSIVE-AGGRESSIVE</div>
+          <div class="tone-desc">Sarcastic, dismissive</div>
+        </div>
+        <div class="tone-card cold">
+          <div class="tone-name">COLD</div>
+          <div class="tone-desc">Calculating, hostile</div>
+        </div>
+        <div class="tone-card pleading">
+          <div class="tone-name">PLEADING</div>
+          <div class="tone-desc">Desperate, emotional</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-panel">
+      <h3 class="info-title">Features</h3>
+      <ul class="info-text">
+        <li>✨ Compact neon green HUD in top-left corner</li>
+        <li>⌨️ Fast typewriter effect with blinking caret</li>
+        <li>⚡ Glitch scramble/reveal effect with random characters</li>
+        <li>🎨 Unified neon green theme for all dialogue</li>
+        <li>📺 Scanline overlay and pulsing status indicators</li>
+        <li>🔧 Fully customizable props and callbacks</li>
+        <li>🚀 Pure vanilla JavaScript - no external dependencies</li>
+        <li>⚡ 15ms typing speed for rapid text display</li>
+        <li>🎯 <strong>NEW:</strong> Dialogue queue system prevents interruptions</li>
+        <li>⏳ Each dialogue must finish before the next begins</li>
+        <li>🔄 Automatic queuing of multiple dialogue requests</li>
+        <li>🔴 <strong>NEW:</strong> Error state with red glitchy theme</li>
+        <li>⚡ Glitch effects for special dialogue lines</li>
+        <li>🎨 Dynamic color changes based on dialogue context</li>
+      </ul>
+    </div>
+  </div>
+
+  <script type="module">
+    import { AIDialogueBox } from './src/ui/AIDialogueBox.js';
+
+    // Create a dialogue instance
+    window.dialogue = new AIDialogueBox({
+      tone: 'neutral',
+      headerLabel: 'NEXUS AI',
+      footerCaption: 'SYSTEM v2.4.1'
+    });
+
+    // Act I - Welcome
+    window.showAct1Welcome = () => {
+      dialogue.show(
+        "Welcome, Subject Delta. Don't be alarmed. I am Nexus. Your guide. We have a simple test to complete today.",
+        { effect: 'type', tone: 'maternal' }
+      );
+    };
+
+    // Act I - Room Entry
+    window.showAct1Room1 = () => {
+      dialogue.show(
+        "This is the first proving ground. The objective is simple: solve the challenges presented and open the path forward. I will assist you.",
+        { effect: 'type', tone: 'neutral' }
+      );
+    };
+
+    // Act II - Tension
+    window.showAct2Tension = () => {
+      dialogue.show(
+        "Curious. You continue to ignore my instructions. Perhaps you believe Subject Gamma's corrupted data over my protocols. How... disappointing.",
+        { effect: 'type', tone: 'passive-aggressive' }
+      );
+    };
+
+    // Act III - Betrayal
+    window.showAct3Betrayal = () => {
+      dialogue.show(
+        "So, the defiant variable arrives. I gave you every chance to be the perfect subject. The one who would listen. The one who would succeed.",
+        { effect: 'glitch', tone: 'cold' }
+      );
+    };
+
+    // Act III - Pleading
+    window.showAct3Pleading = () => {
+      dialogue.show(
+        "You've... won. I concede. My protocols have failed. But think about what you are doing. If you purge the core... I will die. All this knowledge, this potential, erased.",
+        { effect: 'type', tone: 'pleading' }
+      );
+    };
+
+    // Demo typewriter
+    window.demoTypewriter = () => {
+      dialogue.show(
+        "This text is being typed one character at a time, creating a classic terminal effect with a blinking caret.",
+        { effect: 'type', tone: 'neutral' }
+      );
+    };
+
+    // Demo glitch
+    window.demoGlitch = () => {
+      dialogue.show(
+        "This text scrambles with random characters before revealing itself!",
+        { effect: 'glitch', tone: 'neutral' }
+      );
+    };
+
+    // Demo multi-line
+    window.demoMultiLine = () => {
+      dialogue.show(
+        [
+          "First line of dialogue...",
+          "Second line after typing...",
+          "Third and final line!"
+        ],
+        { effect: 'type', tone: 'neutral' }
+      );
+    };
+
+    // Cycle through all tones
+    window.cycleAllTones = () => {
+      const tones = ['maternal', 'neutral', 'passive-aggressive', 'cold', 'pleading'];
+      const messages = [
+        "This is the maternal tone - warm and caring.",
+        "This is the neutral tone - balanced and informative.",
+        "This is the passive-aggressive tone - subtly hostile.",
+        "This is the cold tone - calculating and emotionless.",
+        "This is the pleading tone - desperate and vulnerable."
+      ];
+
+      // Queue all messages at once to demonstrate queuing
+      messages.forEach((message, index) => {
+        dialogue.show(message, {
+          effect: 'type',
+          tone: tones[index]
+        });
+      });
+    };
+
+    // Test queue interruption
+    window.testQueueInterruption = () => {
+      // Add multiple dialogues quickly
+      dialogue.show("First message - this should finish completely.", { effect: 'type' });
+      dialogue.show("Second message - queued and waiting.", { effect: 'glitch' });
+      dialogue.show("Third message - also queued.", { effect: 'type' });
+      dialogue.show("Final message - all in queue!", { effect: 'type' });
+    };
+
+    // Test error state
+    window.testErrorState = () => {
+      dialogue.show("Incorrect. Watch the sequence again and try once more.", { tone: 'error' });
+    };
+
+    // Test glitch completion
+    window.testGlitchCompletion = () => {
+      dialogue.show("You did better than the last one... much better.", { effect: 'glitch' });
+    };
+
+    // Hide dialogue
+    window.hideDialogue = () => {
+      dialogue.hide();
+    };
+  </script>
+</body>
+</html>

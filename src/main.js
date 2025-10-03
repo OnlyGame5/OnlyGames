@@ -10,7 +10,6 @@ import { initInput, isDown as inputIsDown, getBindings } from './systems/input.j
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
 import { loadingScreen } from './loading.js';
 import { uiRoot } from './ui/UIRoot.js';
-import { flagsHUD } from './ui/FlagsHUD.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 
 // --- Scene, Camera, Renderer ---
@@ -19,6 +18,12 @@ scene.background = new THREE.Color(0x0b0b12);
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 4, 10);
+
+// Fade-in effect for awakening chamber
+let fadeOverlay = null;
+let isFading = true;
+let fadeStartTime = 0;
+const fadeDuration = 2000; // 2 seconds
 
 const renderer = new THREE.WebGLRenderer({ 
   antialias: false, // Disabled for performance
@@ -46,9 +51,51 @@ let gameState = {
   paused: false
 };
 
+// Create fade-in overlay for awakening effect
+function createFadeOverlay() {
+  fadeOverlay = document.createElement('div');
+  fadeOverlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+    z-index: 9999;
+    pointer-events: none;
+    transition: opacity 2s ease-out;
+  `;
+  document.body.appendChild(fadeOverlay);
+  fadeStartTime = Date.now();
+}
+
+// Update fade-in effect
+function updateFadeEffect() {
+  if (!isFading || !fadeOverlay) return;
+  
+  const elapsed = Date.now() - fadeStartTime;
+  const progress = Math.min(elapsed / fadeDuration, 1);
+  
+  // Fade out the black overlay
+  fadeOverlay.style.opacity = 1 - progress;
+  
+  if (progress >= 1) {
+    isFading = false;
+    // Remove overlay after fade completes
+    setTimeout(() => {
+      if (fadeOverlay && fadeOverlay.parentNode) {
+        fadeOverlay.parentNode.removeChild(fadeOverlay);
+        fadeOverlay = null;
+      }
+    }, 100);
+  }
+}
+
 // Initialize game with Leonard
 async function initGame() {
   try {
+    // Create fade-in overlay for awakening effect
+    createFadeOverlay();
     // Show loading screen
     loadingScreen.show();
     loadingScreen.setStatus('Loading game assets...');
@@ -75,6 +122,13 @@ async function initGame() {
     
     // Add groups to scene
     scene.add(gameState.room0.group, gameState.room1.group, gameState.room2.group, gameState.room3.group);
+    
+    // Position player in the awakening chair
+    if (gameState.room0.awakeningChair) {
+      player.position.set(0, 1, 2); // Position player in chair
+    } else {
+      player.position.set(0, 1, 2); // Fallback position
+    }
     
     // Create hallway between Room 0 and Room 1
     const hallway0to1 = HallwayPresets.standard({
@@ -303,11 +357,20 @@ function animate(currentTime) {
     return;
   }
   
+  // Update fade-in effect
+  updateFadeEffect();
+  
   // Get the active player object (Leonard model or fallback box)
   const activePlayer = leonardModel || player;
   
   // Stage 0: Update player movement with deltaTime for animations
-  updatePlayer(activePlayer, camera, deltaTime);
+  // Check if movement is restricted during awakening
+  if (gameState.room0 && gameState.room0.state && gameState.room0.state.awakening && gameState.room0.state.awakening.movementRestricted) {
+    // Only allow camera rotation during awakening, no movement
+    // Player can look around but not move
+  } else {
+    updatePlayer(activePlayer, camera, deltaTime);
+  }
   
   // Collision: choose which area's walls to apply based on player position
   {
@@ -386,22 +449,13 @@ function animate(currentTime) {
       console.log('HALLWAY REVAMP: Player moved away from Room 0, clearing hallway dialogue');
       hallwayDialogueShown = false;
       
-      // Clear dialogue and trigger Room 1 dialogue immediately
-      const dialogueElement = document.getElementById('dialogue');
-      if (dialogueElement) {
-        dialogueElement.textContent = '';
-      }
-      
-      // BACKUP: Force trigger Room 1 dialogue if not already welcomed
-      if (window.AI && window.AI.onRoom1Entry) {
-        console.log('BACKUP: Forcing Room 1 entry dialogue');
+      // Only trigger Room 1 dialogue if no dialogue is currently playing
+      if (window.AI && !window.AI.isSpeaking()) {
+        console.log('BACKUP: Triggering Room 1 entry dialogue');
         window.AI.onRoom1Entry();
-      } else {
-        // EMERGENCY BACKUP: Direct dialogue delivery
-        console.log('EMERGENCY BACKUP: Using direct dialogue delivery');
-        if (window.AI) {
-          window.AI.say("Nexus: This is the first proving ground. The objective is simple: solve the challenges presented and open the path forward. I will assist you.");
-        }
+      } else if (window.AI) {
+        console.log('Dialogue currently playing, queuing Room 1 entry');
+        window.AI.onRoom1Entry();
       }
     }
   }

@@ -1664,13 +1664,12 @@ export function createRoom1() {
       room1DialogueState.hasWelcomed = true;
       console.log('triggerRoom1Welcome called - showing Room 1 entry dialogue');
       if (window.AI) {
-        // Clear any existing dialogue first
-        const dialogueElement = document.getElementById('dialogue');
-        if (dialogueElement) {
-          dialogueElement.textContent = '';
+        // Check if dialogue is currently playing
+        if (window.AI.isSpeaking()) {
+          console.log('Dialogue already playing, queuing Room 1 welcome');
         }
         
-        // Then show Room 1 welcome
+        // Queue Room 1 welcome (will wait for current dialogue to finish)
         window.AI.onRoom1Entry();
       }
     }
@@ -1681,6 +1680,7 @@ export function createRoom1() {
     if (!room1DialogueState.hasPromptedDesk && state.safeOpened) {
       room1DialogueState.hasPromptedDesk = true;
       if (window.AI) {
+        // Queue the dialogue instead of interrupting
         window.AI.say("Good Work opening the safe! You have a note in your inventory. Press E to examine it closely. These documents often contain important information for solving puzzles. Make sure you have good lighting to read it properly.");
       }
     }
@@ -1701,6 +1701,7 @@ export function createRoom1() {
     if (!room1DialogueState.hasPromptedPaper && hasInInventory('room1-note')) {
       room1DialogueState.hasPromptedPaper = true;
       if (window.AI) {
+        // Queue the dialogue instead of interrupting
         window.AI.say("You might need better lighting to read it clearly - try turning on the lights first.");
       }
     }

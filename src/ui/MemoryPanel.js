@@ -25,7 +25,7 @@ export class MemoryPanel {
     this.round = 0;
     this.best = 0;
     this.playingBack = false;
-    this.log = "Press Start to begin.";
+    this.log = "Memory training station ready.";
     this.showCongrats = false;
     
     this.pads = [];
@@ -147,7 +147,7 @@ export class MemoryPanel {
     `;
     
     chip.appendChild(dot);
-    chip.appendChild(document.createTextNode(' AI: "Don\'t worry, I\'ll keep this simple."'));
+    chip.appendChild(document.createTextNode(' Memory Training Station'));
     
     header.appendChild(title);
     header.appendChild(chip);
@@ -438,16 +438,24 @@ export class MemoryPanel {
     }
     
     this.playingBack = false;
-    this.log = `Your turn. Repeat the sequence (${this.sequence.length}).`;
+    // Remove log message - let Nexus handle dialogue
     this.updateLog();
+    
+    // Remove dialogue for player turn - let the UI speak for itself
   }
   
   startGame() {
     this.sequence = [];
     this.inputIndex = 0;
     this.round = 0;
-    this.log = "Initiating training protocol…";
+    // Remove log message - let Nexus handle dialogue
     this.updateLog();
+    
+    // Trigger Nexus dialogue for game start
+    if (window.AI) {
+      window.AI.deliverDialogue('ACT_I.SIMON_PUZZLE.GAME_START');
+    }
+    
     this.newRound([]);
   }
   
@@ -456,9 +464,15 @@ export class MemoryPanel {
     this.sequence = nextSeq;
     this.inputIndex = 0;
     this.round++;
-    this.log = `Round ${this.round}. Watch closely…`;
+    // Remove log message - let Nexus handle dialogue
     this.updateLog();
     this.updateStats();
+    
+    // Trigger Nexus dialogue for new round
+    if (window.AI) {
+      const dialogue = `Round ${this.round}. Watch closely...`;
+      window.AI.say(dialogue);
+    }
     
     await this.wait(30);
     await this.playSequence();
@@ -483,8 +497,14 @@ export class MemoryPanel {
         // Check for victory (6 rounds completed)
         if (this.round >= this.config.maxRoundsToWin) {
           console.log('Memory game: Victory condition met! Round:', this.round, 'Max rounds:', this.config.maxRoundsToWin);
-          this.log = "Perfect! Training complete!";
+          // Remove log message - let Nexus handle dialogue
           this.updateLog();
+          
+          // Trigger Nexus dialogue for completion
+          if (window.AI) {
+            window.AI.deliverDialogue('ACT_I.SIMON_PUZZLE.COMPLETE');
+          }
+          
           await this.wait(1000);
           
           // Activate the Continue button
@@ -511,15 +531,27 @@ export class MemoryPanel {
           return;
         }
         
-        this.log = "Clean! Advancing…";
+        // Remove log message - let Nexus handle dialogue
         this.updateLog();
+        
+        // Trigger Nexus dialogue for correct sequence
+        if (window.AI) {
+          window.AI.deliverDialogue('ACT_I.SIMON_PUZZLE.CORRECT');
+        }
+        
         await this.wait(420);
         this.newRound(this.sequence);
       }
     } else {
       this.beep(0, 520);
-      this.log = "Wrong! Try again — rewatching the sequence.";
+      // Remove log message - let Nexus handle dialogue
       this.updateLog();
+      
+      // Trigger Nexus dialogue for incorrect sequence with error state
+      if (window.AI) {
+        window.AI.say("Incorrect. Watch the sequence again and try once more.", { tone: 'error' });
+      }
+      
       this.inputIndex = 0;
       await this.wait(460);
       this.playSequence();
@@ -602,6 +634,13 @@ export class MemoryPanel {
       // Trigger AI dialogue for Simon puzzle completion
       if (window.AI && window.AI.onSimonPuzzleComplete) {
         window.AI.onSimonPuzzleComplete();
+      }
+      
+      // Trigger the "better than last one" dialogue with glitch effect
+      if (window.AI && window.AI.onBetterThanLast) {
+        setTimeout(() => {
+          window.AI.onBetterThanLast();
+        }, 2000); // Delay to show after completion message
       }
     }, 3000);
   }
@@ -719,7 +758,8 @@ export class MemoryPanel {
   
   updateLog() {
     if (this.logElement) {
-      this.logElement.innerHTML = this.log;
+      // Keep the log element but make it minimal - Nexus handles all dialogue now
+      this.logElement.innerHTML = "Memory Training Station - Ready";
     }
   }
   
