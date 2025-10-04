@@ -166,7 +166,7 @@ async function initGame() {
       player.position.set(0, 1, 2); // Fallback position
     }
     
-    // --- CORRECTED HUB-AND-SPOKE HALLWAYS ---
+    // --- NEW, CORRECTED HUB-AND-SPOKE HALLWAYS ---
     const hallwayConfig = {
       length: 10,
       width: 2,
@@ -175,30 +175,34 @@ async function initGame() {
       lightIntensity: 0.4
     };
 
-    // Hallway to Room 1 (East) at (28, 0, 0)
+    // Hallway to Room 1 (East)
     const hallwayToRoom1 = createReusableHallway({
       ...hallwayConfig,
-      positionX: 19, // Center of hallway is at (10+10+9)/2, but adjusted for room/hub origins
       name: 'hallway-hub-to-room1'
     });
-    hallwayToRoom1.group.rotation.y = Math.PI / 2;
+    // Set position to be halfway between Hub (wall at x=10) and Room 1 (wall at x=19)
+    hallwayToRoom1.group.position.set(14.5, 0, 0);
+    hallwayToRoom1.group.rotation.y = Math.PI / 2; // Rotate to align with X-axis
     scene.add(hallwayToRoom1.group);
 
-    // Hallway to Room 2 (South) at (0, 0, 22)
+    // Hallway to Room 2 (South)
     const hallwayToRoom2 = createReusableHallway({
       ...hallwayConfig,
-      positionZ: 14,
       name: 'hallway-hub-to-room2'
     });
+    // Set position to be halfway between Hub (wall at z=7.5) and Room 2 (wall at z=10)
+    // Note: Room 0 depth is 15 (half 7.5), Room 2 is at z=22 (wall at z=22-6=16). Space is 7.5 to 16. Center = 11.75
+    hallwayToRoom2.group.position.set(0, 0, 11.75);
     scene.add(hallwayToRoom2.group);
 
-    // Hallway to Room 3 (West) at (-30, 0, 0)
+    // Hallway to Room 3 (West)
     const hallwayToRoom3 = createReusableHallway({
       ...hallwayConfig,
-      positionX: -20,
       name: 'hallway-hub-to-room3'
     });
-    hallwayToRoom3.group.rotation.y = Math.PI / 2;
+    // Set position to be halfway between Hub (wall at x=-10) and Room 3 (wall at x=-20)
+    hallwayToRoom3.group.position.set(-15, 0, 0);
+    hallwayToRoom3.group.rotation.y = Math.PI / 2; // Rotate to align with X-axis
     scene.add(hallwayToRoom3.group);
     
     // Add first-person item display to scene

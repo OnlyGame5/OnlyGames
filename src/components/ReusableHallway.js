@@ -151,7 +151,7 @@ export function createReusableHallway(options = {}) {
       attachAOToGeometry: hallwayFloorGeo,
     })
   );
-  hallwayFloor.position.set(config.positionX, config.positionY - 0.15, config.positionZ);
+  hallwayFloor.position.set(0, -0.15, 0);
   hallwayFloor.receiveShadow = true;
   hallwayFloor.name = 'hallway-floor';
   hallway.add(hallwayFloor);
@@ -168,9 +168,9 @@ export function createReusableHallway(options = {}) {
     })
   );
   hallwayWall1.position.set(
-    config.positionX - config.width/2 - 0.1, 
-    config.positionY + config.height/2, 
-    config.positionZ
+    -config.width/2 - 0.1, 
+    config.height/2, 
+    0
   );
   hallwayWall1.castShadow = true;
   hallwayWall1.receiveShadow = true;
@@ -190,9 +190,9 @@ export function createReusableHallway(options = {}) {
     })
   );
   hallwayWall2.position.set(
-    config.positionX + config.width/2 + 0.1, 
-    config.positionY + config.height/2, 
-    config.positionZ
+    config.width/2 + 0.1, 
+    config.height/2, 
+    0
   );
   hallwayWall2.rotation.y = Math.PI; // Rotate 180 degrees to face the correct direction
   hallwayWall2.castShadow = true;
@@ -213,9 +213,9 @@ export function createReusableHallway(options = {}) {
     })
   );
   hallwayCeiling.position.set(
-    config.positionX, 
-    config.positionY + config.height + 0.15, 
-    config.positionZ
+    0, 
+    config.height + 0.15, 
+    0
   );
   hallwayCeiling.receiveShadow = true;
   hallwayCeiling.name = 'hallway-ceiling';
@@ -231,9 +231,9 @@ export function createReusableHallway(options = {}) {
     // Point lights along the hallway
     const numLights = Math.max(1, Math.floor(config.length / 6)); // One light every 6 units
     for (let i = 0; i < numLights; i++) {
-      const lightZ = config.positionZ + (i * (config.length / numLights)) - (config.length / 2);
+      const lightZ = (i * (config.length / numLights)) - (config.length / 2);
       const hallwayLight = new THREE.PointLight(0xffffff, config.lightIntensity, 8);
-      hallwayLight.position.set(config.positionX, config.positionY + 3, lightZ);
+      hallwayLight.position.set(0, 3, lightZ);
       hallwayLight.castShadow = true;
       hallwayLight.shadow.mapSize.width = 256;
       hallwayLight.shadow.mapSize.height = 256;
@@ -244,8 +244,8 @@ export function createReusableHallway(options = {}) {
     }
   }
 
-  // Position the entire hallway
-  hallway.position.set(0, 0, 0); // Position is handled by individual components
+  // Position the entire hallway at origin - positioning will be handled by the caller
+  hallway.position.set(0, 0, 0);
 
   // Return the hallway group with utility methods
   return {
@@ -268,15 +268,15 @@ export function createReusableHallway(options = {}) {
       return hallway.position.clone();
     },
     
-    // Get hallway bounds for collision detection
+    // Get hallway bounds for collision detection (relative to hallway center)
     getBounds: () => {
       return {
-        minX: config.positionX - config.width/2 - 0.2,
-        maxX: config.positionX + config.width/2 + 0.2,
-        minY: config.positionY,
-        maxY: config.positionY + config.height + 0.3,
-        minZ: config.positionZ - config.length/2,
-        maxZ: config.positionZ + config.length/2
+        minX: -config.width/2 - 0.2,
+        maxX: config.width/2 + 0.2,
+        minY: 0,
+        maxY: config.height + 0.3,
+        minZ: -config.length/2,
+        maxZ: config.length/2
       };
     },
     
