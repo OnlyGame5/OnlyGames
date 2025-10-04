@@ -90,7 +90,7 @@ export function makeTiles108Floor(
   roomDepth,
   opts = {}
 ) {
-  const { tileSizeMeters = 1.0, anisotropy = 12 } = opts;
+  const { tileSizeMeters = 1.0, anisotropy = 4 } = opts; // Reduced from 12 to 4 for performance
 
   const repeatX = Math.max(1, Math.round(roomWidth  / tileSizeMeters));
   const repeatZ = Math.max(1, Math.round(roomDepth / tileSizeMeters));
@@ -103,16 +103,13 @@ export function makeTiles108Floor(
   // repeats
   setRepeats(tiles108.color,  repeatX, repeatZ, anisotropy);
   setRepeats(tiles108.normal, repeatX, repeatZ, anisotropy);
-  setRepeats(tiles108.rough,  repeatX, repeatZ, anisotropy);
+  // setRepeats(tiles108.rough,  repeatX, repeatZ, anisotropy); // Removed to eliminate reflections
   setRepeats(tiles108.ao,     repeatX, repeatZ, anisotropy);
 
-  const mat = new THREE.MeshStandardMaterial({
+  const mat = new THREE.MeshBasicMaterial({
     map: tiles108.color,
-    normalMap: tiles108.normal,
-    roughnessMap: tiles108.rough,
-    aoMap: tiles108.ao,
-    metalness: 0.0,
-    roughness: 1.0,
+    color: 0x888888, // Override texture color to fix reflective/grey tile issue
+    // aoMap: tiles108.ao, // AO map doesn't work with MeshBasicMaterial
   });
 
   const floor = new THREE.Mesh(geo, mat);
@@ -136,7 +133,7 @@ function _tryLoad(path) {
   }
 }
 
-function _setRepeatsIf(t, repU, repV, anisotropy = 12) {
+function _setRepeatsIf(t, repU, repV, anisotropy = 4) { // Reduced from 12 to 4 for performance
   if (!t) return;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(repU, repV);
@@ -167,7 +164,7 @@ export function makeMetal030MaterialForCylinderFlexible(
     vScale = 0.4,
     metalness = 1.0,
     roughness = 1.0,
-    anisotropy = 12,
+    anisotropy = 4, // Reduced from 12 to 4 for performance
     aoMapIntensity = 1.6,
     attachAOToGeometry = null, // pass your CylinderGeometry if you DO have ao
   } = opts;
@@ -239,7 +236,7 @@ export function makeConcrete031MaterialFlexible(
     vScale = 0.5,
     metalness = 0.0,
     roughness = 1.0,
-    anisotropy = 12,
+    anisotropy = 4, // Reduced from 12 to 4 for performance
     aoMapIntensity = 1.6,
     attachAOToGeometry = null, // pass your geometry if you DO have ao
   } = opts;

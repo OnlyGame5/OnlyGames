@@ -38,7 +38,7 @@ export function createRoom0() {
   {
     const floor = makeTiles108Floor(roomWidth, roomDepth, {
       tileSizeMeters: 1.0, // smaller value = smaller visible tiles; try 0.8 or 0.5 if you want
-      anisotropy: 16
+      anisotropy: 4 // Reduced from 16 to 4 for performance
     });
     group.add(floor);
   }
@@ -60,7 +60,7 @@ export function createRoom0() {
       repeatsPerMeterY: 0.7,
       metalness: 0.0,
       roughness: 1.0,
-      anisotropy: 12,
+      anisotropy: 4, // Reduced from 12 to 4 for performance
     });
     
     // Main panel
@@ -270,8 +270,8 @@ export function createRoom0() {
       color: 0xffffff,
       transparent: true,
       opacity: 0.3,
-      emissive: 0xffffff,
-      emissiveIntensity: 0.1
+      // emissive: 0xffffff, // Removed for performance
+      // emissiveIntensity: 0.1 // Removed for performance
     })
   );
   lightDiffuser.position.set(0, -0.1, 0);
@@ -283,8 +283,8 @@ export function createRoom0() {
     new THREE.SphereGeometry(0.3, 12, 8),
     new THREE.MeshStandardMaterial({ 
       color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 0.8,
+      // emissive: 0xffffff, // Removed for performance
+      // emissiveIntensity: 0.8, // Removed for performance
       transparent: true,
       opacity: 0.9
     })
@@ -326,49 +326,7 @@ export function createRoom0() {
     group.add(rig);
   }
 
-  // Stage 0: Add wall-mounted emergency lights
-  const emergencyLightMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x2a2a2a,
-    metalness: 0.8,
-    roughness: 0.2
-  });
-  
-  const emergencyLight1 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.2, 0.1),
-    emergencyLightMaterial
-  );
-  emergencyLight1.position.set(-roomWidthHalf + 0.1, wallHeight - 0.5, -3);
-  emergencyLight1.castShadow = true;
-  group.add(emergencyLight1);
-  
-  const emergencyLight2 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.2, 0.1),
-    emergencyLightMaterial
-  );
-  emergencyLight2.position.set(roomWidthHalf - 0.1, wallHeight - 0.5, 3);
-  emergencyLight2.castShadow = true;
-  group.add(emergencyLight2);
-  
-  // Add red emergency light indicators
-  const redLightMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0xff0000,
-    emissive: 0xff0000,
-    emissiveIntensity: 0.3
-  });
-  
-  const redLight1 = new THREE.Mesh(
-    new THREE.SphereGeometry(0.05, 8, 6),
-    redLightMaterial
-  );
-  redLight1.position.set(-roomWidthHalf + 0.15, wallHeight - 0.4, -3);
-  group.add(redLight1);
-  
-  const redLight2 = new THREE.Mesh(
-    new THREE.SphereGeometry(0.05, 8, 6),
-    redLightMaterial
-  );
-  redLight2.position.set(roomWidthHalf - 0.15, wallHeight - 0.4, 3);
-  group.add(redLight2);
+  // Emergency lights removed for performance optimization (like Room 1)
 
   // Stage 0: Pedestal with key - Metal030 textured
   const pedestalBaseGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32);
@@ -377,7 +335,7 @@ export function createRoom0() {
     makeMetal030MaterialForCylinderFlexible(0.4, 0.1, metal030Files, {
       uScale: 0.3,
       vScale: 0.3,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       // attachAOToGeometry: pedestalBaseGeo,
     })
   );
@@ -392,7 +350,7 @@ export function createRoom0() {
     makeMetal030MaterialForCylinderFlexible(0.3, 0.8, metal030Files, {
       uScale: 0.25,
       vScale: 0.25,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       // attachAOToGeometry: pedestalGeo,
     })
   );
@@ -425,8 +383,8 @@ export function createRoom0() {
         
         // Enhance the material if it's a standard material
         if (child.material) {
-          child.material.emissive = new THREE.Color(0xffaa00);
-          child.material.emissiveIntensity = 0.3;
+          // child.material.emissive = new THREE.Color(0xffaa00); // Removed for performance
+          // child.material.emissiveIntensity = 0.3; // Removed for performance
           child.material.metalness = 0.8;
           child.material.roughness = 0.2;
         }
@@ -447,8 +405,8 @@ export function createRoom0() {
       new THREE.BoxGeometry(0.3, 0.1, 0.6),
       new THREE.MeshStandardMaterial({ 
         color: 0xffff00, 
-        emissive: 0xffaa00,
-        emissiveIntensity: 0.8,
+        // emissive: 0xffaa00, // Removed for performance
+        // emissiveIntensity: 0.8, // Removed for performance
         metalness: 0.8,
         roughness: 0.2
       })
@@ -471,7 +429,7 @@ export function createRoom0() {
     makeMetal030MaterialForCylinderFlexible(pillarRadius, pillarHeight, metal030Files, {
       uScale: 0.35,
       vScale: 0.35,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       // If you DO have AO, pass geometry so we add uv2:
       // attachAOToGeometry: pillarGeo1,
       // aoMapIntensity: 1.6,
@@ -489,7 +447,7 @@ export function createRoom0() {
     makeMetal030MaterialForCylinderFlexible(pillarRadius, pillarHeight, metal030Files, {
       uScale: 0.35,
       vScale: 0.35,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       // attachAOToGeometry: pillarGeo2,
     })
   );

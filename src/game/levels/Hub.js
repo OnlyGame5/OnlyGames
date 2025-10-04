@@ -5,18 +5,20 @@ export function createHub() {
   group.name = 'hub';
 
   // A large cylindrical room
-  const geometry = new THREE.CylinderGeometry(20, 20, 8, 32);
-  const material = new THREE.MeshStandardMaterial({ color: 0x222222, side: THREE.BackSide });
-  const hubRoom = new THREE.Mesh(geometry, material);
-  hubRoom.position.y = 4;
-  group.add(hubRoom);
+  // Hub room geometry removed to prevent overlap with Room 0 (causing performance issues)
+  // const geometry = new THREE.CylinderGeometry(20, 20, 8, 32);
+  // const material = new THREE.MeshStandardMaterial({ color: 0x222222, side: THREE.BackSide });
+  // const hubRoom = new THREE.Mesh(geometry, material);
+  // hubRoom.position.y = 4;
+  // group.add(hubRoom);
   
-  const floor = new THREE.Mesh(
-    new THREE.CircleGeometry(20, 32),
-    new THREE.MeshStandardMaterial({ color: 0x333333 })
-  );
-  floor.rotation.x = -Math.PI / 2;
-  group.add(floor);
+  // Hub floor removed to prevent overlap with Room 0 (causing performance issues)
+  // const floor = new THREE.Mesh(
+  //   new THREE.CircleGeometry(20, 32),
+  //   new THREE.MeshStandardMaterial({ color: 0x333333 })
+  // );
+  // floor.rotation.x = -Math.PI / 2;
+  // group.add(floor);
 
   // Define named entry/exit anchors for each room connection
   const anchors = {

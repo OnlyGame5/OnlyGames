@@ -1717,11 +1717,6 @@ export function createRoom1() {
   
   // Update dialogue system
   function updateRoom1Dialogue() {
-    // Debug: Check if function is being called
-    if (!room1DialogueState.hasWelcomed) {
-      console.log('updateRoom1Dialogue called');
-    }
-    
     // Check if player is in Room 1
     if (window.leonardModel || window.player) {
       const activePlayer = window.leonardModel || window.player;
@@ -1733,9 +1728,9 @@ export function createRoom1() {
         localToRoom1.z >= -half && localToRoom1.z <= half
       );
       
-      // Debug logging - ALWAYS log when not welcomed
-      if (!room1DialogueState.hasWelcomed) {
-        console.log('Room 1 Dialogue Debug:', {
+      // Debug logging - Only log once when player first approaches
+      if (!room1DialogueState.hasWelcomed && playerPos.z < -15) {
+        console.log('Room 1 Dialogue Debug (Player approaching):', {
           playerWorldPos: { x: playerPos.x, y: playerPos.y, z: playerPos.z },
           room1GroupPos: { x: group.position.x, y: group.position.y, z: group.position.z },
           localToRoom1: { x: localToRoom1.x, y: localToRoom1.y, z: localToRoom1.z },

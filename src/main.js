@@ -17,9 +17,12 @@ import { FPSCounter } from './ui/FPSCounter.js';
 import { LevelManager } from './game/levels/LevelManager.js';
 import { createHub } from './game/levels/Hub.js';
 
+
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0b12);
+// Disable scene environment map to prevent reflections
+scene.environment = null;
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 4, 10);
@@ -36,9 +39,12 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Better shadow quality with less performance cost
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio for performance
+renderer.shadowMap.type = THREE.PCFShadowMap; // Changed from PCFSoftShadowMap for better performance
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Reduced from 2 to 1.5 for better performance
 document.body.appendChild(renderer.domElement);
+
+// Install performance debugger
+
 
 // Lighting - Only for Room 0 (global lights removed to let Room 1 control its own lighting)
 // Global lights moved to Room 0 only
@@ -643,6 +649,8 @@ function animate(currentTime) {
   
   // Stage 0: Update camera
   attachCamera(camera, player);
+  
+  // Performance debugger removed
   
   // Stage 0: Render scene
   renderer.render(scene, camera);

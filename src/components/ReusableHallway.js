@@ -68,7 +68,7 @@ export function createReusableHallway(options = {}) {
     const aoTexture = loader.load(files.ao);
     
     // Configure textures
-    const anisotropy = options.anisotropy || 16;
+    const anisotropy = options.anisotropy || 4; // Reduced from 16 to 4 for performance
     [colorTexture, normalTexture, roughTexture, aoTexture].forEach(tex => {
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
       tex.anisotropy = anisotropy;
@@ -107,7 +107,7 @@ export function createReusableHallway(options = {}) {
     const aoTexture = loader.load(files.ao);
     
     // Configure textures
-    const anisotropy = options.anisotropy || 16;
+    const anisotropy = options.anisotropy || 4; // Reduced from 16 to 4 for performance
     [colorTexture, normalTexture, roughTexture, aoTexture].forEach(tex => {
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
       tex.anisotropy = anisotropy;
@@ -147,7 +147,7 @@ export function createReusableHallway(options = {}) {
     createMaterial(config.width, config.length, textureFiles, {
       uScale: 0.4,
       vScale: 0.4,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       attachAOToGeometry: hallwayFloorGeo,
     })
   );
@@ -163,7 +163,7 @@ export function createReusableHallway(options = {}) {
     createMaterial(0.2, config.height, textureFiles, {
       uScale: 0.3,
       vScale: 0.3,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       attachAOToGeometry: hallwayWall1Geo,
     })
   );
@@ -185,7 +185,7 @@ export function createReusableHallway(options = {}) {
     createMaterial(0.2, config.height, textureFiles, {
       uScale: 0.3,
       vScale: 0.3,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       attachAOToGeometry: hallwayWall2Geo,
     })
   );
@@ -208,7 +208,7 @@ export function createReusableHallway(options = {}) {
     createMaterial(config.width, config.length, textureFiles, {
       uScale: 0.4,
       vScale: 0.4,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       attachAOToGeometry: hallwayCeilingGeo,
     })
   );
