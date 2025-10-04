@@ -14,6 +14,8 @@ import { uiRoot } from './ui/UIRoot.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { Minimap } from './minimap.js';
 import { FPSCounter } from './ui/FPSCounter.js';
+import { LevelManager } from './game/levels/LevelManager.js';
+import { createHub } from './game/levels/Hub.js';
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
@@ -43,6 +45,9 @@ document.body.appendChild(renderer.domElement);
 
 // Player setup
 const player = setupPlayer(scene);
+
+// Level Manager setup
+const levelManager = new LevelManager(scene, player);
 
 // Minimap setup
 let minimap = null;
@@ -131,7 +136,7 @@ async function initGame() {
     window.camera = camera; // Make camera globally accessible for minimap
     window.isInFirstPerson = isInFirstPerson; // Make view mode function globally accessible
     
-    // Initialize all rooms (no scene param now)
+    // Create all rooms and the hub
     gameState.room0 = createRoom0();
     updateProgress(1); // Room 0
     gameState.room1 = createRoom1();
@@ -140,9 +145,14 @@ async function initGame() {
     updateProgress(1); // Room 2
     gameState.room3 = createRoom3();
     updateProgress(1); // Room 3
+    const hub = createHub();
     
-    // Add groups to scene
-    scene.add(gameState.room0.group, gameState.room1.group, gameState.room2.group, gameState.room3.group);
+    // Register them with the Level Manager
+    levelManager.registerRoom('room0', gameState.room0);
+    levelManager.registerRoom('room1', gameState.room1);
+    levelManager.registerRoom('room2', gameState.room2);
+    levelManager.registerRoom('room3', gameState.room3);
+    levelManager.setHub(hub);
     
     // Position player in the awakening chair
     if (gameState.room0.awakeningChair) {
@@ -188,13 +198,15 @@ async function initGame() {
     // Add first-person item display to scene
     addFirstPersonItemToScene(scene);
     
-    // Line them up along -Z with proper spacing
-    const ROOM_SPACING = 30; // Increased spacing to accommodate larger room 1
-    gameState.room0.group.position.set(0, 0, 0 * -ROOM_SPACING); // 0
-    gameState.room1.group.position.set(0, 0, 1 * -ROOM_SPACING); // -30
-    // Shift Room 2 left to align with Room 1 hallway (which exits near x ≈ -8)
-    gameState.room2.group.position.set(-8, 0, 2 * -ROOM_SPACING); // -60
-    gameState.room3.group.position.set(0, 0, 3 * -ROOM_SPACING); // -90
+    // Position the rooms and hub according to the new layout
+    // Hub is at center (0, 0, 0)
+    hub.group.position.set(0, 0, 0);
+    
+    // Position rooms around the hub
+    gameState.room0.group.position.set(0, 0, 0); // Room 0 stays at origin for now (awakening chamber)
+    gameState.room1.group.position.set(30, 0, 0); // East of Hub
+    gameState.room2.group.position.set(0, 0, 30); // South of Hub
+    gameState.room3.group.position.set(-30, 0, 0); // West of Hub
     
     // All rooms visible from start to prevent loading freezes
     gameState.room1.group.visible = true;
@@ -241,19 +253,24 @@ async function initGame() {
     gameState.room1 = createRoom1();
     gameState.room2 = createRoom2();
     gameState.room3 = createRoom3();
+    const hub = createHub();
     
-    // Add groups to scene
-    scene.add(gameState.room0.group, gameState.room1.group, gameState.room2.group, gameState.room3.group);
+    // Register them with the Level Manager
+    levelManager.registerRoom('room0', gameState.room0);
+    levelManager.registerRoom('room1', gameState.room1);
+    levelManager.registerRoom('room2', gameState.room2);
+    levelManager.registerRoom('room3', gameState.room3);
+    levelManager.setHub(hub);
     
     // Add first-person item display to scene
     addFirstPersonItemToScene(scene);
     
-    // Line them up along -Z with proper spacing
-    const ROOM_SPACING = 30;
-    gameState.room0.group.position.set(0, 0, 0 * -ROOM_SPACING);
-    gameState.room1.group.position.set(0, 0, 1 * -ROOM_SPACING);
-    gameState.room2.group.position.set(0, 0, 2 * -ROOM_SPACING);
-    gameState.room3.group.position.set(0, 0, 3 * -ROOM_SPACING);
+    // Position the rooms and hub according to the new layout (fallback case)
+    hub.group.position.set(0, 0, 0);
+    gameState.room0.group.position.set(0, 0, 0);
+    gameState.room1.group.position.set(30, 0, 0);
+    gameState.room2.group.position.set(0, 0, 30);
+    gameState.room3.group.position.set(-30, 0, 0);
     
     // All rooms visible from start to prevent loading freezes
     gameState.room1.group.visible = true;
@@ -620,6 +637,9 @@ function animate(currentTime) {
    if (fpsCounter) {
      fpsCounter.update();
    }
+  
+  // Update Level Manager
+  levelManager.update(deltaTime);
   
   // Stage 0: Update camera
   attachCamera(camera, player);

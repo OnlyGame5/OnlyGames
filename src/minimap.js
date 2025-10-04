@@ -18,14 +18,13 @@ export class Minimap {
     this.zoomLevels = [0.5, 1, 2, 4]; // Available zoom levels
     this.currentZoomIndex = 1; // Start at normal zoom
     
-    // Room data for accurate drawing based on actual world positions
+    // Room data for accurate drawing based on actual world positions (Hub-and-Spoke Layout)
     this.roomData = {
-      room0: { width: 20, depth: 15, position: { x: 0, z: 0 } },
-      room1: { width: 18, depth: 18, position: { x: 0, z: -30 } },
-      room2: { width: 12, depth: 12, position: { x: -8, z: -60 } },
-      room3: { width: 12, depth: 12, position: { x: 0, z: -90 } },
-      hallway0to1: { width: 2, depth: 15, position: { x: 0, z: -15 } },
-      hallway1to2: { width: 2, depth: 18, position: { x: -8, z: -45 } }
+      hub: { width: 40, depth: 40, position: { x: 0, z: 0 } }, // Central hub (cylindrical, radius 20)
+      room0: { width: 20, depth: 15, position: { x: 0, z: 0 } }, // Awakening chamber at origin
+      room1: { width: 18, depth: 18, position: { x: 30, z: 0 } }, // East of Hub
+      room2: { width: 12, depth: 12, position: { x: 0, z: 30 } }, // South of Hub
+      room3: { width: 12, depth: 12, position: { x: -30, z: 0 } } // West of Hub
     };
     
     // Calculate minimap bounds and scale
@@ -308,7 +307,7 @@ export class Minimap {
     this.ctx.shadowColor = '#00ff41';
     this.ctx.shadowBlur = 4;
     
-    // Draw each room and hallway based on actual dimensions and positions
+    // Draw each room based on actual dimensions and positions
     Object.entries(this.roomData).forEach(([roomName, room]) => {
       const halfWidth = room.width / 2;
       const halfDepth = room.depth / 2;
@@ -334,27 +333,63 @@ export class Minimap {
       
       // Only draw if room is large enough to be visible
       if (roomWidth > 1 && roomHeight > 1) {
-        // Draw room fill
-        this.ctx.fillRect(topLeft.x, topLeft.z, roomWidth, roomHeight);
         
-        // Draw room outline
-        this.ctx.strokeRect(topLeft.x, topLeft.z, roomWidth, roomHeight);
-        
-        // Add room labels (only if room is large enough)
-        if (roomWidth > 20 && roomHeight > 15) {
-          this.ctx.fillStyle = '#00ff41';
-          this.ctx.font = '8px monospace';
+        // Special handling for hub (circular room)
+        if (roomName === 'hub') {
+          // Draw circular hub with distinct styling
+          const centerX = topLeft.x + roomWidth / 2;
+          const centerZ = topLeft.z + roomHeight / 2;
+          const radius = Math.min(roomWidth, roomHeight) / 2;
+          
+          // Hub fill with different color
+          this.ctx.fillStyle = 'rgba(0, 255, 255, 0.1)'; // Cyan tint for hub
+          this.ctx.beginPath();
+          this.ctx.arc(centerX, centerZ, radius, 0, 2 * Math.PI);
+          this.ctx.fill();
+          
+          // Hub outline with thicker line
+          this.ctx.strokeStyle = '#00ffff'; // Cyan for hub
+          this.ctx.lineWidth = 2.5;
+          this.ctx.beginPath();
+          this.ctx.arc(centerX, centerZ, radius, 0, 2 * Math.PI);
+          this.ctx.stroke();
+          
+          // Hub label
+          this.ctx.fillStyle = '#00ffff';
+          this.ctx.font = 'bold 10px monospace';
           this.ctx.textAlign = 'center';
-          this.ctx.shadowColor = '#00ff41';
-          this.ctx.shadowBlur = 2;
-          this.ctx.fillText(
-            roomName.toUpperCase().replace('HALLWAY', 'HALL'),
-            topLeft.x + roomWidth / 2,
-            topLeft.z + roomHeight / 2 + 3
-          );
-          this.ctx.fillStyle = 'rgba(0, 255, 65, 0.05)'; // Reset fill style
-          this.ctx.shadowBlur = 0; // Reset shadow
+          this.ctx.shadowColor = '#00ffff';
+          this.ctx.shadowBlur = 3;
+          this.ctx.fillText('HUB', centerX, centerZ + 4);
+          
+        } else {
+          // Regular rectangular rooms
+          // Draw room fill
+          this.ctx.fillRect(topLeft.x, topLeft.z, roomWidth, roomHeight);
+          
+          // Draw room outline
+          this.ctx.strokeRect(topLeft.x, topLeft.z, roomWidth, roomHeight);
+          
+          // Add room labels (only if room is large enough)
+          if (roomWidth > 20 && roomHeight > 15) {
+            this.ctx.fillStyle = '#00ff41';
+            this.ctx.font = '8px monospace';
+            this.ctx.textAlign = 'center';
+            this.ctx.shadowColor = '#00ff41';
+            this.ctx.shadowBlur = 2;
+            this.ctx.fillText(
+              roomName.toUpperCase().replace('ROOM', 'R'),
+              topLeft.x + roomWidth / 2,
+              topLeft.z + roomHeight / 2 + 3
+            );
+          }
         }
+        
+        // Reset styles for next room
+        this.ctx.fillStyle = 'rgba(0, 255, 65, 0.05)';
+        this.ctx.strokeStyle = '#00ff41';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.shadowBlur = 0;
       }
     });
   }
