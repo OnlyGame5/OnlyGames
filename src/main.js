@@ -168,6 +168,22 @@ async function initGame() {
     
     // Add hallway to scene
     scene.add(hallway0to1.group);
+
+    // Create hallway between Room 2 and Room 3
+    const hallway2to3 = HallwayPresets.standard({
+      length: 13.5,
+      width: 2,
+      height: 4,
+      positionX: -8, // align with Room 2 center (x=-8) to connect to the new opening
+      positionY: 0,
+      positionZ: -75, // halfway between z=-60 and z=-90
+      name: 'hallway-2-to-3',
+      addLighting: true,
+      lightIntensity: 0.45,
+      ambientIntensity: 0.15,
+      textureSet: 'concrete031'
+    });
+    scene.add(hallway2to3.group);
     
     // Add first-person item display to scene
     addFirstPersonItemToScene(scene);
@@ -375,13 +391,26 @@ window.addEventListener('keydown', (e) => {
       return;
     }
     
-    if (gameState.stage === 0 && gameState.room0) {
+  if (gameState.stage === 0 && gameState.room0) {
       // Use the active player object (Leonard model or fallback box)
       const activePlayer = leonardModel || player;
       gameState.room0.handleEKeyInteraction(activePlayer);
-    } else if (gameState.room1 && gameState.room1.handleEKeyInteraction) {
+    } else {
       const activePlayer = leonardModel || player;
-      gameState.room1.handleEKeyInteraction(activePlayer);
+      // Determine which room the player is in (1 or 3 priority)
+      const isInside = (roomGroup, halfX, halfZ) => {
+        if (!roomGroup) return false;
+        const local = roomGroup.worldToLocal(activePlayer.position.clone());
+        return local.x >= -halfX && local.x <= halfX && local.z >= -halfZ && local.z <= halfZ;
+      };
+      const insideR3 = gameState.room3 && isInside(gameState.room3.group, 10, 10);
+      const insideR1 = gameState.room1 && isInside(gameState.room1.group, 9, 9);
+
+      if (insideR3 && gameState.room3 && gameState.room3.handleEKeyInteraction) {
+        gameState.room3.handleEKeyInteraction(activePlayer);
+      } else if (insideR1 && gameState.room1 && gameState.room1.handleEKeyInteraction) {
+        gameState.room1.handleEKeyInteraction(activePlayer);
+      }
     }
   }
   
@@ -438,6 +467,8 @@ function animate(currentTime) {
   
   const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
   lastTime = currentTime;
+  // Track whether the player is inside Room 3 across this frame (used later for stage progression)
+  let insideRoom3 = false;
   
   // Check if game is paused
   if (gameState.paused) {
@@ -475,14 +506,17 @@ function animate(currentTime) {
       );
     };
 
-    const insideRoom1 = gameState.room1 && isInsideRoom(gameState.room1.group, 9, 9);
-    const insideRoom2 = gameState.room2 && isInsideRoom(gameState.room2.group, 6, 6);
-    const insideRoom0 = gameState.room0 && isInsideRoom(gameState.room0.group, 6, 6); // room0 approx bounds
+  const insideRoom1 = gameState.room1 && isInsideRoom(gameState.room1.group, 9, 9);
+  const insideRoom2 = gameState.room2 && isInsideRoom(gameState.room2.group, 6, 6);
+  insideRoom3 = gameState.room3 && isInsideRoom(gameState.room3.group, 10, 10);
+  const insideRoom0 = gameState.room0 && isInsideRoom(gameState.room0.group, 6, 6); // room0 approx bounds
 
     if (insideRoom1 && gameState.room1 && gameState.room1.checkWallCollisions) {
       gameState.room1.checkWallCollisions(activePlayer);
     } else if (insideRoom2 && gameState.room2 && gameState.room2.checkWallCollisions) {
       gameState.room2.checkWallCollisions(activePlayer);
+    } else if (insideRoom3 && gameState.room3 && gameState.room3.checkWallCollisions) {
+      gameState.room3.checkWallCollisions(activePlayer);
     } else if (insideRoom0 && gameState.room0 && gameState.room0.checkWallCollisions) {
       // Only apply Room 0 collisions when actually inside Room 0
       gameState.room0.checkWallCollisions(activePlayer);
@@ -494,6 +528,13 @@ function animate(currentTime) {
       // Constrain X gently while between Room 1 back and Room 2 front
       // World Z between approx -39 and -54 (Room1 hallway to Room2 front)
       if (playerPos.z < -35 && playerPos.z > -58) {
+        if (playerPos.x < hallwayCenterX - hallwayHalfWidth) playerPos.x = hallwayCenterX - hallwayHalfWidth;
+        if (playerPos.x > hallwayCenterX + hallwayHalfWidth) playerPos.x = hallwayCenterX + hallwayHalfWidth;
+      }
+      
+      // Transitional spaces: light clamping along Room 2 → Room 3 hallway (aligned at x ≈ -8)
+      // World Z between approx -68 and -82 (Room2 back to Room3 front)
+      if (playerPos.z < -68 && playerPos.z > -82) {
         if (playerPos.x < hallwayCenterX - hallwayHalfWidth) playerPos.x = hallwayCenterX - hallwayHalfWidth;
         if (playerPos.x > hallwayCenterX + hallwayHalfWidth) playerPos.x = hallwayCenterX + hallwayHalfWidth;
       }
@@ -526,6 +567,16 @@ function animate(currentTime) {
   // Update Room 1 contextual dialogue
   if (gameState.room1 && typeof gameState.room1.updateRoom1Dialogue === 'function') {
     gameState.room1.updateRoom1Dialogue();
+  }
+
+  // Update Room 3 systems
+  if (gameState.room3 && typeof gameState.room3.update === 'function') {
+    gameState.room3.update(deltaTime);
+  }
+
+  // Enter Room 3 logic and stage progression
+  if (insideRoom3 && gameState.stage < 3 && gameState.room3 && typeof gameState.room3.enter === 'function') {
+    gameState.room3.enter(2);
   }
   
   // HALLWAY REVAMP: Clear hallway dialogue when player moves away from Room 0

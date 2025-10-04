@@ -13,6 +13,21 @@ class GameStore {
     this.pageTakenFromSafe = false;
     this.bookshelfDoorOpen = false;
     
+    // Global progression and features
+    this.stage = 0; // 0: Room0, 1: Room1, 2: Room2, 3: Room3
+    // Truth Filter state (read by rooms; toggled by the TF system elsewhere)
+    this.isTruthFilterOn = false;
+
+    // Room 3 flags
+    this.flags = {
+      room3: {
+        bridgeSolved: false,
+        overrideSolved: false,
+        finalChoice: null, // 'purge' | 'reboot'
+        coreUnlocked: false
+      }
+    };
+
     // Listeners for state changes
     this.listeners = new Map();
   }
@@ -39,6 +54,27 @@ class GameStore {
   set(key, value) {
     this[key] = value;
     this.notify(key, value);
+  }
+
+  // Convenience getters/setters for commonly observed properties
+  setStage(n) {
+    this.stage = n;
+    this.notify('stage', n);
+  }
+
+  setTruthFilter(on) {
+    this.isTruthFilterOn = !!on;
+    this.notify('isTruthFilterOn', this.isTruthFilterOn);
+  }
+
+  // Update Room 3 flags with notification
+  setRoom3Flag(flagKey, value) {
+    if (!this.flags) this.flags = { room3: {} };
+    if (!this.flags.room3) this.flags.room3 = {};
+    this.flags.room3[flagKey] = value;
+    this.notify(`flags.room3.${flagKey}`, value);
+    // Emit aggregate change as well for simple subscribers
+    this.notify('flags.room3', { ...this.flags.room3 });
   }
   
   // Actions
