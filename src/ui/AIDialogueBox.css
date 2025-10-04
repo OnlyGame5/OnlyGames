@@ -11,7 +11,8 @@
   font-family: 'Courier New', 'Consolas', monospace;
   z-index: 9999;
   pointer-events: none;
-  opacity: 0;
+  opacity: 1;
+  transition: opacity 0.5s ease-in-out;
   animation: slideInLeft 0.3s ease-out forwards;
 }
 
@@ -239,6 +240,8 @@
   60% { transform: translateX(-1px); }
   80% { transform: translateX(1px); }
 }
+
+/* Idle state removed - box stays fully visible */
 
 /* Hide when not shown */
 .ai-dialogue-box.hidden {
