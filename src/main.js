@@ -15,7 +15,7 @@ import { createReusableHallway, HallwayPresets } from './components/ReusableHall
 import { Minimap } from './minimap.js';
 import { FPSCounter } from './ui/FPSCounter.js';
 import { LevelManager } from './game/levels/LevelManager.js';
-import { createHub } from './game/levels/Hub.js';
+import { gameStore } from './state/gameStore.js';
 
 
 // --- Scene, Camera, Renderer ---
@@ -142,7 +142,7 @@ async function initGame() {
     window.camera = camera; // Make camera globally accessible for minimap
     window.isInFirstPerson = isInFirstPerson; // Make view mode function globally accessible
     
-    // Create all rooms and the hub
+    // Create all rooms (Room 0 serves as the hub)
     gameState.room0 = createRoom0();
     updateProgress(1); // Room 0
     gameState.room1 = createRoom1();
@@ -151,14 +151,13 @@ async function initGame() {
     updateProgress(1); // Room 2
     gameState.room3 = createRoom3();
     updateProgress(1); // Room 3
-    const hub = createHub();
     
-    // Register them with the Level Manager
+    // Register them with the Level Manager (Room 0 serves as hub)
     levelManager.registerRoom('room0', gameState.room0);
     levelManager.registerRoom('room1', gameState.room1);
     levelManager.registerRoom('room2', gameState.room2);
     levelManager.registerRoom('room3', gameState.room3);
-    levelManager.setHub(hub);
+    levelManager.setHub(gameState.room0); // Use Room 0 as the hub
     
     // Position player in the awakening chair
     if (gameState.room0.awakeningChair) {
@@ -167,52 +166,52 @@ async function initGame() {
       player.position.set(0, 1, 2); // Fallback position
     }
     
-    // Create hallway between Room 0 and Room 1
-    const hallway0to1 = HallwayPresets.standard({
-      length: 13.5,
+    // --- CORRECTED HUB-AND-SPOKE HALLWAYS ---
+    const hallwayConfig = {
+      length: 10,
       width: 2,
       height: 4,
-      positionX: 0,
-      positionY: 0,
-      positionZ: -14.25, // Halfway between Room 0 (z=0) and Room 1 (z=-30)
-      name: 'hallway-0-to-1',
       addLighting: true,
-      lightIntensity: 0.4,
-      ambientIntensity: 0.15,
-      textureSet: 'concrete031'
-    });
-    
-    // Add hallway to scene
-    scene.add(hallway0to1.group);
+      lightIntensity: 0.4
+    };
 
-    // Create hallway between Room 2 and Room 3
-    const hallway2to3 = HallwayPresets.standard({
-      length: 13.5,
-      width: 2,
-      height: 4,
-      positionX: -8, // align with Room 2 center (x=-8) to connect to the new opening
-      positionY: 0,
-      positionZ: -75, // halfway between z=-60 and z=-90
-      name: 'hallway-2-to-3',
-      addLighting: true,
-      lightIntensity: 0.45,
-      ambientIntensity: 0.15,
-      textureSet: 'concrete031'
+    // Hallway to Room 1 (East) at (28, 0, 0)
+    const hallwayToRoom1 = createReusableHallway({
+      ...hallwayConfig,
+      positionX: 19, // Center of hallway is at (10+10+9)/2, but adjusted for room/hub origins
+      name: 'hallway-hub-to-room1'
     });
-    scene.add(hallway2to3.group);
+    hallwayToRoom1.group.rotation.y = Math.PI / 2;
+    scene.add(hallwayToRoom1.group);
+
+    // Hallway to Room 2 (South) at (0, 0, 22)
+    const hallwayToRoom2 = createReusableHallway({
+      ...hallwayConfig,
+      positionZ: 14,
+      name: 'hallway-hub-to-room2'
+    });
+    scene.add(hallwayToRoom2.group);
+
+    // Hallway to Room 3 (West) at (-30, 0, 0)
+    const hallwayToRoom3 = createReusableHallway({
+      ...hallwayConfig,
+      positionX: -20,
+      name: 'hallway-hub-to-room3'
+    });
+    hallwayToRoom3.group.rotation.y = Math.PI / 2;
+    scene.add(hallwayToRoom3.group);
     
     // Add first-person item display to scene
     addFirstPersonItemToScene(scene);
     
-    // Position the rooms and hub according to the new layout
-    // Hub is at center (0, 0, 0)
-    hub.group.position.set(0, 0, 0);
+    // Position the rooms according to the new layout
+    // Room 0 (Hub) is at center (0, 0, 0)
+    gameState.room0.group.position.set(0, 0, 0); // Room 0 serves as the hub
     
-    // Position rooms around the hub
-    gameState.room0.group.position.set(0, 0, 0); // Room 0 stays at origin for now (awakening chamber)
-    gameState.room1.group.position.set(30, 0, 0); // East of Hub
-    gameState.room2.group.position.set(0, 0, 30); // South of Hub
-    gameState.room3.group.position.set(-30, 0, 0); // West of Hub
+    // Position rooms around Room 0 with standardized 10-unit hallways
+    gameState.room1.group.position.set(28, 0, 0); // East of Room 0 (9 + 10 + 9 = 28)
+    gameState.room2.group.position.set(0, 0, 22); // South of Room 0 (6 + 10 + 6 = 22)
+    gameState.room3.group.position.set(-30, 0, 0); // West of Room 0 (10 + 10 + 10 = 30)
     
     // All rooms visible from start to prevent loading freezes
     gameState.room1.group.visible = true;
@@ -259,24 +258,22 @@ async function initGame() {
     gameState.room1 = createRoom1();
     gameState.room2 = createRoom2();
     gameState.room3 = createRoom3();
-    const hub = createHub();
     
-    // Register them with the Level Manager
+    // Register them with the Level Manager (Room 0 serves as hub)
     levelManager.registerRoom('room0', gameState.room0);
     levelManager.registerRoom('room1', gameState.room1);
     levelManager.registerRoom('room2', gameState.room2);
     levelManager.registerRoom('room3', gameState.room3);
-    levelManager.setHub(hub);
+    levelManager.setHub(gameState.room0); // Use Room 0 as the hub
     
     // Add first-person item display to scene
     addFirstPersonItemToScene(scene);
     
-    // Position the rooms and hub according to the new layout (fallback case)
-    hub.group.position.set(0, 0, 0);
-    gameState.room0.group.position.set(0, 0, 0);
-    gameState.room1.group.position.set(30, 0, 0);
-    gameState.room2.group.position.set(0, 0, 30);
-    gameState.room3.group.position.set(-30, 0, 0);
+    // Position the rooms according to the new layout (fallback case)
+    gameState.room0.group.position.set(0, 0, 0); // Room 0 serves as the hub
+    gameState.room1.group.position.set(28, 0, 0); // East of Room 0 (9 + 10 + 9 = 28)
+    gameState.room2.group.position.set(0, 0, 22); // South of Room 0 (6 + 10 + 6 = 22)
+    gameState.room3.group.position.set(-30, 0, 0); // West of Room 0 (10 + 10 + 10 = 30)
     
     // All rooms visible from start to prevent loading freezes
     gameState.room1.group.visible = true;
@@ -515,54 +512,27 @@ function animate(currentTime) {
     updatePlayer(activePlayer, camera, deltaTime);
   }
   
-  // Collision: choose which area's walls to apply based on player position
-  {
-    const playerWorld = activePlayer.position.clone();
+  // --- NEW SIMPLIFIED COLLISION LOGIC ---
+  const currentRoomId = gameStore.getCurrentRoom ? gameStore.getCurrentRoom() : 'room0';
+  const room = gameState[currentRoomId];
 
-    // Helper: inside bounds check for a rectangular room
-    const isInsideRoom = (roomGroup, halfX, halfZ) => {
-      if (!roomGroup) return false;
-      const local = roomGroup.worldToLocal(playerWorld.clone());
-      return (
-        local.x >= -halfX && local.x <= halfX &&
-        local.z >= -halfZ && local.z <= halfZ
-      );
-    };
-
-  const insideRoom1 = gameState.room1 && isInsideRoom(gameState.room1.group, 9, 9);
-  const insideRoom2 = gameState.room2 && isInsideRoom(gameState.room2.group, 6, 6);
-  insideRoom3 = gameState.room3 && isInsideRoom(gameState.room3.group, 10, 10);
-  const insideRoom0 = gameState.room0 && isInsideRoom(gameState.room0.group, 6, 6); // room0 approx bounds
-
-    if (insideRoom1 && gameState.room1 && gameState.room1.checkWallCollisions) {
-      gameState.room1.checkWallCollisions(activePlayer);
-    } else if (insideRoom2 && gameState.room2 && gameState.room2.checkWallCollisions) {
-      gameState.room2.checkWallCollisions(activePlayer);
-    } else if (insideRoom3 && gameState.room3 && gameState.room3.checkWallCollisions) {
-      gameState.room3.checkWallCollisions(activePlayer);
-    } else if (insideRoom0 && gameState.room0 && gameState.room0.checkWallCollisions) {
-      // Only apply Room 0 collisions when actually inside Room 0
-      gameState.room0.checkWallCollisions(activePlayer);
-    } else {
-      // Transitional spaces: light clamping along Room 1 → Room 2 hallway (aligned at x ≈ -8)
-      const hallwayCenterX = -8;
-      const hallwayHalfWidth = 1.0; // match Room 1 hallway width
-      const playerPos = activePlayer.position;
-      // Constrain X gently while between Room 1 back and Room 2 front
-      // World Z between approx -39 and -54 (Room1 hallway to Room2 front)
-      if (playerPos.z < -35 && playerPos.z > -58) {
-        if (playerPos.x < hallwayCenterX - hallwayHalfWidth) playerPos.x = hallwayCenterX - hallwayHalfWidth;
-        if (playerPos.x > hallwayCenterX + hallwayHalfWidth) playerPos.x = hallwayCenterX + hallwayHalfWidth;
-      }
-      
-      // Transitional spaces: light clamping along Room 2 → Room 3 hallway (aligned at x ≈ -8)
-      // World Z between approx -68 and -82 (Room2 back to Room3 front)
-      if (playerPos.z < -68 && playerPos.z > -82) {
-        if (playerPos.x < hallwayCenterX - hallwayHalfWidth) playerPos.x = hallwayCenterX - hallwayHalfWidth;
-        if (playerPos.x > hallwayCenterX + hallwayHalfWidth) playerPos.x = hallwayCenterX + hallwayHalfWidth;
-      }
-    }
+  if (room && room.checkWallCollisions) {
+      room.checkWallCollisions(activePlayer);
   }
+  // Note: We will add hallway collision logic later if needed. 
+  // For now, the rooms will handle their own boundaries.
+
+  // Simple check for Room 3 for stage progression
+  const playerWorld = activePlayer.position.clone();
+  const isInsideRoom = (roomGroup, halfX, halfZ) => {
+    if (!roomGroup) return false;
+    const local = roomGroup.worldToLocal(playerWorld.clone());
+    return (
+      local.x >= -halfX && local.x <= halfX &&
+      local.z >= -halfZ && local.z <= halfZ
+    );
+  };
+  insideRoom3 = gameState.room3 && isInsideRoom(gameState.room3.group, 10, 10);
   
   // Stage 0: Update Stage 0 if active (but not if player is in Room 1)
   if (gameState.stage === 0 && gameState.room0) {

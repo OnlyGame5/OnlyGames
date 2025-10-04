@@ -20,15 +20,13 @@ export function createRoom2() {
   floor.receiveShadow = true;
   group.add(floor);
 
-  // Walls (front wall has an opening near x ≈ -2 to align with Room 1 hallway at world x ≈ -8)
-  // Back wall now has an opening to connect to Room 3 hallway
+  // Walls - closed old openings, new opening for hub hallway
   const walls = [
-    // Back wall split into two segments to create a doorway/opening for Room 3 hallway
-    { size: [5, 4, 0.2], pos: [-3.5, 2, -6] }, // left segment
-    { size: [5, 4, 0.2], pos: [3.5, 2, -6] },  // right segment, leaves ~2 units gap centered at x ~0
-    // Front wall split into two segments to create a doorway/opening near left side
-    { size: [6, 4, 0.2], pos: [-3, 2, 6] }, // left segment
-    { size: [4, 4, 0.2], pos: [4, 2, 6] },  // right segment, leaves ~2 units gap centered at x ~1
+    // Back wall - solid
+    { size: [12, 4, 0.2], pos: [0, 2, -6] },
+    // Front wall with opening for hub hallway (North)
+    { size: [5, 4, 0.2], pos: [-3.5, 2, 6] }, // left segment
+    { size: [5, 4, 0.2], pos: [3.5, 2, 6] },  // right segment, leaves ~2 units gap centered at x ~0
     // Left wall
     { size: [0.2, 4, 12], pos: [-6, 2, 0] },
     // Right wall
@@ -99,23 +97,6 @@ export function createRoom2() {
       group.add(book);
   });
 
-  // Add a small hallway stub to meet Room 1 hallway visually
-  const hallwayStub = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 0.2, 4),
-    wallMaterial
-  );
-  hallwayStub.position.set(-2, 0.1, 8); // extends slightly out of the room to meet incoming hallway
-  hallwayStub.receiveShadow = true;
-  group.add(hallwayStub);
-
-  // Add a hallway stub to connect to Room 3 hallway
-  const hallwayStubToRoom3 = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 0.2, 4),
-    wallMaterial
-  );
-  hallwayStubToRoom3.position.set(0, 0.1, -8); // extends slightly out of the room to meet Room 3 hallway
-  hallwayStubToRoom3.receiveShadow = true;
-  group.add(hallwayStubToRoom3);
 
   return {
     group,
@@ -139,17 +120,14 @@ export function createRoom2() {
         playerLocal.x = roomHalf - wallThickness - playerRadius;
         clamped = true;
       }
-      // Back wall with doorway/opening around x in [-1, 1] approximately
+      // Back wall (now solid)
       if (playerLocal.z - playerRadius < -roomHalf + wallThickness) {
-        const inBackOpeningX = (playerLocal.x >= -1 && playerLocal.x <= 1);
-        if (!inBackOpeningX) {
-          playerLocal.z = -roomHalf + wallThickness + playerRadius;
-          clamped = true;
-        }
+        playerLocal.z = -roomHalf + wallThickness + playerRadius;
+        clamped = true;
       }
-      // Front wall with doorway/opening around x in [-4, 0] approximately
+      // Front wall with opening for hub hallway (North)
       if (playerLocal.z + playerRadius > roomHalf - wallThickness) {
-        const inOpeningX = (playerLocal.x >= -4 && playerLocal.x <= 0);
+        const inOpeningX = (playerLocal.x >= -1 && playerLocal.x <= 1);
         if (!inOpeningX) {
           playerLocal.z = roomHalf - wallThickness - playerRadius;
           clamped = true;

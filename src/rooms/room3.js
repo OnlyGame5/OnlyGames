@@ -82,15 +82,15 @@ export class Room3 {
     floor.receiveShadow = true;
     this.group.add(floor);
 
-    // Inner pit wall
-    const innerWall = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 48, 1, true), wallMat);
+    // Inner pit wall with opening for hub hallway (East side)
+    const innerWall = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 48, 1, true, 0.3, Math.PI * 1.9), wallMat);
     innerWall.position.y = height / 2;
     innerWall.receiveShadow = true; innerWall.castShadow = true;
     this.group.add(innerWall);
 
-    // Simple fog hint via large transparent disc
+    // Simple fog hint via large transparent disc with matching opening
     const fogMat = new THREE.MeshBasicMaterial({ color: 0x99aacc, transparent: true, opacity: 0.06 });
-    const fogDisc = new THREE.Mesh(new THREE.CylinderGeometry(radius - 0.2, radius - 0.2, 0.05, 48), fogMat);
+    const fogDisc = new THREE.Mesh(new THREE.CylinderGeometry(radius - 0.2, radius - 0.2, 0.05, 48, 1, true, 0.3, Math.PI * 1.9), fogMat);
     fogDisc.position.set(0, -0.02, 0);
     this.group.add(fogDisc);
   }

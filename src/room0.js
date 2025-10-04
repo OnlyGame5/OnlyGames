@@ -137,32 +137,56 @@ export function createRoom0() {
   backWallRight.userData = { type: 'wall', side: 'back-right' };
   group.add(backWallRight);
 
-  // Left wall - Single full-height panel for complete coverage
-  const leftWall = createWallPanel(roomDepth, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 0), Math.PI/2);
-  leftWall.userData = { type: 'wall', side: 'left' };
-  group.add(leftWall);
+  // Left wall - Split into two panels to create opening for Room 3 hallway
+  const leftWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 4.5), Math.PI/2);
+  leftWallTop.userData = { type: 'wall', side: 'left-top' };
+  group.add(leftWallTop);
 
-  // Right wall - Single full-height panel for complete coverage
-  const rightWall = createWallPanel(roomDepth, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 0), Math.PI/2);
-  rightWall.userData = { type: 'wall', side: 'right' };
-  group.add(rightWall);
+  const leftWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, -4.5), Math.PI/2);
+  leftWallBottom.userData = { type: 'wall', side: 'left-bottom' };
+  group.add(leftWallBottom);
+
+  // Right wall - Split into two panels to create opening for Room 1 hallway
+  const rightWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 4.5), Math.PI/2);
+  rightWallTop.userData = { type: 'wall', side: 'right-top' };
+  group.add(rightWallTop);
+
+  const rightWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, -4.5), Math.PI/2);
+  rightWallBottom.userData = { type: 'wall', side: 'right-bottom' };
+  group.add(rightWallBottom);
   
-  // Add invisible collision walls behind the detailed panels
-  const leftCollisionWall = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 15),
+  // Add invisible collision walls behind the detailed panels with openings
+  const leftCollisionWallTop = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  leftCollisionWall.position.set(-roomWidthHalf, wallHeight/2, 0);
-  leftCollisionWall.userData = { type: 'collision-wall', side: 'left' };
-  group.add(leftCollisionWall);
-  
-  const rightCollisionWall = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 15),
+  leftCollisionWallTop.position.set(-roomWidthHalf, wallHeight/2, 4.5);
+  leftCollisionWallTop.userData = { type: 'collision-wall', side: 'left-top' };
+  group.add(leftCollisionWallTop);
+
+  const leftCollisionWallBottom = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  rightCollisionWall.position.set(roomWidthHalf, wallHeight/2, 0);
-  rightCollisionWall.userData = { type: 'collision-wall', side: 'right' };
-  group.add(rightCollisionWall);
+  leftCollisionWallBottom.position.set(-roomWidthHalf, wallHeight/2, -4.5);
+  leftCollisionWallBottom.userData = { type: 'collision-wall', side: 'left-bottom' };
+  group.add(leftCollisionWallBottom);
+  
+  const rightCollisionWallTop = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  rightCollisionWallTop.position.set(roomWidthHalf, wallHeight/2, 4.5);
+  rightCollisionWallTop.userData = { type: 'collision-wall', side: 'right-top' };
+  group.add(rightCollisionWallTop);
+
+  const rightCollisionWallBottom = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  rightCollisionWallBottom.position.set(roomWidthHalf, wallHeight/2, -4.5);
+  rightCollisionWallBottom.userData = { type: 'collision-wall', side: 'right-bottom' };
+  group.add(rightCollisionWallBottom);
 
   // Front wall (entrance) - Create detailed panels
   const frontWallLeft = createWallPanel(8, wallHeight, new THREE.Vector3(-6, wallHeight/2, roomDepthHalf));
@@ -1040,9 +1064,28 @@ export function createRoom0() {
     const playerRadius = 0.5;
     const pos = playerObject.position;
 
-    // Side walls (x clamping) inside Room 0
-    if (pos.x < -roomWidthHalf + playerRadius) pos.x = -roomWidthHalf + playerRadius;
-    if (pos.x >  roomWidthHalf - playerRadius) pos.x =  roomWidthHalf - playerRadius;
+    // Side walls (x clamping) inside Room 0 with openings for hallways
+    // Left wall (West) with opening for Room 3 hallway
+    if (pos.x < -roomWidthHalf + playerRadius) {
+      // Check if player is aligned with the opening (z between -1 and 1)
+      if (pos.z >= -1 && pos.z <= 1) {
+        // Player is in the opening, allow passage
+      } else {
+        // Player is NOT aligned with the opening, so they hit the wall
+        pos.x = -roomWidthHalf + playerRadius;
+      }
+    }
+    
+    // Right wall (East) with opening for Room 1 hallway
+    if (pos.x > roomWidthHalf - playerRadius) {
+      // Check if player is aligned with the opening (z between -1 and 1)
+      if (pos.z >= -1 && pos.z <= 1) {
+        // Player is in the opening, allow passage
+      } else {
+        // Player is NOT aligned with the opening, so they hit the wall
+        pos.x = roomWidthHalf - playerRadius;
+      }
+    }
 
     // Front wall (positive Z) inside Room 0
     if (pos.z > roomDepthHalf - playerRadius) pos.z = roomDepthHalf - playerRadius;
@@ -1078,7 +1121,7 @@ export function createRoom0() {
 
   // Hallway removed - now using reusable hallway component from main.js
 
-  // Create entry/exit anchors for future hallway/minimap work
+  // Create entry/exit anchors for hallway connections
   const entryAnchor = new THREE.Object3D();
   entryAnchor.name = 'entryAnchor';
   entryAnchor.position.set(0, 0, roomDepthHalf); // Front of room (entry point)
@@ -1089,10 +1132,36 @@ export function createRoom0() {
   exitAnchor.position.set(0, 0, -roomDepthHalf); // Back of room (exit point)
   group.add(exitAnchor);
 
+  // Create anchors for room connections (required by LevelManager)
+  const anchors = {
+    entry_from_room1: new THREE.Object3D(),
+    exit_to_room1: new THREE.Object3D(),
+    entry_from_room2: new THREE.Object3D(),
+    exit_to_room2: new THREE.Object3D(),
+    entry_from_room3: new THREE.Object3D(),
+    exit_to_room3: new THREE.Object3D(),
+  };
+
+  // Position the anchors around Room 0 (Hub)
+  anchors.exit_to_room1.position.set(9, 1, 0); // East exit
+  anchors.entry_from_room1.position.set(9, 1, 0); // East entry
+
+  anchors.exit_to_room2.position.set(0, 1, 7.5); // South exit
+  anchors.entry_from_room2.position.set(0, 1, 7.5); // South entry
+
+  anchors.exit_to_room3.position.set(-9, 1, 0); // West exit
+  anchors.entry_from_room3.position.set(-9, 1, 0); // West entry
+
+  Object.values(anchors).forEach(anchor => group.add(anchor));
+
   // Stage 0: Return room object with all necessary properties
   return {
     group,
-    anchors: { entry: entryAnchor, exit: exitAnchor },
+    anchors: { 
+      entry: entryAnchor, 
+      exit: exitAnchor,
+      ...anchors // Include all room connection anchors
+    },
     door,
     key,
     awakeningChair,

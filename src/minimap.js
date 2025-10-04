@@ -28,9 +28,9 @@ export class Minimap {
     // Room data for accurate drawing based on actual world positions (Hub removed)
     this.roomData = {
       room0: { width: 20, depth: 15, position: { x: 0, z: 0 } }, // Awakening chamber at origin
-      room1: { width: 18, depth: 18, position: { x: 30, z: 0 } }, // East of origin
-      room2: { width: 12, depth: 12, position: { x: 0, z: 30 } }, // South of origin
-      room3: { width: 12, depth: 12, position: { x: -30, z: 0 } } // West of origin
+      room1: { width: 18, depth: 18, position: { x: 28, z: 0 } }, // East of origin (9 + 10 + 9 = 28)
+      room2: { width: 12, depth: 12, position: { x: 0, z: 22 } }, // South of origin (6 + 10 + 6 = 22)
+      room3: { width: 20, depth: 20, position: { x: -30, z: 0 } } // West of origin (10 + 10 + 10 = 30, circular)
     };
     
     // Calculate minimap bounds and scale

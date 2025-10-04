@@ -70,32 +70,15 @@ export function createRoom1() {
     normalScale: new THREE.Vector2(0.3, 0.3)
   });
 
-  // Back wall - A single piece with an opening in the left corner (from x=-9 to x=-7)
-  const backWall = new THREE.Mesh(new THREE.BoxGeometry(16, 4, 0.2), wallMat);
-  backWall.position.set(1, 2, -9); // Positioned to leave a gap on the left
+  // Back wall - Solid wall spanning full width
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.2), wallMat);
+  backWall.position.set(0, 2, -9); // Centered
   backWall.userData = { type: 'wall', side: 'back' };
   backWall.castShadow = true;
   backWall.receiveShadow = true;
   group.add(backWall);
 
 
-  // Create hallway to room 2 using the reusable hallway component
-  const hallway = createReusableHallway({
-    length: 18,
-    width: 2,
-    height: 4,
-    positionX: -8,
-    positionY: 0,
-    positionZ: -18,
-    name: 'hallway-to-room2',
-    addLighting: true,
-    lightIntensity: 0.3,
-    ambientIntensity: 0.1,
-    textureSet: 'concrete031'
-  });
-  
-  // Add the reusable hallway to the group
-  group.add(hallway.group);
 
   // Front wall with doorway (split into two parts)
   const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat);
@@ -112,15 +95,22 @@ export function createRoom1() {
   frontWallRight.receiveShadow = true;
   group.add(frontWallRight);
 
-  // Side walls
-  const wall3 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 18), wallMat);
-  wall3.position.set(-9, 2, 0);
-  wall3.userData = { type: 'wall', side: 'left' };
-  wall3.castShadow = true;
-  wall3.receiveShadow = true;
-  group.add(wall3);
+  // Side walls - Left wall with opening for hub hallway
+  const wall3_part1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 8), wallMat);
+  wall3_part1.position.set(-9, 2, 5); // From z=1 to z=9
+  wall3_part1.userData = { type: 'wall', side: 'left-part1' };
+  wall3_part1.castShadow = true;
+  wall3_part1.receiveShadow = true;
+  group.add(wall3_part1);
 
-  const wall4 = wall3.clone();
+  const wall3_part2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 8), wallMat);
+  wall3_part2.position.set(-9, 2, -5); // From z=-1 to z=-9
+  wall3_part2.userData = { type: 'wall', side: 'left-part2' };
+  wall3_part2.castShadow = true;
+  wall3_part2.receiveShadow = true;
+  group.add(wall3_part2);
+
+  const wall4 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 18), wallMat);
   wall4.position.set(9, 2, 0);
   wall4.userData = { type: 'wall', side: 'right' };
   wall4.castShadow = true;
@@ -1245,10 +1235,16 @@ export function createRoom1() {
     const playerWorldPos = playerObject.position.clone();
     const playerLocal = group.worldToLocal(playerWorldPos.clone());
 
-    // Left wall
+    // Left wall with opening for hub hallway
     if (playerLocal.x - playerRadius < -roomHalf + wallThickness) {
-      playerLocal.x = -roomHalf + wallThickness + playerRadius;
-      clamped = true;
+      // Check if player is aligned with the opening (z between -1 and 1)
+      if (playerLocal.z >= -1 && playerLocal.z <= 1) {
+        // Player is in the opening, allow passage
+      } else {
+        // Player is NOT aligned with the opening, so they hit the wall
+        playerLocal.x = -roomHalf + wallThickness + playerRadius;
+        clamped = true;
+      }
     }
     // Right wall
     if (playerLocal.x + playerRadius > roomHalf - wallThickness) {
@@ -1256,27 +1252,10 @@ export function createRoom1() {
       clamped = true;
     }
     
-    // Back wall and hallway collision
+    // Back wall (now solid)
     if (playerLocal.z - playerRadius < -roomHalf + wallThickness) {
-      // Player is at or behind the back wall line.
-      // Check if player is aligned with the opening (x between -9 and -7).
-      if (playerLocal.x >= -9 && playerLocal.x <= -7) {
-        // Player is in the hallway. Constrain their X position to the hallway walls.
-        // The player's Z position is not clamped here, allowing passage.
-        if (playerLocal.x - playerRadius < -9) {
-            playerLocal.x = -9 + playerRadius;
-            clamped = true;
-        }
-        if (playerLocal.x + playerRadius > -7) {
-            playerLocal.x = -7 - playerRadius;
-            clamped = true;
-        }
-      } else {
-        // Player is NOT aligned with the opening, so they hit the wall.
-        // Clamp their Z position to prevent them from passing through the wall.
-        playerLocal.z = -roomHalf + wallThickness + playerRadius;
-        clamped = true;
-      }
+      playerLocal.z = -roomHalf + wallThickness + playerRadius;
+      clamped = true;
     }
     
     // Front wall
@@ -1376,16 +1355,16 @@ export function createRoom1() {
   switchMountingBracket.position.set(0, -0.6, 0);
   lightSwitchGroup.add(switchMountingBracket);
   
-  // Position the entire switch group - moved to left wall for visibility
-  lightSwitchGroup.position.set(-8.5, 1.8, 0); // Left wall, away from edge
+  // Position the entire switch group - moved to left wall but away from new opening
+  lightSwitchGroup.position.set(-8.5, 1.8, 4); // Left wall, moved away from new opening
   lightSwitchGroup.rotation.y = Math.PI / 2; // Rotate 90 degrees to face the wall
   lightSwitchGroup.userData = { type: 'lightSwitch' };
   group.add(lightSwitchGroup);
   
   // Add a bright spotlight to illuminate the switch area
   const switchSpotlight = new THREE.SpotLight(0x00ff00, 1.0, 15, Math.PI / 6, 0.2, 1);
-  switchSpotlight.position.set(-8.5, 4.0, 0);
-  switchSpotlight.target.position.set(-8.5, 1.8, 0);
+  switchSpotlight.position.set(-8.5, 4.0, 4);
+  switchSpotlight.target.position.set(-8.5, 1.8, 4);
   switchSpotlight.castShadow = true;
   switchSpotlight.name = 'switch-spotlight';
   group.add(switchSpotlight);
@@ -1402,21 +1381,21 @@ export function createRoom1() {
       opacity: 0.7
     })
   );
-  floorIndicator.position.set(-8.5, 0.01, 0);
+  floorIndicator.position.set(-8.5, 0.01, 4);
   floorIndicator.rotation.x = -Math.PI / 2;
   floorIndicator.name = 'switch-indicator';
   group.add(floorIndicator);
   
   // Add a bright point light above the switch for extra visibility
   const switchLight = new THREE.PointLight(0x00ff00, 0.8, 10);
-  switchLight.position.set(-8.5, 3.0, 0);
+  switchLight.position.set(-8.5, 3.0, 4);
   switchLight.name = 'switch-point-light';
   group.add(switchLight);
   
   // Add switch lights to lights registry
   lights.switchSpotlight = new THREE.SpotLight(0x00ff00, 1.0, 15, Math.PI / 6, 0.2, 1);
-  lights.switchSpotlight.position.set(-8.5, 4.0, 0);
-  lights.switchSpotlight.target.position.set(-8.5, 1.8, 0);
+  lights.switchSpotlight.position.set(-8.5, 4.0, 4);
+  lights.switchSpotlight.target.position.set(-8.5, 1.8, 4);
   lights.switchSpotlight.castShadow = true;
   lights.switchSpotlight.name = 'switch-spotlight';
   lights.switchSpotlight.distance = 15; // Clamp distance
@@ -1434,7 +1413,7 @@ export function createRoom1() {
     emissiveIntensity: 0.5
   });
   const arrowIndicator = new THREE.Mesh(arrowGeometry, arrowMaterial);
-  arrowIndicator.position.set(-8.5, 3.5, 0);
+  arrowIndicator.position.set(-8.5, 3.5, 4);
   arrowIndicator.rotation.x = Math.PI;
   arrowIndicator.name = 'arrow-indicator';
   group.add(arrowIndicator);
