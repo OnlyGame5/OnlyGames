@@ -98,15 +98,15 @@ export function createRoom1() {
   group.add(hallway.group);
 
   // Front wall with doorway (split into two parts)
-  const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(7, 4, 0.2), wallMat);
-  frontWallLeft.position.set(-5.5, 2, 9);
+  const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat);
+  frontWallLeft.position.set(-5, 2, 9);
   frontWallLeft.userData = { type: 'wall', side: 'front-left' };
   frontWallLeft.castShadow = true;
   frontWallLeft.receiveShadow = true;
   group.add(frontWallLeft);
 
-  const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(7, 4, 0.2), wallMat);
-  frontWallRight.position.set(5.5, 2, 9);
+  const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat);
+  frontWallRight.position.set(5, 2, 9);
   frontWallRight.userData = { type: 'wall', side: 'front-right' };
   frontWallRight.castShadow = true;
   frontWallRight.receiveShadow = true;

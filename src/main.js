@@ -153,12 +153,12 @@ async function initGame() {
     
     // Create hallway between Room 0 and Room 1
     const hallway0to1 = HallwayPresets.standard({
-      length: 15,
+      length: 13.5,
       width: 2,
       height: 4,
       positionX: 0,
       positionY: 0,
-      positionZ: -15, // Halfway between Room 0 (z=0) and Room 1 (z=-30)
+      positionZ: -14.25, // Halfway between Room 0 (z=0) and Room 1 (z=-30)
       name: 'hallway-0-to-1',
       addLighting: true,
       lightIntensity: 0.4,

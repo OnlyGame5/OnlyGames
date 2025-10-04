@@ -128,12 +128,12 @@ export function createRoom0() {
   }
 
   // Back wall (with door opening) - Left panel
-  const backWallLeft = createWallPanel(8, wallHeight, new THREE.Vector3(-6, wallHeight/2, -roomDepthHalf));
+  const backWallLeft = createWallPanel(8.9, wallHeight, new THREE.Vector3(-5.55, wallHeight/2, -roomDepthHalf));
   backWallLeft.userData = { type: 'wall', side: 'back-left' };
   group.add(backWallLeft);
 
   // Back wall (with door opening) - Right panel
-  const backWallRight = createWallPanel(8, wallHeight, new THREE.Vector3(6, wallHeight/2, -roomDepthHalf));
+  const backWallRight = createWallPanel(8.9, wallHeight, new THREE.Vector3(5.55, wallHeight/2, -roomDepthHalf));
   backWallRight.userData = { type: 'wall', side: 'back-right' };
   group.add(backWallRight);
 
@@ -504,7 +504,7 @@ export function createRoom0() {
   
   // Main door panel
   const doorPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(3, 3.5, 0.2),
+    new THREE.BoxGeometry(2, 3.5, 0.2),
     new THREE.MeshStandardMaterial({ 
       color: 0x1a1a1a,
       metalness: 0.9,
@@ -519,7 +519,7 @@ export function createRoom0() {
   
   // Door frame
   const doorFrame = new THREE.Mesh(
-    new THREE.BoxGeometry(3.2, 3.7, 0.1),
+    new THREE.BoxGeometry(2.2, 3.7, 0.1),
     new THREE.MeshStandardMaterial({ 
       color: 0x333333,
       metalness: 0.8,
@@ -625,14 +625,13 @@ export function createRoom0() {
   let awakeningChair = null;
   const chairLoader = new GLTFLoader();
   
-  chairLoader.load('/models/sci_fi_table.glb', (gltf) => {
+  chairLoader.load('/models/chair.glb', (gltf) => {
     awakeningChair = gltf.scene;
     awakeningChair.name = 'awakening-chair';
     
     // Scale and position the chair for player spawn
-    awakeningChair.scale.set(1.5, 1.5, 1.5);
-    awakeningChair.position.set(0, 0, 2); // Center of room, facing forward
-    awakeningChair.rotation.y = Math.PI; // Face the door
+    awakeningChair.scale.set(0.175, 0.175, 0.175);
+    awakeningChair.position.set(0, 1.5, 2)
     
     // Enable shadows
     awakeningChair.traverse((child) => {

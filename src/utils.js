@@ -91,3 +91,13 @@ export function handleStage0Click(event, camera, scene, room0) {
   
   return false;
 }
+
+export function setupModel(gltf) {
+  gltf.scene.traverse(function (child) {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+  return gltf.scene;
+}
