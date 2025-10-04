@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { setupModel } from './utils.js';
 
 export function createRoom2() {
   const group = new THREE.Group();
@@ -46,6 +48,54 @@ export function createRoom2() {
   const ceiling = floor.clone();
   ceiling.position.y = 4;
   group.add(ceiling);
+
+  // Add scales model
+  const loader = new GLTFLoader();
+  loader.load('/models/scales.glb', (gltf) => {
+      const scales = setupModel(gltf);
+      scales.position.set(0, 0, -5.5); // Position at the back, slightly elevated
+      scales.scale.set(0.05, 0.05, 0.05); // Keep existing scale
+      group.add(scales);
+  });
+
+  // Add other models to Room 2 with individualized scaling and positions
+  // Statue of Liberty
+  
+
+  
+  loader.load('/models/statue_of_liberty.glb', (gltf) => {
+      const statue = setupModel(gltf);
+      statue.position.set(-3.5, 0.5, 0); // Repositioned
+      statue.scale.set(0.015, 0.015, 0.015); // Small statue
+      group.add(statue);
+  });
+
+  
+
+  // Bowling Pin
+  loader.load('/models/bowling_pin.glb', (gltf) => {
+      const pin = setupModel(gltf);
+      pin.position.set(4, 0.2, -5); // Repositioned
+      pin.scale.set(1, 1, 1); // Small bowling pin
+      group.add(pin);
+  });
+
+  // Bowling Ball
+  loader.load('/models/bowling_ball.glb', (gltf) => {
+      const ball = setupModel(gltf);
+      ball.position.set(5, 0.5, -4); // Repositioned
+      ball.scale.set(0.2, 0.2, 0.2); // Small bowling ball
+      group.add(ball);
+  });
+
+  // Book
+  loader.load('/models/book.glb', (gltf) => {
+      const book = setupModel(gltf);
+      book.position.set(-5, 0.15, 3.5); // Repositioned
+      book.scale.set(0.3, 0.3, 0.3); // Very small book
+      book.rotation.y = Math.PI / 8;
+      group.add(book);
+  });
 
   // Add a small hallway stub to meet Room 1 hallway visually
   const hallwayStub = new THREE.Mesh(
