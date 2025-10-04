@@ -1,35 +1,109 @@
 // Global game state management for puzzle gates and UI
 class GameStore {
   constructor() {
-    // Puzzle gates
-    this.wirePuzzleComplete = false;
-    this.memoryPuzzleComplete = false;
-    
-    // UI flags
-    this.showMemoryUI = false;
-    this.memoryLockedReason = "Complete the wire puzzle first.";
-    
-    // Bookshelf logic
-    this.pageTakenFromSafe = false;
-    this.bookshelfDoorOpen = false;
-    
-    // Global progression and features
-    this.stage = 0; // 0: Room0, 1: Room1, 2: Room2, 3: Room3
-    // Truth Filter state (read by rooms; toggled by the TF system elsewhere)
-    this.isTruthFilterOn = false;
-
-    // Room 3 flags
-    this.flags = {
+    // --- NEW NON-LINEAR STRUCTURE ---
+    this.currentRoomId = 'hub'; // 'hub', 'room1', 'room2', etc.
+    this.hub = {
+      tokensPlaced: {
+        room1: false,
+        room2: false,
+        room3: false,
+        room4: false
+      },
+      isShutdown: false
+    };
+    this.rooms = {
+      room1: {
+        isComplete: false,
+        tokenCollected: false,
+        puzzles: {
+          wirePuzzleComplete: false,
+          memoryPuzzleComplete: false,
+          pageTakenFromSafe: false,
+          bookshelfDoorOpen: false
+        }
+      },
+      room2: {
+        isComplete: false,
+        tokenCollected: false,
+        puzzles: {
+          scalePuzzleComplete: false,
+          itemsPlacedOnScale: [],
+          seventhObjectRevealed: false,
+          seventhObjectCollected: false
+        }
+      },
       room3: {
-        bridgeSolved: false,
-        overrideSolved: false,
-        finalChoice: null, // 'purge' | 'reboot'
-        coreUnlocked: false
+        isComplete: false,
+        tokenCollected: false,
+        puzzles: {
+          bridgeSolved: false,
+          overrideSolved: false,
+          finalChoice: null,
+          coreUnlocked: false
+        }
+      },
+      room4: {
+        isComplete: false,
+        tokenCollected: false,
+        puzzles: {
+          // To be defined
+        }
       }
     };
 
+    // UI flags (global)
+    this.showMemoryUI = false;
+    this.memoryLockedReason = "Complete the wire puzzle first.";
+    
+    // Truth Filter state (read by rooms; toggled by the TF system elsewhere)
+    this.isTruthFilterOn = false;
+
     // Listeners for state changes
     this.listeners = new Map();
+  }
+
+  // --- BACKWARD COMPATIBILITY GETTERS/SETTERS ---
+
+  get stage() {
+    // This is a simple mapping for legacy code.
+    const roomMap = { 'hub': 0, 'room0': 0, 'room1': 1, 'room2': 2, 'room3': 3, 'room4': 4 };
+    return roomMap[this.currentRoomId] || 0;
+  }
+
+  get wirePuzzleComplete() {
+    return this.rooms.room1.puzzles.wirePuzzleComplete;
+  }
+  set wirePuzzleComplete(value) {
+    this.rooms.room1.puzzles.wirePuzzleComplete = value;
+  }
+
+  get memoryPuzzleComplete() {
+    return this.rooms.room1.puzzles.memoryPuzzleComplete;
+  }
+  set memoryPuzzleComplete(value) {
+    this.rooms.room1.puzzles.memoryPuzzleComplete = value;
+  }
+  
+  get pageTakenFromSafe() {
+    return this.rooms.room1.puzzles.pageTakenFromSafe;
+  }
+  set pageTakenFromSafe(value) {
+    this.rooms.room1.puzzles.pageTakenFromSafe = value;
+  }
+
+  get bookshelfDoorOpen() {
+    return this.rooms.room1.puzzles.bookshelfDoorOpen;
+  }
+  set bookshelfDoorOpen(value) {
+    this.rooms.room1.puzzles.bookshelfDoorOpen = value;
+  }
+
+  // Proxy for the old flags object
+  get flags() {
+    return {
+      room3: this.rooms.room3.puzzles
+    };
   }
   
   // Subscribe to state changes
@@ -69,18 +143,16 @@ class GameStore {
 
   // Update Room 3 flags with notification
   setRoom3Flag(flagKey, value) {
-    if (!this.flags) this.flags = { room3: {} };
-    if (!this.flags.room3) this.flags.room3 = {};
-    this.flags.room3[flagKey] = value;
+    this.rooms.room3.puzzles[flagKey] = value;
     this.notify(`flags.room3.${flagKey}`, value);
     // Emit aggregate change as well for simple subscribers
-    this.notify('flags.room3', { ...this.flags.room3 });
+    this.notify('flags.room3', { ...this.rooms.room3.puzzles });
   }
   
-  // Actions
+  // --- UPDATED METHODS ---
   setWireComplete(value) {
     console.log('setWireComplete called with:', value);
-    this.wirePuzzleComplete = value;
+    this.rooms.room1.puzzles.wirePuzzleComplete = value;
     this.memoryLockedReason = value ? null : "Complete the wire puzzle first.";
     this.notify('wirePuzzleComplete', value);
     this.notify('memoryLockedReason', this.memoryLockedReason);
@@ -100,7 +172,7 @@ class GameStore {
   
   setMemoryComplete(value) {
     console.log('setMemoryComplete called with:', value);
-    this.memoryPuzzleComplete = value;
+    this.rooms.room1.puzzles.memoryPuzzleComplete = value;
     this.showMemoryUI = false;
     this.notify('memoryPuzzleComplete', value);
     this.notify('showMemoryUI', false);
@@ -109,31 +181,76 @@ class GameStore {
   
   setPageTaken(value) {
     console.log('setPageTaken called with:', value);
-    this.pageTakenFromSafe = value;
+    this.rooms.room1.puzzles.pageTakenFromSafe = value;
     this.notify('pageTakenFromSafe', value);
     this.tryOpenBookshelfDoor();
   }
   
   setBookshelfDoorOpen(value) {
-    this.bookshelfDoorOpen = value;
+    this.rooms.room1.puzzles.bookshelfDoorOpen = value;
     this.notify('bookshelfDoorOpen', value);
   }
   
   tryOpenBookshelfDoor() {
+    const puzzles = this.rooms.room1.puzzles;
     console.log('tryOpenBookshelfDoor called. Current state:', {
-      bookshelfDoorOpen: this.bookshelfDoorOpen,
-      wirePuzzleComplete: this.wirePuzzleComplete,
-      memoryPuzzleComplete: this.memoryPuzzleComplete,
-      pageTakenFromSafe: this.pageTakenFromSafe
+      bookshelfDoorOpen: puzzles.bookshelfDoorOpen,
+      wirePuzzleComplete: puzzles.wirePuzzleComplete,
+      memoryPuzzleComplete: puzzles.memoryPuzzleComplete,
+      pageTakenFromSafe: puzzles.pageTakenFromSafe
     });
     
-    if (!this.bookshelfDoorOpen && 
-        this.wirePuzzleComplete && 
-        this.memoryPuzzleComplete && 
-        this.pageTakenFromSafe) {
+    if (!puzzles.bookshelfDoorOpen && 
+        puzzles.wirePuzzleComplete && 
+        puzzles.memoryPuzzleComplete && 
+        puzzles.pageTakenFromSafe) {
       console.log('Opening bookshelf door!');
-      this.bookshelfDoorOpen = true;
+      puzzles.bookshelfDoorOpen = true;
       this.notify('bookshelfDoorOpen', true);
+    }
+  }
+
+  // --- NEW ROOM MANAGEMENT METHODS ---
+
+  setCurrentRoom(roomId) {
+    if (this.currentRoomId !== roomId) {
+      this.currentRoomId = roomId;
+      this.notify('currentRoomId', roomId);
+    }
+  }
+
+  getCurrentRoom() {
+    return this.currentRoomId;
+  }
+
+  // Token management methods
+  collectRoomToken(roomId) {
+    if (this.rooms[roomId]) {
+      this.rooms[roomId].tokenCollected = true;
+      this.notify(`roomTokenCollected.${roomId}`, true);
+      this.checkAllTokensCollected();
+    }
+  }
+
+  placeTokenInHub(roomId) {
+    if (this.hub.tokensPlaced[roomId] !== undefined) {
+      this.hub.tokensPlaced[roomId] = true;
+      this.notify(`tokenPlaced.${roomId}`, true);
+      this.checkAllTokensPlaced();
+    }
+  }
+
+  checkAllTokensCollected() {
+    const allCollected = Object.values(this.rooms).every(room => room.tokenCollected);
+    this.notify('allTokensCollected', allCollected);
+  }
+
+  checkAllTokensPlaced() {
+    const allPlaced = Object.values(this.hub.tokensPlaced).every(placed => placed);
+    this.notify('allTokensPlaced', allPlaced);
+    if (allPlaced) {
+      this.hub.isShutdown = true;
+      this.notify('hubShutdown', true);
     }
   }
 }
