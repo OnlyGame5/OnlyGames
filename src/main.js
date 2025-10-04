@@ -11,6 +11,7 @@ import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
 import { loadingScreen } from './loading.js';
 import { uiRoot } from './ui/UIRoot.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
+import { Minimap } from './minimap.js';
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
@@ -40,6 +41,9 @@ document.body.appendChild(renderer.domElement);
 
 // Player setup
 const player = setupPlayer(scene);
+
+// Minimap setup
+let minimap = null;
 
 // Stage 0: Game state management
 let gameState = {
@@ -180,6 +184,9 @@ async function initGame() {
     // Initialize UI root for memory panel
     uiRoot;
     
+    // Initialize minimap
+    minimap = new Minimap(scene, player, renderer);
+    
     // Update HUD with current bindings
     updateHUDInstructions();
     
@@ -219,6 +226,9 @@ async function initGame() {
     
     AI.onSpawn();
     window.AI = AI;
+    
+    // Initialize minimap in fallback case
+    minimap = new Minimap(scene, player, renderer);
     
     // Make gameState globally accessible for first-person item display
     window.gameState = gameState;
@@ -274,6 +284,20 @@ window.addEventListener('keydown', (e) => {
     if (gameState.room1 && gameState.room1.handleIKeyInteraction) {
       const activePlayer = leonardModel || player;
       gameState.room1.handleIKeyInteraction(activePlayer);
+    }
+  }
+  
+  // M key for minimap toggle
+  if (e.code === 'KeyM') {
+    if (minimap) {
+      minimap.toggle();
+    }
+  }
+  
+  // T key for minimap enlarge toggle
+  if (e.code === 'KeyT') {
+    if (minimap) {
+      minimap.toggleEnlarge();
     }
   }
   
@@ -469,6 +493,11 @@ function animate(currentTime) {
         window.AI.onRoom1Complete();
       }
     }
+  }
+  
+  // Update minimap
+  if (minimap) {
+    minimap.update();
   }
   
   // Stage 0: Update camera
