@@ -1,0 +1,222 @@
+/* Matrix-style Loading Screen - Cyberpunk Neon */
+
+.loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  z-index: 10000;
+  pointer-events: auto;
+  overflow: hidden;
+  font-family: 'Orbitron', 'Courier New', monospace;
+}
+
+/* Matrix Code Rain Background */
+#matrix-rain {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Intro Crawl Container */
+.crawl-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  perspective: 500px;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.crawl {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 90%;
+  max-width: 1000px;
+  transform: translate(-50%, -50%) perspective(500px) rotateX(25deg);
+  transform-origin: 50% 50%;
+  color: #00ff66;
+  font-size: 32px;
+  line-height: 1.8;
+  text-align: center;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 102, 0.9),
+    0 0 20px rgba(0, 255, 102, 0.7),
+    0 0 30px rgba(0, 255, 102, 0.5),
+    0 0 40px rgba(0, 255, 102, 0.3);
+  font-weight: 400;
+  animation: crawlUp 45s linear forwards;
+  white-space: pre-line;
+  z-index: 3;
+  padding: 40px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 10px;
+  backdrop-filter: blur(2px);
+}
+
+@keyframes crawlUp {
+  0% {
+    transform: translate(-50%, -50%) perspective(500px) rotateX(25deg) translateY(50vh);
+  }
+  100% {
+    transform: translate(-50%, -50%) perspective(500px) rotateX(25deg) translateY(-150vh);
+  }
+}
+
+.crawl-title {
+  font-size: 72px;
+  font-weight: bold;
+  margin-bottom: 80px;
+  color: #00ff66;
+  text-shadow: 
+    0 0 20px rgba(0, 255, 102, 1),
+    0 0 30px rgba(0, 255, 102, 0.8),
+    0 0 40px rgba(0, 255, 102, 0.6),
+    0 0 50px rgba(0, 255, 102, 0.4);
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  text-align: center;
+  width: 100%;
+}
+
+.crawl-text {
+  font-size: 28px;
+  line-height: 2.0;
+  margin-bottom: 30px;
+  color: #00ff66;
+  text-shadow: 
+    0 0 8px rgba(0, 255, 102, 0.9),
+    0 0 16px rgba(0, 255, 102, 0.7),
+    0 0 24px rgba(0, 255, 102, 0.5);
+}
+
+/* Loading Progress Indicator */
+.loader-meter {
+  position: absolute;
+  bottom: 50px;
+  left: 50px;
+  color: #00ff66;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 102, 0.8),
+    0 0 20px rgba(0, 255, 102, 0.4);
+  z-index: 3;
+  opacity: 1;
+  transition: opacity 0.5s ease-out;
+}
+
+.loader-meter.loaded {
+  opacity: 0;
+}
+
+/* Start Gate */
+.start-gate {
+  position: absolute;
+  bottom: 100px;
+  left: 50px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #00ff66;
+  border-radius: 8px;
+  padding: 12px 24px;
+  color: #00ff66;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 102, 0.8),
+    0 0 20px rgba(0, 255, 102, 0.4);
+  cursor: pointer;
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease-in;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.start-gate.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.start-gate:hover {
+  background: rgba(0, 255, 102, 0.1);
+  box-shadow: 
+    0 0 20px rgba(0, 255, 102, 0.5),
+    inset 0 0 20px rgba(0, 255, 102, 0.1);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Fade Out Animation */
+.loading-screen.fade-out {
+  opacity: 0;
+  transition: opacity 0.6s ease-out;
+}
+
+.loading-screen.fade-out .crawl,
+.loading-screen.fade-out .loader-meter,
+.loading-screen.fade-out .start-gate {
+  opacity: 0;
+  transition: opacity 0.4s ease-out;
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .crawl {
+    animation-duration: 90s; /* 50% slower but still finite */
+    transform: translate(-50%, -50%); /* Remove perspective tilt, keep centered */
+  }
+  
+  .start-gate {
+    animation: none; /* Disable pulse */
+  }
+  
+  .loading-screen.fade-out {
+    transition-duration: 0.3s; /* Faster fade */
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .crawl {
+    font-size: 22px;
+    width: 95%;
+  }
+  
+  .crawl-title {
+    font-size: 52px;
+    letter-spacing: 4px;
+  }
+  
+  .crawl-text {
+    font-size: 24px;
+  }
+  
+  .start-gate {
+    font-size: 12px;
+    padding: 10px 20px;
+    left: 20px;
+  }
+  
+  .loader-meter {
+    font-size: 14px;
+    left: 20px;
+  }
+}

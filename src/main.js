@@ -9,8 +9,10 @@ import { handleMouseClick, handleStage0Click } from './utils.js';
 import { initInput, isDown as inputIsDown, getBindings } from './systems/input.js';
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
 import { loadingScreen } from './loading.js';
+import { createLoadingScreen, dispatchLoadingProgress, dispatchLoadingComplete } from './ui/LoadingScreen.js';
 import { uiRoot } from './ui/UIRoot.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
+import { Minimap } from './minimap.js';
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
@@ -40,6 +42,9 @@ document.body.appendChild(renderer.domElement);
 
 // Player setup
 const player = setupPlayer(scene);
+
+// Minimap setup
+let minimap = null;
 
 // Stage 0: Game state management
 let gameState = {
@@ -96,29 +101,41 @@ async function initGame() {
   try {
     // Create fade-in overlay for awakening effect
     createFadeOverlay();
-    // Show loading screen
-    loadingScreen.show();
-    loadingScreen.setStatus('Loading game assets...');
-    loadingScreen.registerItem('leonard', 1);
-    loadingScreen.registerItem('rooms', 4);
-    loadingScreen.registerItem('models', 2); // safe, table
+    
+    // Track loading progress for new loading screen
+    let totalItems = 7; // leonard(1) + rooms(4) + models(2)
+    let loadedItems = 0;
+    
+    function updateProgress(itemCount = 1) {
+      loadedItems += itemCount;
+      const percent = Math.round((loadedItems / totalItems) * 100);
+      dispatchLoadingProgress(percent);
+      
+      if (loadedItems >= totalItems) {
+        dispatchLoadingComplete();
+      }
+    }
     
     // Load Leonard model
-    loadingScreen.setStatus('Loading character model...');
     await loadLeonard(scene);
-    loadingScreen.completeItem('leonard');
+    updateProgress(1); // Leonard loaded
     console.log('Leonard loaded successfully!');
     
+    // Make leonardModel globally accessible for minimap and other systems
+    window.leonardModel = leonardModel;
+    window.player = player; // Also make player globally accessible
+    window.camera = camera; // Make camera globally accessible for minimap
+    window.isInFirstPerson = isInFirstPerson; // Make view mode function globally accessible
+    
     // Initialize all rooms (no scene param now)
-    loadingScreen.setStatus('Initializing rooms...');
     gameState.room0 = createRoom0();
-    loadingScreen.updateItem('rooms', 1, 4);
+    updateProgress(1); // Room 0
     gameState.room1 = createRoom1();
-    loadingScreen.updateItem('rooms', 2, 4);
+    updateProgress(1); // Room 1
     gameState.room2 = createRoom2();
-    loadingScreen.updateItem('rooms', 3, 4);
+    updateProgress(1); // Room 2
     gameState.room3 = createRoom3();
-    loadingScreen.completeItem('rooms');
+    updateProgress(1); // Room 3
     
     // Add groups to scene
     scene.add(gameState.room0.group, gameState.room1.group, gameState.room2.group, gameState.room3.group);
@@ -164,34 +181,37 @@ async function initGame() {
     gameState.room2.group.visible = true;
     gameState.room3.group.visible = true;
     
-    // AI greeting for Stage 0
-    AI.onSpawn();
-    
     // Make AI globally accessible for room0 interactions
     window.AI = AI;
     
     // Make gameState globally accessible for first-person item display
     window.gameState = gameState;
     
-    // Initialize input and menu systems
-    initInput();
+    // Initialize input and menu systems (moved to onContinue)
     initMenu({ onPauseChange: (paused) => { gameState.paused = paused; } });
     
     // Initialize UI root for memory panel
     uiRoot;
     
+    // Initialize minimap
+    minimap = new Minimap(scene, player, renderer);
+    
     // Update HUD with current bindings
     updateHUDInstructions();
     
     // Complete loading
-    loadingScreen.setStatus('Game ready!');
-    loadingScreen.completeItem('models');
+    updateProgress(2); // Models and final setup
     
     console.log('Game initialized successfully!');
   } catch (error) {
     console.error('Failed to initialize game:', error);
-    loadingScreen.setStatus('Loading failed. Please refresh the page.');
     console.log('Using fallback player box instead of Leonard');
+    
+    // Make player globally accessible in fallback case
+    window.player = player;
+    window.leonardModel = null; // Explicitly set to null in fallback case
+    window.camera = camera; // Make camera globally accessible for minimap
+    window.isInFirstPerson = isInFirstPerson; // Make view mode function globally accessible
     
     // Fallback: still create all rooms even if Leonard fails to load
     gameState.room0 = createRoom0();
@@ -217,16 +237,47 @@ async function initGame() {
     gameState.room2.group.visible = true;
     gameState.room3.group.visible = true;
     
-    AI.onSpawn();
     window.AI = AI;
+    
+    // Initialize minimap in fallback case
+    minimap = new Minimap(scene, player, renderer);
     
     // Make gameState globally accessible for first-person item display
     window.gameState = gameState;
+    
+    // Complete loading even in fallback case
+    updateProgress(7); // All items loaded
   }
 }
 
-// Initialize the game
-initGame();
+// Initialize the game with new loading screen
+initializeGameWithLoading();
+
+async function initializeGameWithLoading() {
+  // Create the new Matrix-style loading screen
+  const loadingScreenInstance = createLoadingScreen({
+    onContinue: () => {
+      // Hide the old loading screen
+      loadingScreen.hide();
+      
+      // Initialize input and start the game
+      initInput();
+      
+      // Start the proper AI dialogue sequence
+      if (window.AI) {
+        window.AI.onSpawn();
+      }
+      
+      // Start the animation loop
+      animate(0);
+      
+      console.log('Game started with new loading screen!');
+    }
+  });
+  
+  // Start the game initialization
+  await initGame();
+}
 
 // Stage 0: Input handling for different stages
 window.addEventListener('click', (e) => {
@@ -274,6 +325,27 @@ window.addEventListener('keydown', (e) => {
     if (gameState.room1 && gameState.room1.handleIKeyInteraction) {
       const activePlayer = leonardModel || player;
       gameState.room1.handleIKeyInteraction(activePlayer);
+    }
+  }
+  
+  // M key for minimap toggle
+  if (e.code === 'KeyM') {
+    if (minimap) {
+      minimap.toggle();
+    }
+  }
+  
+  // T key for minimap enlarge toggle
+  if (e.code === 'KeyT') {
+    if (minimap) {
+      minimap.toggleEnlarge();
+    }
+  }
+  
+  // Z key for minimap zoom toggle (optional feature)
+  if (e.code === 'KeyZ') {
+    if (minimap) {
+      minimap.toggleZoom();
     }
   }
   
@@ -469,6 +541,11 @@ function animate(currentTime) {
         window.AI.onRoom1Complete();
       }
     }
+  }
+  
+  // Update minimap
+  if (minimap) {
+    minimap.update();
   }
   
   // Stage 0: Update camera
