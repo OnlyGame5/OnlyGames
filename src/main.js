@@ -113,6 +113,12 @@ async function initGame() {
     loadingScreen.completeItem('leonard');
     console.log('Leonard loaded successfully!');
     
+    // Make leonardModel globally accessible for minimap and other systems
+    window.leonardModel = leonardModel;
+    window.player = player; // Also make player globally accessible
+    window.camera = camera; // Make camera globally accessible for minimap
+    window.isInFirstPerson = isInFirstPerson; // Make view mode function globally accessible
+    
     // Initialize all rooms (no scene param now)
     loadingScreen.setStatus('Initializing rooms...');
     gameState.room0 = createRoom0();
@@ -199,6 +205,12 @@ async function initGame() {
     console.error('Failed to initialize game:', error);
     loadingScreen.setStatus('Loading failed. Please refresh the page.');
     console.log('Using fallback player box instead of Leonard');
+    
+    // Make player globally accessible in fallback case
+    window.player = player;
+    window.leonardModel = null; // Explicitly set to null in fallback case
+    window.camera = camera; // Make camera globally accessible for minimap
+    window.isInFirstPerson = isInFirstPerson; // Make view mode function globally accessible
     
     // Fallback: still create all rooms even if Leonard fails to load
     gameState.room0 = createRoom0();
@@ -298,6 +310,13 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyT') {
     if (minimap) {
       minimap.toggleEnlarge();
+    }
+  }
+  
+  // Z key for minimap zoom toggle (optional feature)
+  if (e.code === 'KeyZ') {
+    if (minimap) {
+      minimap.toggleZoom();
     }
   }
   
