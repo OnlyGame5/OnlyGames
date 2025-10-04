@@ -13,6 +13,7 @@ import { createLoadingScreen, dispatchLoadingProgress, dispatchLoadingComplete }
 import { uiRoot } from './ui/UIRoot.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { Minimap } from './minimap.js';
+import { FPSCounter } from './ui/FPSCounter.js';
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
@@ -45,6 +46,9 @@ const player = setupPlayer(scene);
 
 // Minimap setup
 let minimap = null;
+
+// FPS Counter setup
+let fpsCounter = null;
 
 // Stage 0: Game state management
 let gameState = {
@@ -193,8 +197,11 @@ async function initGame() {
     // Initialize UI root for memory panel
     uiRoot;
     
-    // Initialize minimap
-    minimap = new Minimap(scene, player, renderer);
+     // Initialize minimap
+     minimap = new Minimap(scene, player, renderer);
+     
+     // Initialize FPS counter
+     fpsCounter = new FPSCounter();
     
     // Update HUD with current bindings
     updateHUDInstructions();
@@ -239,8 +246,11 @@ async function initGame() {
     
     window.AI = AI;
     
-    // Initialize minimap in fallback case
-    minimap = new Minimap(scene, player, renderer);
+     // Initialize minimap in fallback case
+     minimap = new Minimap(scene, player, renderer);
+     
+     // Initialize FPS counter in fallback case
+     fpsCounter = new FPSCounter();
     
     // Make gameState globally accessible for first-person item display
     window.gameState = gameState;
@@ -342,12 +352,19 @@ window.addEventListener('keydown', (e) => {
     }
   }
   
-  // Z key for minimap zoom toggle (optional feature)
-  if (e.code === 'KeyZ') {
-    if (minimap) {
-      minimap.toggleZoom();
-    }
-  }
+   // Z key for minimap zoom toggle (optional feature)
+   if (e.code === 'KeyZ') {
+     if (minimap) {
+       minimap.toggleZoom();
+     }
+   }
+   
+   // F key for FPS counter toggle
+   if (e.code === 'KeyF') {
+     if (fpsCounter) {
+       fpsCounter.toggle();
+     }
+   }
   
   // E key interaction handler
   if (e.code === getBindings().interact) {
@@ -543,10 +560,15 @@ function animate(currentTime) {
     }
   }
   
-  // Update minimap
-  if (minimap) {
-    minimap.update();
-  }
+   // Update minimap
+   if (minimap) {
+     minimap.update();
+   }
+   
+   // Update FPS counter
+   if (fpsCounter) {
+     fpsCounter.update();
+   }
   
   // Stage 0: Update camera
   attachCamera(camera, player);

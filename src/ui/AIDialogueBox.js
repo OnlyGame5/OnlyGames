@@ -30,6 +30,8 @@ export class AIDialogueBox {
     this.dialogueQueue = [];
     this.isProcessingQueue = false;
     this.currentDialogue = null;
+    
+    // Idle state management removed - keeping box always visible
 
     this.create();
   }
@@ -132,6 +134,8 @@ export class AIDialogueBox {
       return;
     }
 
+    // No idle timer logic - box stays fully visible
+
     this.isProcessingQueue = true;
     const dialogue = this.dialogueQueue.shift();
     this.currentDialogue = dialogue;
@@ -167,6 +171,8 @@ export class AIDialogueBox {
           this.hide();
         }, this.options.autoHideDelay);
       }
+      
+      // No idle timer - box stays fully visible
       
       // Process next in queue
       setTimeout(() => {
@@ -276,6 +282,7 @@ export class AIDialogueBox {
     this.dialogueQueue = [];
     this.isProcessingQueue = false;
     this.currentDialogue = null;
+    // No idle timer to clear
   }
 
   /**
@@ -326,6 +333,8 @@ export class AIDialogueBox {
     }
   }
 
+  // Idle timer methods removed - box stays fully visible
+
   /**
    * Clean up active effects
    */
@@ -349,6 +358,7 @@ export class AIDialogueBox {
    */
   destroy() {
     this.cleanup();
+    // No idle timer to clear
     if (this.autoHideTimeout) {
       clearTimeout(this.autoHideTimeout);
     }

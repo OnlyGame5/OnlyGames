@@ -2,25 +2,28 @@
 
 .ai-dialogue-box {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 50%;
+  left: 40px;
+  transform: translateY(-50%);
   width: 400px;
-  max-width: 45vw;
+  max-width: 210px;
+  min-height: 600px;
   font-family: 'Courier New', 'Consolas', monospace;
   z-index: 9999;
   pointer-events: none;
-  opacity: 0;
+  opacity: 1;
+  transition: opacity 0.5s ease-in-out;
   animation: slideInLeft 0.3s ease-out forwards;
 }
 
 @keyframes slideInLeft {
   from {
     opacity: 0;
-    transform: translateX(-20px);
+    transform: translateX(-20px) translateY(-50%);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateX(0) translateY(-50%);
   }
 }
 
@@ -237,6 +240,8 @@
   60% { transform: translateX(-1px); }
   80% { transform: translateX(1px); }
 }
+
+/* Idle state removed - box stays fully visible */
 
 /* Hide when not shown */
 .ai-dialogue-box.hidden {
