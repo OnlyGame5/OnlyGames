@@ -13,6 +13,11 @@ export class Minimap {
     this.enlargedHeight = 400;
     this.isEnlarged = false;
     
+    // Zoom settings
+    this.zoomLevel = 1; // 1 = normal, 2 = zoomed in, 0.5 = zoomed out
+    this.zoomLevels = [0.5, 1, 2, 4]; // Available zoom levels
+    this.currentZoomIndex = 1; // Start at normal zoom
+    
     // Room data for accurate drawing based on actual world positions
     this.roomData = {
       room0: { width: 20, depth: 15, position: { x: 0, z: 0 } },
@@ -67,8 +72,9 @@ export class Minimap {
     const playerX = activePlayer.position.x;
     const playerZ = activePlayer.position.z;
     
-    // Create a smaller viewport around the player instead of showing everything
-    const viewRadius = 25; // Show 50x50 unit area around player (zoomed in)
+    // Create a smaller viewport around the player with zoom support
+    const baseViewRadius = 25; // Base view radius
+    const viewRadius = baseViewRadius / this.zoomLevel; // Apply zoom
     
     this.bounds = {
       minX: playerX - viewRadius,
@@ -403,11 +409,18 @@ export class Minimap {
     }
   }
   
-  // Optional features (stubs for future implementation)
+  // Zoom functionality
   toggleZoom() {
-    // Stub for zoom toggle functionality
-    // Bind to Z key in main.js
-    console.log('Minimap zoom toggle - feature not yet implemented');
+    // Cycle through zoom levels
+    this.currentZoomIndex = (this.currentZoomIndex + 1) % this.zoomLevels.length;
+    this.zoomLevel = this.zoomLevels[this.currentZoomIndex];
+    
+    // Update the viewport to reflect new zoom level
+    this.calculateBounds();
+    
+    // Log zoom level change
+    const zoomNames = ['Far Out', 'Normal', 'Close', 'Very Close'];
+    console.log(`Minimap zoom: ${zoomNames[this.currentZoomIndex]} (${this.zoomLevel}x)`);
   }
   
   addFogOfWar() {

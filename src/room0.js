@@ -911,16 +911,13 @@ export function createRoom0() {
       state.awakening.movementRestricted = false;
       state.awakening.isAwakening = false;
       
-      // Trigger Nexus introduction dialogue
+      // Trigger motor functions dialogue
       if (window.AI) {
-        window.AI.say("Welcome to the awakening chamber. I am Nexus, your AI companion. You may now move freely. Look around, and when you're ready, find the key to proceed.");
+        window.AI.deliverDialogue('ACT_I.ON_SPAWN.MOTOR_ONLINE');
       }
     }, state.awakening.awakeningDuration);
     
-    // Initial Nexus greeting
-    if (window.AI) {
-      window.AI.say("Awakening sequence initiated. Please remain still while your systems calibrate...");
-    }
+    // Note: Initial greeting is now handled by AI.onSpawn() when player enters game
   }
 
   // Stage 0: Update function for animations and state

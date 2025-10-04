@@ -561,7 +561,7 @@ export function setupPlayer(scene) {
    PLAYER UPDATE (MOVEMENT + ANIMS)
 =================================== */
 export function updatePlayer(player, camera, deltaTime = 0.016) {
-  const speed = 0.08; // Reduced movement speed for better control
+  const speed = 0.04; // Reduced movement speed to half for better control
   let isMoving = false;
 
   // Use Leonard if available, else player box
