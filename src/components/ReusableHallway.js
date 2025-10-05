@@ -168,7 +168,7 @@ export function createReusableHallway(options = {}) {
     })
   );
   hallwayWall1.position.set(
-    -config.width/2 - 0.1, 
+    -config.width/2, 
     config.height/2, 
     0
   );
@@ -190,7 +190,7 @@ export function createReusableHallway(options = {}) {
     })
   );
   hallwayWall2.position.set(
-    config.width/2 + 0.1, 
+    config.width/2, 
     config.height/2, 
     0
   );

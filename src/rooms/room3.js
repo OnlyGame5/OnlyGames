@@ -88,6 +88,15 @@ export class Room3 {
     innerWall.receiveShadow = true; innerWall.castShadow = true;
     this.group.add(innerWall);
 
+    // Header panel above the opening in the cylindrical wall (East side)
+    const headerEast = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius + 0.1, radius + 0.1, 0.5, 32, 1, false, 0.2, 0.2),
+        wallMat
+    );
+    headerEast.position.y = 4.25;
+    headerEast.receiveShadow = true; headerEast.castShadow = true;
+    this.group.add(headerEast);
+
     // Simple fog hint via large transparent disc with matching opening
     const fogMat = new THREE.MeshBasicMaterial({ color: 0x99aacc, transparent: true, opacity: 0.06 });
     const fogDisc = new THREE.Mesh(new THREE.CylinderGeometry(radius - 0.2, radius - 0.2, 0.05, 48, 1, true, 0.3, Math.PI * 1.9), fogMat);

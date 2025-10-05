@@ -161,9 +161,9 @@ async function initGame() {
     
     // Position player in the awakening chair
     if (gameState.room0.awakeningChair) {
-      player.position.set(0, 1, 2); // Position player in chair
+      player.position.set(3, 1, 2); // Position player in chair (moved to match chair position)
     } else {
-      player.position.set(0, 1, 2); // Fallback position
+      player.position.set(3, 1, 2); // Fallback position
     }
     
     // --- NEW, CORRECTED HUB-AND-SPOKE HALLWAYS ---
@@ -180,8 +180,8 @@ async function initGame() {
       ...hallwayConfig,
       name: 'hallway-hub-to-room1'
     });
-    // Set position to be halfway between Hub (wall at x=10) and Room 1 (wall at x=19)
-    hallwayToRoom1.group.position.set(14.5, 0, 0);
+    // Hallway to Room 1 (Position = HubWall + HallwayLength/2 = 10 + 5 = 15)
+    hallwayToRoom1.group.position.set(15, 0, 0);
     hallwayToRoom1.group.rotation.y = Math.PI / 2; // Rotate to align with X-axis
     scene.add(hallwayToRoom1.group);
 
@@ -190,9 +190,8 @@ async function initGame() {
       ...hallwayConfig,
       name: 'hallway-hub-to-room2'
     });
-    // Set position to be halfway between Hub (wall at z=7.5) and Room 2 (wall at z=10)
-    // Note: Room 0 depth is 15 (half 7.5), Room 2 is at z=22 (wall at z=22-6=16). Space is 7.5 to 16. Center = 11.75
-    hallwayToRoom2.group.position.set(0, 0, 11.75);
+    // Hallway to Room 2 (Position = HubWall + HallwayLength/2 = 7.5 + 5 = 12.5)
+    hallwayToRoom2.group.position.set(0, 0, 12.5);
     scene.add(hallwayToRoom2.group);
 
     // Hallway to Room 3 (West)
@@ -200,7 +199,7 @@ async function initGame() {
       ...hallwayConfig,
       name: 'hallway-hub-to-room3'
     });
-    // Set position to be halfway between Hub (wall at x=-10) and Room 3 (wall at x=-20)
+    // Hallway to Room 3 (Position = -(HubWall + HallwayLength/2) = -(10 + 5) = -15)
     hallwayToRoom3.group.position.set(-15, 0, 0);
     hallwayToRoom3.group.rotation.y = Math.PI / 2; // Rotate to align with X-axis
     scene.add(hallwayToRoom3.group);
@@ -208,14 +207,20 @@ async function initGame() {
     // Add first-person item display to scene
     addFirstPersonItemToScene(scene);
     
-    // Position the rooms according to the new layout
-    // Room 0 (Hub) is at center (0, 0, 0)
-    gameState.room0.group.position.set(0, 0, 0); // Room 0 serves as the hub
+    // --- CORRECTED Room and Hallway Positions ---
     
-    // Position rooms around Room 0 with standardized 10-unit hallways
-    gameState.room1.group.position.set(28, 0, 0); // East of Room 0 (9 + 10 + 9 = 28)
-    gameState.room2.group.position.set(0, 0, 22); // South of Room 0 (6 + 10 + 6 = 22)
-    gameState.room3.group.position.set(-30, 0, 0); // West of Room 0 (10 + 10 + 10 = 30)
+    // Position the rooms according to the new layout
+    // Hub (Room 0) is at center (0, 0, 0). Its radii are X:10, Z:7.5
+    gameState.room0.group.position.set(0, 0, 0); 
+    
+    // Room 1 (Radius 9) is East. Position = 10 + 10 + 9 = 29
+    gameState.room1.group.position.set(29, 0, 0);
+    
+    // Room 2 (Radius 6) is South. Position = 7.5 + 10 + 6 = 23.5
+    gameState.room2.group.position.set(0, 0, 23.5);
+    
+    // Room 3 (Radius 10) is West. Position = 10 + 10 + 10 = 30
+    gameState.room3.group.position.set(-30, 0, 0);
     
     // All rooms visible from start to prevent loading freezes
     gameState.room1.group.visible = true;
@@ -274,9 +279,9 @@ async function initGame() {
     addFirstPersonItemToScene(scene);
     
     // Position the rooms according to the new layout (fallback case)
-    gameState.room0.group.position.set(0, 0, 0); // Room 0 serves as the hub
-    gameState.room1.group.position.set(28, 0, 0); // East of Room 0 (9 + 10 + 9 = 28)
-    gameState.room2.group.position.set(0, 0, 22); // South of Room 0 (6 + 10 + 6 = 22)
+    gameState.room0.group.position.set(0, 0, 0); 
+    gameState.room1.group.position.set(29, 0, 0); // East of Room 0 (10 + 10 + 9 = 29)
+    gameState.room2.group.position.set(0, 0, 23.5); // South of Room 0 (7.5 + 10 + 6 = 23.5)
     gameState.room3.group.position.set(-30, 0, 0); // West of Room 0 (10 + 10 + 10 = 30)
     
     // All rooms visible from start to prevent loading freezes

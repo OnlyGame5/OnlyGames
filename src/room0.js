@@ -196,6 +196,35 @@ export function createRoom0() {
   const frontWallRight = createWallPanel(8, wallHeight, new THREE.Vector3(6, wallHeight/2, roomDepthHalf));
   frontWallRight.userData = { type: 'wall', side: 'front-right' };
   group.add(frontWallRight);
+
+  // --- ADD HEADER PANELS FOR HALLWAY OPENINGS ---
+  const headerMaterial = new THREE.MeshStandardMaterial({ color: 0xbbc1c9, metalness: 0.8, roughness: 0.3 });
+  const headerHeight = 0.5; // Assuming a standard wall height of 4.5, adjust if needed
+  const hallwayWidth = 2;
+
+  // Header for Room 1 Opening (East Wall / Right Wall)
+  const headerEast = new THREE.Mesh(
+    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
+    headerMaterial
+  );
+  headerEast.position.set(10, 4.25, 0); // Positioned above the opening
+  group.add(headerEast);
+
+  // Header for Room 2 Opening (South Wall / Back Wall)
+  const headerSouth = new THREE.Mesh(
+    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
+    headerMaterial
+  );
+  headerSouth.position.set(0, 4.25, -7.5);
+  group.add(headerSouth);
+
+  // Header for Room 3 Opening (West Wall / Left Wall)
+  const headerWest = new THREE.Mesh(
+    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
+    headerMaterial
+  );
+  headerWest.position.set(-10, 4.25, 0);
+  group.add(headerWest);
   
   // Add invisible collision wall for front wall
   const frontCollisionWall = new THREE.Mesh(
@@ -475,7 +504,7 @@ export function createRoom0() {
       // attachAOToGeometry: pillarGeo2,
     })
   );
-  cornerPillar2.position.set(8, wallHeight / 2, -6);
+  cornerPillar2.position.set(9.5, wallHeight / 2, -6);
   cornerPillar2.castShadow = true;
   cornerPillar2.receiveShadow = true;
   group.add(cornerPillar2);
@@ -689,8 +718,8 @@ export function createRoom0() {
       fallbackChair.add(leg);
     });
     
-    // Position the chair
-    fallbackChair.position.set(0, 0, 2);
+    // Position the chair (moved to avoid obstructing Room 2 hallway)
+    fallbackChair.position.set(3, 0, 2);
     fallbackChair.rotation.y = Math.PI;
     group.add(fallbackChair);
     awakeningChair = fallbackChair;

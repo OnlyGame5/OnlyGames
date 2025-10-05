@@ -117,6 +117,13 @@ export function createRoom1() {
   wall4.receiveShadow = true;
   group.add(wall4);
 
+  // Header panel above the opening in the left wall (West wall)
+  const headerWest = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 2), wallMat);
+  headerWest.position.set(-9, 4.25, 0);
+  headerWest.castShadow = true;
+  headerWest.receiveShadow = true;
+  group.add(headerWest);
+
   // Detailed industrial pillars with unique color scheme
   function createDetailedPillarMaterial() {
     const pillarCanvas = document.createElement('canvas');
