@@ -413,32 +413,111 @@ window.addEventListener('keydown', (e) => {
   
   // E key interaction handler
   if (e.code === getBindings().interact) {
+    console.log('E-key pressed! Key code:', e.code, 'getBindings().interact:', getBindings().interact);
+    
     // Check if paper examination is open first
     const paperExamination = document.getElementById('paperExamination');
     if (paperExamination) {
+      console.log('Paper examination is open, skipping E-key handling');
       // Paper examination is open, let it handle the E-key to close
       return;
     }
     
-  if (gameState.stage === 0 && gameState.room0) {
-      // Use the active player object (Leonard model or fallback box)
-      const activePlayer = leonardModel || player;
+    console.log('Game state check:', { 
+      stage: gameState.stage, 
+      room0Exists: !!gameState.room0,
+      room1Exists: !!gameState.room1,
+      room3Exists: !!gameState.room3
+    });
+    
+    const activePlayer = leonardModel || player;
+    
+    // Always try Room 1 first if it exists (regardless of stage)
+    if (gameState.room1 && gameState.room1.handleEKeyInteraction) {
+      console.log('Trying Room 1 E-key handler first (regardless of stage)');
+      const handled = gameState.room1.handleEKeyInteraction(activePlayer);
+      if (handled) {
+        console.log('Room 1 E-key handler succeeded');
+        return;
+      }
+    }
+    
+    // Then try Room 0 if in stage 0
+    if (gameState.stage === 0 && gameState.room0) {
+      console.log('Handling E-key in Stage 0 (Room 0)');
       gameState.room0.handleEKeyInteraction(activePlayer);
     } else {
-      const activePlayer = leonardModel || player;
-      // Determine which room the player is in (1 or 3 priority)
-      const isInside = (roomGroup, halfX, halfZ) => {
-        if (!roomGroup) return false;
-        const local = roomGroup.worldToLocal(activePlayer.position.clone());
-        return local.x >= -halfX && local.x <= halfX && local.z >= -halfZ && local.z <= halfZ;
+      // More robust room detection with debugging
+      const isInsideRoom = (roomGroup, halfX, halfZ) => {
+        if (!roomGroup || !activePlayer?.position) return false;
+        
+        // Get room world position
+        const roomWorldPos = new THREE.Vector3();
+        roomGroup.getWorldPosition(roomWorldPos);
+        
+        // Calculate player position relative to room
+        const playerPos = activePlayer.position;
+        const relativeX = playerPos.x - roomWorldPos.x;
+        const relativeZ = playerPos.z - roomWorldPos.z;
+        
+        const isInside = (
+          relativeX >= -halfX && relativeX <= halfX && 
+          relativeZ >= -halfZ && relativeZ <= halfZ
+        );
+        
+        // Debug logging for Room 1
+        if (roomGroup.name === 'room1') {
+          console.log('Room 1 Detection Debug:', {
+            playerPos: playerPos.clone(),
+            roomPos: roomWorldPos.clone(),
+            relativePos: { x: relativeX, z: relativeZ },
+            bounds: { halfX, halfZ },
+            isInside
+          });
+        }
+        
+        return isInside;
       };
-      const insideR3 = gameState.room3 && isInside(gameState.room3.group, 10, 10);
-      const insideR1 = gameState.room1 && isInside(gameState.room1.group, 9, 9);
+
+      const insideR3 = gameState.room3 && isInsideRoom(gameState.room3.group, 10, 10);
+      const insideR1 = gameState.room1 && isInsideRoom(gameState.room1.group, 9, 9);
+
+      console.log('E-key room detection:', { 
+        insideR3, 
+        insideR1, 
+        playerPos: activePlayer.position.clone(),
+        room1Pos: gameState.room1?.group?.position?.clone(),
+        room3Pos: gameState.room3?.group?.position?.clone()
+      });
 
       if (insideR3 && gameState.room3 && gameState.room3.handleEKeyInteraction) {
+        console.log('Handling E-key in Room 3');
         gameState.room3.handleEKeyInteraction(activePlayer);
       } else if (insideR1 && gameState.room1 && gameState.room1.handleEKeyInteraction) {
+        console.log('Handling E-key in Room 1');
         gameState.room1.handleEKeyInteraction(activePlayer);
+      } else {
+        // Fallback: Try all room handlers regardless of detection
+        console.log('Room detection failed, trying fallback handlers');
+        
+        if (gameState.room1 && gameState.room1.handleEKeyInteraction) {
+          console.log('Trying Room 1 fallback handler');
+          const handled = gameState.room1.handleEKeyInteraction(activePlayer);
+          if (handled) return;
+        }
+        
+        if (gameState.room3 && gameState.room3.handleEKeyInteraction) {
+          console.log('Trying Room 3 fallback handler');
+          gameState.room3.handleEKeyInteraction(activePlayer);
+        }
+      }
+      
+      // FORCE Room 1 interactions for debugging - try Room 1 handler regardless
+      if (gameState.room1 && gameState.room1.handleEKeyInteraction) {
+        console.log('FORCE: Trying Room 1 handler regardless of room detection');
+        const handled = gameState.room1.handleEKeyInteraction(activePlayer);
+        console.log('FORCE: Room 1 handler result:', handled);
+        if (handled) return;
       }
     }
   }

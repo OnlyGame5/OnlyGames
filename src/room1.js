@@ -609,11 +609,42 @@ export function createRoom1() {
   wirePanel.group.position.set(8.2, 0.8, 0); // Position on the right wall
   wirePanel.group.rotation.y = -Math.PI / 2; // Rotate to face into the room (from the right wall)
   group.add(wirePanel.group);
+  
+  // Add a visible marker for debugging
+  const markerGeometry = new THREE.SphereGeometry(0.2, 8, 6);
+  const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const wirePanelMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+  wirePanelMarker.position.set(8.2, 0.8, 0);
+  wirePanelMarker.name = 'wirePanelMarker';
+  group.add(wirePanelMarker);
+  
+  console.log('Wire Panel initialized:', {
+    exists: !!wirePanel,
+    groupExists: !!wirePanel.group,
+    position: wirePanel.group.position.clone(),
+    name: wirePanel.group.name,
+    markerAdded: true
+  });
 
   // Simon Stand System - positioned on right wall, below wire panel
   const simonStand = createSimonStand([8.2, 0, -3]); // Right wall, below wire panel
   simonStand.name = 'simonStand';
   group.add(simonStand);
+  
+  // Add a visible marker for debugging
+  const simonMarkerGeometry = new THREE.SphereGeometry(0.15, 8, 6);
+  const simonMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const simonStandMarker = new THREE.Mesh(simonMarkerGeometry, simonMarkerMaterial);
+  simonStandMarker.position.set(8.2, 0, -3);
+  simonStandMarker.name = 'simonStandMarker';
+  group.add(simonStandMarker);
+  
+  console.log('Simon Stand initialized:', {
+    exists: !!simonStand,
+    position: simonStand.position.clone(),
+    name: simonStand.name,
+    markerAdded: true
+  });
   
   // Bookshelf Door - positioned on left wall, away from light switch
   const bookshelfDoor = createBookshelfDoor();
@@ -699,14 +730,28 @@ export function createRoom1() {
 
   // E-key interaction for wire panel
   function handleWirePanelEKey(playerObject) {
-    if (!wirePanel) return false;
+    console.log('Wire panel E-key check - wirePanel exists:', !!wirePanel);
+    
+    if (!wirePanel) {
+      console.log('Wire panel not found');
+      return false;
+    }
     
     // Check if player is near the wire panel
     const panelWorldPos = new THREE.Vector3();
     wirePanel.group.getWorldPosition(panelWorldPos);
     const distance = playerObject.position.distanceTo(panelWorldPos);
     
+    console.log('Wire panel distance check:', {
+      playerPos: playerObject.position.clone(),
+      panelPos: panelWorldPos.clone(),
+      distance: distance,
+      threshold: 3.0,
+      isCloseEnough: distance < 3.0
+    });
+    
     if (distance < 3.0) { // Within 3 units of the panel
+      console.log('Wire panel interaction triggered, isOpen:', wirePanel.state.isOpen);
       if (wirePanel.state.isOpen) {
         wirePanel.closePanel();
         console.log('Wire panel closed via E-key');
@@ -717,6 +762,7 @@ export function createRoom1() {
       return true;
     }
     
+    console.log('Wire panel too far away');
     return false;
   }
 
@@ -1028,20 +1074,39 @@ export function createRoom1() {
 
   // E-key interaction for Simon Stand
   function handleSimonStandEKey(playerObject) {
-    if (!simonStand) return false;
+    console.log('Simon Stand E-key check - simonStand exists:', !!simonStand);
+    
+    if (!simonStand) {
+      console.log('Simon Stand not found');
+      return false;
+    }
     
     // Get Simon Stand world position
     const standWorldPos = new THREE.Vector3();
     simonStand.getWorldPosition(standWorldPos);
     const distance = playerObject.position.distanceTo(standWorldPos);
     
-    // Check if player is close enough (within 3 units)
-    if (distance > 3.0) return false;
+    console.log('Simon Stand distance check:', {
+      playerPos: playerObject.position.clone(),
+      standPos: standWorldPos.clone(),
+      distance: distance,
+      threshold: 3.0,
+      isCloseEnough: distance <= 3.0
+    });
     
-    console.log('Simon Stand E-key interaction');
+    // Check if player is close enough (within 3 units)
+    if (distance > 3.0) {
+      console.log('Simon Stand too far away');
+      return false;
+    }
+    
+    console.log('Simon Stand E-key interaction triggered');
     const { wirePuzzleComplete, memoryPuzzleComplete } = gameStore;
     
+    console.log('Simon Stand puzzle states:', { wirePuzzleComplete, memoryPuzzleComplete });
+    
     if (!wirePuzzleComplete) {
+      console.log('Simon Stand locked - wire puzzle not complete');
       // Show locked message
       if (window.AI) {
         window.AI.say("Complete the wire puzzle first to unlock the memory training station.");
@@ -1050,6 +1115,7 @@ export function createRoom1() {
     }
     
     if (memoryPuzzleComplete) {
+      console.log('Simon Stand already completed');
       // Already completed
       if (window.AI) {
         window.AI.say("Memory training completed. The station is now offline.");
@@ -1057,6 +1123,7 @@ export function createRoom1() {
       return true;
     }
     
+    console.log('Opening Simon Stand memory UI');
     // Open memory UI
     gameStore.openMemoryUI();
     
@@ -1070,24 +1137,34 @@ export function createRoom1() {
 
   // E-key interaction for room1
   function handleEKeyInteraction(playerObject) {
+    console.log('Room 1 E-key handler called with player at:', playerObject.position.clone());
+    
     // Check wire panel first
+    console.log('Checking wire panel interaction...');
     if (handleWirePanelEKey(playerObject)) {
+      console.log('Wire panel interaction handled');
       return true;
     }
     
     // Check Simon Stand interaction
+    console.log('Checking Simon Stand interaction...');
     if (handleSimonStandEKey(playerObject)) {
+      console.log('Simon Stand interaction handled');
       return true;
     }
     
     // Check if player is near the light switch
+    console.log('Checking light switch interaction...');
     const lightSwitchGroup = group.getObjectByName('light-switch-group');
     if (lightSwitchGroup) {
       const switchWorldPos = new THREE.Vector3();
       lightSwitchGroup.getWorldPosition(switchWorldPos);
       const distanceToSwitch = playerObject.position.distanceTo(switchWorldPos);
       
+      console.log('Light switch distance:', distanceToSwitch, 'threshold: 4.0');
+      
       if (distanceToSwitch < 4.0) { // Increased from 2.0 to 4.0 units
+        console.log('Light switch interaction handled');
         // Toggle lights
         const currentState = lightsOn;
         setRoom1Lights(!currentState);
@@ -1096,13 +1173,25 @@ export function createRoom1() {
     }
     
     // Original safe interaction
-    if (!state.safeObject) return false;
+    console.log('Checking safe interaction...');
+    if (!state.safeObject) {
+      console.log('Safe object not found');
+      return false;
+    }
+    
     // Compare in world space because room1 group is offset in the scene
     const safeWorldPos = new THREE.Vector3();
     state.safeObject.getWorldPosition(safeWorldPos);
     const distance = playerObject.position.distanceTo(safeWorldPos);
-    if (distance > 2.2) return false;
+    
+    console.log('Safe distance:', distance, 'threshold: 2.2');
+    
+    if (distance > 2.2) {
+      console.log('No Room 1 interactions triggered');
+      return false;
+    }
 
+    console.log('Safe interaction handled');
     // Toggle keypad on/off
     toggleKeypad(!state.keypadOpen);
     return true;

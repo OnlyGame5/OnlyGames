@@ -33,6 +33,28 @@ export class Minimap {
       room3: { width: 20, depth: 20, position: { x: -30, z: 0 } } // West of origin (10 + 10 + 10 = 30, circular)
     };
     
+    // Hallway data for connecting corridors (matching main.js positions)
+    this.hallwayData = {
+      hubToRoom1: { 
+        width: 2, 
+        length: 10, 
+        position: { x: 15, z: 0 },
+        rotation: Math.PI / 2 // 90 degrees (East direction)
+      },
+      hubToRoom2: { 
+        width: 2, 
+        length: 10, 
+        position: { x: 0, z: 12.5 },
+        rotation: 0 // no rotation (South direction)
+      },
+      hubToRoom3: { 
+        width: 2, 
+        length: 10, 
+        position: { x: -15, z: 0 },
+        rotation: Math.PI / 2 // 90 degrees (West direction)
+      }
+    };
+    
     // Calculate minimap bounds and scale
     this.calculateBounds();
     
@@ -392,6 +414,66 @@ export class Minimap {
         this.ctx.shadowBlur = 0;
       }
     });
+    
+    // Draw hallways
+    this.drawHallways();
+  }
+  
+  drawHallways() {
+    // Set styles for hallway drawing (slightly different from rooms)
+    this.ctx.strokeStyle = '#00ff41';
+    this.ctx.lineWidth = 1;
+    this.ctx.fillStyle = 'rgba(0, 255, 65, 0.03)';
+    this.ctx.shadowColor = '#00ff41';
+    this.ctx.shadowBlur = 2;
+    
+    // Draw each hallway based on actual dimensions and positions
+    Object.entries(this.hallwayData).forEach(([hallwayName, hallway]) => {
+      let halfWidth = hallway.width / 2;
+      let halfLength = hallway.length / 2;
+      
+      // For rotated hallways (East and West), swap width and length dimensions
+      if (hallway.rotation === Math.PI / 2) {
+        // East and West hallways: swap width and length for proper orientation
+        const temp = halfWidth;
+        halfWidth = halfLength;
+        halfLength = temp;
+      }
+      
+      // Check if hallway is visible in current viewport
+      const hallwayMinX = hallway.position.x - halfWidth;
+      const hallwayMaxX = hallway.position.x + halfWidth;
+      const hallwayMinZ = hallway.position.z - halfLength;
+      const hallwayMaxZ = hallway.position.z + halfLength;
+      
+      // Skip if hallway is completely outside viewport
+      if (hallwayMaxX < this.bounds.minX || hallwayMinX > this.bounds.maxX ||
+          hallwayMaxZ < this.bounds.minZ || hallwayMinZ > this.bounds.maxZ) {
+        return;
+      }
+      
+      // Calculate minimap coordinates for the hallway corners
+      const topLeft = this.worldToMinimap(hallwayMinX, hallwayMinZ);
+      const bottomRight = this.worldToMinimap(hallwayMaxX, hallwayMaxZ);
+      
+      const hallwayWidth = bottomRight.x - topLeft.x;
+      const hallwayHeight = bottomRight.z - topLeft.z;
+      
+      // Only draw if hallway is large enough to be visible
+      if (hallwayWidth > 0.5 && hallwayHeight > 0.5) {
+        // Draw hallway fill (lighter than rooms)
+        this.ctx.fillRect(topLeft.x, topLeft.z, hallwayWidth, hallwayHeight);
+        
+        // Draw hallway outline (thinner than rooms)
+        this.ctx.strokeRect(topLeft.x, topLeft.z, hallwayWidth, hallwayHeight);
+      }
+    });
+    
+    // Reset styles for other drawing operations
+    this.ctx.fillStyle = 'rgba(0, 255, 65, 0.05)';
+    this.ctx.strokeStyle = '#00ff41';
+    this.ctx.lineWidth = 1.5;
+    this.ctx.shadowBlur = 0;
   }
   
   toggle() {
