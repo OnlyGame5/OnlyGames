@@ -161,9 +161,9 @@ async function initGame() {
     
     // Position player in the awakening chair
     if (gameState.room0.awakeningChair) {
-      player.position.set(3, 1, 2); // Position player in chair (moved to match chair position)
+      player.position.set(0, 1, 0); // Center of room, safe spawn position
     } else {
-      player.position.set(3, 1, 2); // Fallback position
+      player.position.set(0, 1, 0); // Center of room, safe spawn position
     }
     
     // --- NEW, CORRECTED HUB-AND-SPOKE HALLWAYS ---
@@ -203,6 +203,11 @@ async function initGame() {
     hallwayToRoom3.group.position.set(-15, 0, 0);
     hallwayToRoom3.group.rotation.y = Math.PI / 2; // Rotate to align with X-axis
     scene.add(hallwayToRoom3.group);
+    
+    // Store hallways in gameState for collision detection
+    gameState.hallwayToRoom1 = hallwayToRoom1;
+    gameState.hallwayToRoom2 = hallwayToRoom2;
+    gameState.hallwayToRoom3 = hallwayToRoom3;
     
     // Add first-person item display to scene
     addFirstPersonItemToScene(scene);
@@ -607,8 +612,17 @@ function animate(currentTime) {
   if (room && room.checkWallCollisions) {
       room.checkWallCollisions(activePlayer);
   }
-  // Note: We will add hallway collision logic later if needed. 
-  // For now, the rooms will handle their own boundaries.
+  
+  // Check hallway collisions
+  if (gameState.hallwayToRoom1 && gameState.hallwayToRoom1.checkCollisions) {
+    gameState.hallwayToRoom1.checkCollisions(activePlayer);
+  }
+  if (gameState.hallwayToRoom2 && gameState.hallwayToRoom2.checkCollisions) {
+    gameState.hallwayToRoom2.checkCollisions(activePlayer);
+  }
+  if (gameState.hallwayToRoom3 && gameState.hallwayToRoom3.checkCollisions) {
+    gameState.hallwayToRoom3.checkCollisions(activePlayer);
+  }
 
   // Simple check for Room 3 for stage progression
   const playerWorld = activePlayer.position.clone();

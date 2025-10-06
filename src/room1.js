@@ -503,28 +503,22 @@ export function createRoom1() {
     ceilingLight.position.set(0, 4, 0);
     ceilingLight.name = 'ceiling-light';
     ceilingLight.castShadow = true;
-    ceilingLight.shadow.mapSize.width = 1024;
-    ceilingLight.shadow.mapSize.height = 1024;
+    ceilingLight.shadow.mapSize.width = 512;
+    ceilingLight.shadow.mapSize.height = 512;
     ceilingLight.shadow.camera.near = 0.1;
     ceilingLight.shadow.camera.far = 25;
     group.add(ceilingLight);
 
-    // Add additional fill lights for better illumination
-    const fillLight1 = new THREE.PointLight(0xffffff, 0.6, 15);
+    // Add optimized fill lights for better illumination (reduced for performance)
+    const fillLight1 = new THREE.PointLight(0xffffff, 0.4, 15);
     fillLight1.position.set(-6, 3, -6);
+    fillLight1.castShadow = false; // No shadows for fill lights
     group.add(fillLight1);
 
-    const fillLight2 = new THREE.PointLight(0xffffff, 0.6, 15);
+    const fillLight2 = new THREE.PointLight(0xffffff, 0.4, 15);
     fillLight2.position.set(6, 3, 6);
+    fillLight2.castShadow = false; // No shadows for fill lights
     group.add(fillLight2);
-
-    const fillLight3 = new THREE.PointLight(0xffffff, 0.6, 15);
-    fillLight3.position.set(-6, 3, 6);
-    group.add(fillLight3);
-
-    const fillLight4 = new THREE.PointLight(0xffffff, 0.6, 15);
-    fillLight4.position.set(6, 3, -6);
-    group.add(fillLight4);
   }
 
   // Room 1: Lighting controller setup
@@ -808,32 +802,36 @@ export function createRoom1() {
     }
   }
   
-  // Light flicker effect (hum and occasional flicker)
+  // Optimized light flicker effect (reduced frequency for performance)
   function updateLightFlicker(dt) {
     if (!lightsOn) return; // Only flicker when lights are on
     
     flickerTime += dt;
     
-    // Hum effect (subtle intensity variation)
-    const humVariation = Math.sin(flickerTime * 120) * 0.05; // 120Hz hum
+    // Only update every ~16ms (60fps max) instead of every frame
+    if (flickerTime < 0.016) return;
+    flickerTime = 0;
+    
+    // Simplified hum effect (less frequent calculations)
+    const humVariation = Math.sin(Date.now() * 0.12) * 0.03; // Reduced frequency and amplitude
     const baseIntensity = 1.0;
     
-    // Occasional flicker (random)
+    // Reduced flicker frequency for performance
     let flickerIntensity = 1.0;
-    if (Math.random() < 0.02) { // 2% chance per frame
-      flickerIntensity = Math.random() * 0.3 + 0.1; // Flicker to 10-40% intensity
+    if (Math.random() < 0.005) { // Reduced from 2% to 0.5% chance
+      flickerIntensity = Math.random() * 0.4 + 0.3; // Less dramatic flicker
     }
     
-    // Apply to ceiling light
+    // Apply to ceiling light (cached reference)
     const ceilingLight = group.getObjectByName('ceiling-light');
     if (ceilingLight) {
       ceilingLight.intensity = baseIntensity + humVariation + (flickerIntensity - 1.0);
     }
     
-    // Apply to light fixture bulb
+    // Apply to light fixture bulb (cached reference)
     const lightBulb = lightFixtureGroup.getObjectByName('light-bulb');
-    if (lightBulb) {
-      const newIntensity = 0.8 + humVariation * 0.5 + (flickerIntensity - 1.0) * 0.5;
+    if (lightBulb && lightBulb.material) {
+      const newIntensity = 0.8 + humVariation * 0.3 + (flickerIntensity - 1.0) * 0.3;
       lightBulb.material.emissiveIntensity = Math.max(0.1, newIntensity);
     }
   }

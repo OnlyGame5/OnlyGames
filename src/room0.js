@@ -128,30 +128,30 @@ export function createRoom0() {
   }
 
   // Back wall (with door opening) - Left panel
-  const backWallLeft = createWallPanel(8.9, wallHeight, new THREE.Vector3(-5.55, wallHeight/2, -roomDepthHalf));
+  const backWallLeft = createWallPanel(8.5, wallHeight, new THREE.Vector3(-5.75, wallHeight/2, -roomDepthHalf));
   backWallLeft.userData = { type: 'wall', side: 'back-left' };
   group.add(backWallLeft);
 
   // Back wall (with door opening) - Right panel
-  const backWallRight = createWallPanel(8.9, wallHeight, new THREE.Vector3(5.55, wallHeight/2, -roomDepthHalf));
+  const backWallRight = createWallPanel(8.5, wallHeight, new THREE.Vector3(5.75, wallHeight/2, -roomDepthHalf));
   backWallRight.userData = { type: 'wall', side: 'back-right' };
   group.add(backWallRight);
 
   // Left wall - Split into two panels to create opening for Room 3 hallway
-  const leftWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 4.5), Math.PI/2);
+  const leftWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 4.0), Math.PI/2);
   leftWallTop.userData = { type: 'wall', side: 'left-top' };
   group.add(leftWallTop);
 
-  const leftWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, -4.5), Math.PI/2);
+  const leftWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, -4.0), Math.PI/2);
   leftWallBottom.userData = { type: 'wall', side: 'left-bottom' };
   group.add(leftWallBottom);
 
   // Right wall - Split into two panels to create opening for Room 1 hallway
-  const rightWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 4.5), Math.PI/2);
+  const rightWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 4.0), Math.PI/2);
   rightWallTop.userData = { type: 'wall', side: 'right-top' };
   group.add(rightWallTop);
 
-  const rightWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, -4.5), Math.PI/2);
+  const rightWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, -4.0), Math.PI/2);
   rightWallBottom.userData = { type: 'wall', side: 'right-bottom' };
   group.add(rightWallBottom);
   
@@ -160,7 +160,7 @@ export function createRoom0() {
     new THREE.BoxGeometry(wallThickness, wallHeight, 6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  leftCollisionWallTop.position.set(-roomWidthHalf, wallHeight/2, 4.5);
+  leftCollisionWallTop.position.set(-roomWidthHalf, wallHeight/2, 4.0);
   leftCollisionWallTop.userData = { type: 'collision-wall', side: 'left-top' };
   group.add(leftCollisionWallTop);
 
@@ -168,7 +168,7 @@ export function createRoom0() {
     new THREE.BoxGeometry(wallThickness, wallHeight, 6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  leftCollisionWallBottom.position.set(-roomWidthHalf, wallHeight/2, -4.5);
+  leftCollisionWallBottom.position.set(-roomWidthHalf, wallHeight/2, -4.0);
   leftCollisionWallBottom.userData = { type: 'collision-wall', side: 'left-bottom' };
   group.add(leftCollisionWallBottom);
   
@@ -176,7 +176,7 @@ export function createRoom0() {
     new THREE.BoxGeometry(wallThickness, wallHeight, 6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  rightCollisionWallTop.position.set(roomWidthHalf, wallHeight/2, 4.5);
+  rightCollisionWallTop.position.set(roomWidthHalf, wallHeight/2, 4.0);
   rightCollisionWallTop.userData = { type: 'collision-wall', side: 'right-top' };
   group.add(rightCollisionWallTop);
 
@@ -184,16 +184,16 @@ export function createRoom0() {
     new THREE.BoxGeometry(wallThickness, wallHeight, 6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  rightCollisionWallBottom.position.set(roomWidthHalf, wallHeight/2, -4.5);
+  rightCollisionWallBottom.position.set(roomWidthHalf, wallHeight/2, -4.0);
   rightCollisionWallBottom.userData = { type: 'collision-wall', side: 'right-bottom' };
   group.add(rightCollisionWallBottom);
 
   // Front wall (entrance) - Create detailed panels
-  const frontWallLeft = createWallPanel(8, wallHeight, new THREE.Vector3(-6, wallHeight/2, roomDepthHalf));
+  const frontWallLeft = createWallPanel(9, wallHeight, new THREE.Vector3(-5.5, wallHeight/2, roomDepthHalf));
   frontWallLeft.userData = { type: 'wall', side: 'front-left' };
   group.add(frontWallLeft);
   
-  const frontWallRight = createWallPanel(8, wallHeight, new THREE.Vector3(6, wallHeight/2, roomDepthHalf));
+  const frontWallRight = createWallPanel(9, wallHeight, new THREE.Vector3(5.5, wallHeight/2, roomDepthHalf));
   frontWallRight.userData = { type: 'wall', side: 'front-right' };
   group.add(frontWallRight);
 
@@ -226,14 +226,22 @@ export function createRoom0() {
   headerWest.position.set(-10, 4.25, 0);
   group.add(headerWest);
   
-  // Add invisible collision wall for front wall
-  const frontCollisionWall = new THREE.Mesh(
-    new THREE.BoxGeometry(20, wallHeight, wallThickness),
+  // Add invisible collision walls for front wall (matching the visible panels)
+  const frontCollisionWallLeft = new THREE.Mesh(
+    new THREE.BoxGeometry(9, wallHeight, wallThickness),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  frontCollisionWall.position.set(0, wallHeight/2, roomDepthHalf);
-  frontCollisionWall.userData = { type: 'collision-wall', side: 'front' };
-  group.add(frontCollisionWall);
+  frontCollisionWallLeft.position.set(-5.5, wallHeight/2, roomDepthHalf);
+  frontCollisionWallLeft.userData = { type: 'collision-wall', side: 'front-left' };
+  group.add(frontCollisionWallLeft);
+  
+  const frontCollisionWallRight = new THREE.Mesh(
+    new THREE.BoxGeometry(9, wallHeight, wallThickness),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  frontCollisionWallRight.position.set(5.5, wallHeight/2, roomDepthHalf);
+  frontCollisionWallRight.userData = { type: 'collision-wall', side: 'front-right' };
+  group.add(frontCollisionWallRight);
   
   // Add invisible collision walls for back wall (with door opening)
   // Left side of doorway (from -10 to -2)
