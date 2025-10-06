@@ -59,7 +59,7 @@ export function buildStandardLightRig({
   hemiIntensity = 0.35,
   hemiSky = 0xbdd3ff,
   hemiGround = 0x1a1f2a,
-  shadowMap = 1024,
+  shadowMap = 512, // Reduced from 1024 to 512 for better performance
   shadowBounds = 14, // ortho shadow camera extents
   enableAccents = false,
 } = {}) {

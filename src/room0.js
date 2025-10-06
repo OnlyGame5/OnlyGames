@@ -38,7 +38,7 @@ export function createRoom0() {
   {
     const floor = makeTiles108Floor(roomWidth, roomDepth, {
       tileSizeMeters: 1.0, // smaller value = smaller visible tiles; try 0.8 or 0.5 if you want
-      anisotropy: 16
+      anisotropy: 4 // Reduced from 16 to 4 for performance
     });
     group.add(floor);
   }
@@ -60,7 +60,7 @@ export function createRoom0() {
       repeatsPerMeterY: 0.7,
       metalness: 0.0,
       roughness: 1.0,
-      anisotropy: 12,
+      anisotropy: 4, // Reduced from 12 to 4 for performance
     });
     
     // Main panel
@@ -137,32 +137,56 @@ export function createRoom0() {
   backWallRight.userData = { type: 'wall', side: 'back-right' };
   group.add(backWallRight);
 
-  // Left wall - Single full-height panel for complete coverage
-  const leftWall = createWallPanel(roomDepth, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 0), Math.PI/2);
-  leftWall.userData = { type: 'wall', side: 'left' };
-  group.add(leftWall);
+  // Left wall - Split into two panels to create opening for Room 3 hallway
+  const leftWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 4.5), Math.PI/2);
+  leftWallTop.userData = { type: 'wall', side: 'left-top' };
+  group.add(leftWallTop);
 
-  // Right wall - Single full-height panel for complete coverage
-  const rightWall = createWallPanel(roomDepth, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 0), Math.PI/2);
-  rightWall.userData = { type: 'wall', side: 'right' };
-  group.add(rightWall);
+  const leftWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, -4.5), Math.PI/2);
+  leftWallBottom.userData = { type: 'wall', side: 'left-bottom' };
+  group.add(leftWallBottom);
+
+  // Right wall - Split into two panels to create opening for Room 1 hallway
+  const rightWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 4.5), Math.PI/2);
+  rightWallTop.userData = { type: 'wall', side: 'right-top' };
+  group.add(rightWallTop);
+
+  const rightWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, -4.5), Math.PI/2);
+  rightWallBottom.userData = { type: 'wall', side: 'right-bottom' };
+  group.add(rightWallBottom);
   
-  // Add invisible collision walls behind the detailed panels
-  const leftCollisionWall = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 15),
+  // Add invisible collision walls behind the detailed panels with openings
+  const leftCollisionWallTop = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  leftCollisionWall.position.set(-roomWidthHalf, wallHeight/2, 0);
-  leftCollisionWall.userData = { type: 'collision-wall', side: 'left' };
-  group.add(leftCollisionWall);
-  
-  const rightCollisionWall = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 15),
+  leftCollisionWallTop.position.set(-roomWidthHalf, wallHeight/2, 4.5);
+  leftCollisionWallTop.userData = { type: 'collision-wall', side: 'left-top' };
+  group.add(leftCollisionWallTop);
+
+  const leftCollisionWallBottom = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  rightCollisionWall.position.set(roomWidthHalf, wallHeight/2, 0);
-  rightCollisionWall.userData = { type: 'collision-wall', side: 'right' };
-  group.add(rightCollisionWall);
+  leftCollisionWallBottom.position.set(-roomWidthHalf, wallHeight/2, -4.5);
+  leftCollisionWallBottom.userData = { type: 'collision-wall', side: 'left-bottom' };
+  group.add(leftCollisionWallBottom);
+  
+  const rightCollisionWallTop = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  rightCollisionWallTop.position.set(roomWidthHalf, wallHeight/2, 4.5);
+  rightCollisionWallTop.userData = { type: 'collision-wall', side: 'right-top' };
+  group.add(rightCollisionWallTop);
+
+  const rightCollisionWallBottom = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  rightCollisionWallBottom.position.set(roomWidthHalf, wallHeight/2, -4.5);
+  rightCollisionWallBottom.userData = { type: 'collision-wall', side: 'right-bottom' };
+  group.add(rightCollisionWallBottom);
 
   // Front wall (entrance) - Create detailed panels
   const frontWallLeft = createWallPanel(8, wallHeight, new THREE.Vector3(-6, wallHeight/2, roomDepthHalf));
@@ -172,6 +196,35 @@ export function createRoom0() {
   const frontWallRight = createWallPanel(8, wallHeight, new THREE.Vector3(6, wallHeight/2, roomDepthHalf));
   frontWallRight.userData = { type: 'wall', side: 'front-right' };
   group.add(frontWallRight);
+
+  // --- ADD HEADER PANELS FOR HALLWAY OPENINGS ---
+  const headerMaterial = new THREE.MeshStandardMaterial({ color: 0xbbc1c9, metalness: 0.8, roughness: 0.3 });
+  const headerHeight = 0.5; // Assuming a standard wall height of 4.5, adjust if needed
+  const hallwayWidth = 2;
+
+  // Header for Room 1 Opening (East Wall / Right Wall)
+  const headerEast = new THREE.Mesh(
+    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
+    headerMaterial
+  );
+  headerEast.position.set(10, 4.25, 0); // Positioned above the opening
+  group.add(headerEast);
+
+  // Header for Room 2 Opening (South Wall / Back Wall)
+  const headerSouth = new THREE.Mesh(
+    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
+    headerMaterial
+  );
+  headerSouth.position.set(0, 4.25, -7.5);
+  group.add(headerSouth);
+
+  // Header for Room 3 Opening (West Wall / Left Wall)
+  const headerWest = new THREE.Mesh(
+    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
+    headerMaterial
+  );
+  headerWest.position.set(-10, 4.25, 0);
+  group.add(headerWest);
   
   // Add invisible collision wall for front wall
   const frontCollisionWall = new THREE.Mesh(
@@ -270,8 +323,8 @@ export function createRoom0() {
       color: 0xffffff,
       transparent: true,
       opacity: 0.3,
-      emissive: 0xffffff,
-      emissiveIntensity: 0.1
+      // emissive: 0xffffff, // Removed for performance
+      // emissiveIntensity: 0.1 // Removed for performance
     })
   );
   lightDiffuser.position.set(0, -0.1, 0);
@@ -283,8 +336,8 @@ export function createRoom0() {
     new THREE.SphereGeometry(0.3, 12, 8),
     new THREE.MeshStandardMaterial({ 
       color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 0.8,
+      // emissive: 0xffffff, // Removed for performance
+      // emissiveIntensity: 0.8, // Removed for performance
       transparent: true,
       opacity: 0.9
     })
@@ -326,49 +379,7 @@ export function createRoom0() {
     group.add(rig);
   }
 
-  // Stage 0: Add wall-mounted emergency lights
-  const emergencyLightMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x2a2a2a,
-    metalness: 0.8,
-    roughness: 0.2
-  });
-  
-  const emergencyLight1 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.2, 0.1),
-    emergencyLightMaterial
-  );
-  emergencyLight1.position.set(-roomWidthHalf + 0.1, wallHeight - 0.5, -3);
-  emergencyLight1.castShadow = true;
-  group.add(emergencyLight1);
-  
-  const emergencyLight2 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.2, 0.1),
-    emergencyLightMaterial
-  );
-  emergencyLight2.position.set(roomWidthHalf - 0.1, wallHeight - 0.5, 3);
-  emergencyLight2.castShadow = true;
-  group.add(emergencyLight2);
-  
-  // Add red emergency light indicators
-  const redLightMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0xff0000,
-    emissive: 0xff0000,
-    emissiveIntensity: 0.3
-  });
-  
-  const redLight1 = new THREE.Mesh(
-    new THREE.SphereGeometry(0.05, 8, 6),
-    redLightMaterial
-  );
-  redLight1.position.set(-roomWidthHalf + 0.15, wallHeight - 0.4, -3);
-  group.add(redLight1);
-  
-  const redLight2 = new THREE.Mesh(
-    new THREE.SphereGeometry(0.05, 8, 6),
-    redLightMaterial
-  );
-  redLight2.position.set(roomWidthHalf - 0.15, wallHeight - 0.4, 3);
-  group.add(redLight2);
+  // Emergency lights removed for performance optimization (like Room 1)
 
   // Stage 0: Pedestal with key - Metal030 textured
   const pedestalBaseGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32);
@@ -377,7 +388,7 @@ export function createRoom0() {
     makeMetal030MaterialForCylinderFlexible(0.4, 0.1, metal030Files, {
       uScale: 0.3,
       vScale: 0.3,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       // attachAOToGeometry: pedestalBaseGeo,
     })
   );
@@ -392,7 +403,7 @@ export function createRoom0() {
     makeMetal030MaterialForCylinderFlexible(0.3, 0.8, metal030Files, {
       uScale: 0.25,
       vScale: 0.25,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       // attachAOToGeometry: pedestalGeo,
     })
   );
@@ -425,8 +436,8 @@ export function createRoom0() {
         
         // Enhance the material if it's a standard material
         if (child.material) {
-          child.material.emissive = new THREE.Color(0xffaa00);
-          child.material.emissiveIntensity = 0.3;
+          // child.material.emissive = new THREE.Color(0xffaa00); // Removed for performance
+          // child.material.emissiveIntensity = 0.3; // Removed for performance
           child.material.metalness = 0.8;
           child.material.roughness = 0.2;
         }
@@ -447,8 +458,8 @@ export function createRoom0() {
       new THREE.BoxGeometry(0.3, 0.1, 0.6),
       new THREE.MeshStandardMaterial({ 
         color: 0xffff00, 
-        emissive: 0xffaa00,
-        emissiveIntensity: 0.8,
+        // emissive: 0xffaa00, // Removed for performance
+        // emissiveIntensity: 0.8, // Removed for performance
         metalness: 0.8,
         roughness: 0.2
       })
@@ -471,7 +482,7 @@ export function createRoom0() {
     makeMetal030MaterialForCylinderFlexible(pillarRadius, pillarHeight, metal030Files, {
       uScale: 0.35,
       vScale: 0.35,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       // If you DO have AO, pass geometry so we add uv2:
       // attachAOToGeometry: pillarGeo1,
       // aoMapIntensity: 1.6,
@@ -489,11 +500,11 @@ export function createRoom0() {
     makeMetal030MaterialForCylinderFlexible(pillarRadius, pillarHeight, metal030Files, {
       uScale: 0.35,
       vScale: 0.35,
-      anisotropy: 16,
+      anisotropy: 4, // Reduced from 16 to 4 for performance
       // attachAOToGeometry: pillarGeo2,
     })
   );
-  cornerPillar2.position.set(8, wallHeight / 2, -6);
+  cornerPillar2.position.set(9.5, wallHeight / 2, -6);
   cornerPillar2.castShadow = true;
   cornerPillar2.receiveShadow = true;
   group.add(cornerPillar2);
@@ -707,108 +718,16 @@ export function createRoom0() {
       fallbackChair.add(leg);
     });
     
-    // Position the chair
-    fallbackChair.position.set(0, 0, 2);
+    // Position the chair (moved to avoid obstructing Room 2 hallway)
+    fallbackChair.position.set(3, 0, 2);
     fallbackChair.rotation.y = Math.PI;
     group.add(fallbackChair);
     awakeningChair = fallbackChair;
   });
 
-  // Stage 0: Security camera using GLB model
-  let securityCamera = null;
-  const cameraLoader = new GLTFLoader();
+  // Security camera removed for performance optimization
   
-  cameraLoader.load('/models/camera.glb', (gltf) => {
-    securityCamera = gltf.scene;
-    securityCamera.name = 'security-camera';
-    
-    // Scale the camera model to appropriate size
-    securityCamera.scale.set(2.0, 2.0, 2.0);
-    
-    // Enable shadows for the camera model
-    securityCamera.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-    
-    // Position camera on the right wall, facing into the room (moved forward from wall)
-    securityCamera.position.set(roomWidthHalf - 0.5, wallHeight - 1.5, 0);
-    securityCamera.rotation.y = Math.PI; // Face into the room
-    group.add(securityCamera);
-    
-    console.log('Security camera GLB model loaded successfully!');
-  }, (progress) => {
-    console.log('Loading camera model...', (progress.loaded / progress.total * 100) + '%');
-  }, (error) => {
-    console.error('Error loading camera model:', error);
-    
-    // Fallback to simple camera if loading fails
-    const fallbackCamera = new THREE.Group();
-    fallbackCamera.name = 'security-camera';
-    
-    // Camera body (main housing)
-    const cameraBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.4, 0.3, 0.2),
-      new THREE.MeshStandardMaterial({ 
-        color: 0x222222,
-        metalness: 0.8,
-        roughness: 0.2
-      })
-    );
-    cameraBody.castShadow = true;
-    fallbackCamera.add(cameraBody);
-    
-    // Camera lens
-    const cameraLens = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.08, 0.05, 16),
-      new THREE.MeshStandardMaterial({ 
-        color: 0x000000,
-        metalness: 0.9,
-        roughness: 0.1
-      })
-    );
-    cameraLens.position.set(0, 0, 0.15);
-    cameraLens.rotation.x = Math.PI / 2;
-    cameraLens.castShadow = true;
-    fallbackCamera.add(cameraLens);
-    
-    // Red status light
-    const redLight = new THREE.Mesh(
-      new THREE.SphereGeometry(0.03, 8, 6),
-      new THREE.MeshStandardMaterial({ 
-        color: 0xff0000,
-        emissive: 0xff0000,
-        emissiveIntensity: 0.8
-      })
-    );
-    redLight.position.set(0.15, 0.1, 0.1);
-    fallbackCamera.add(redLight);
-    
-    // Mounting bracket
-    const mount = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 0.1, 0.3),
-      new THREE.MeshStandardMaterial({ 
-        color: 0x333333,
-        metalness: 0.7,
-        roughness: 0.3
-      })
-    );
-    mount.position.set(0, -0.2, 0);
-    mount.castShadow = true;
-    fallbackCamera.add(mount);
-    
-    // Position camera on the right wall, facing into the room (moved forward from wall)
-    fallbackCamera.position.set(roomWidthHalf - 0.5, wallHeight - 1.5, 0);
-    fallbackCamera.rotation.y = Math.PI; // Face into the room
-    group.add(fallbackCamera);
-    securityCamera = fallbackCamera;
-  });
-  
-  // Camera tracking state
-  let isTrackingPlayer = false;
-  let playerInRoom = false;
+  // Camera tracking removed for performance optimization
 
   // Stage 0: Room state
   const state = {
@@ -823,10 +742,7 @@ export function createRoom0() {
     },
     hintTimer: null,
     hintShown: false,
-    securityCamera: {
-      isTracking: false,
-      playerInRoom: false
-    },
+    // Security camera removed for performance optimization
     awakening: {
       isAwakening: true,
       fadeInComplete: false,
@@ -846,62 +762,7 @@ export function createRoom0() {
     }
   }
 
-  // Stage 0: Security camera tracking function
-  function updateSecurityCamera(playerObject) {
-    // Only track if camera is loaded
-    if (!securityCamera) return;
-    
-    const playerPos = playerObject.position;
-    
-    // Check if player is in room (within room boundaries)
-    const inRoom = (
-      playerPos.x >= -roomWidthHalf + 1 && 
-      playerPos.x <= roomWidthHalf - 1 && 
-      playerPos.z >= -roomDepthHalf + 1 && 
-      playerPos.z <= roomDepthHalf - 1
-    );
-    
-    // Update tracking state
-    if (inRoom && !state.securityCamera.playerInRoom) {
-      // Player entered room - start tracking
-      state.securityCamera.playerInRoom = true;
-      state.securityCamera.isTracking = true;
-    } else if (!inRoom && state.securityCamera.playerInRoom) {
-      // Player left room - stop tracking
-      state.securityCamera.playerInRoom = false;
-      state.securityCamera.isTracking = false;
-    }
-    
-    // Update camera rotation to track player
-    if (state.securityCamera.isTracking) {
-      // Calculate direction from camera to player
-      const cameraPos = securityCamera.position;
-      const direction = new THREE.Vector3(
-        playerPos.x - cameraPos.x,
-        playerPos.y - cameraPos.y,
-        playerPos.z - cameraPos.z
-      );
-      
-      // Calculate rotation angles
-      const horizontalAngle = Math.atan2(direction.x, direction.z);
-      const verticalAngle = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-      
-      // Apply rotation with some smoothing
-      const targetRotationY = horizontalAngle;
-      const targetRotationX = -verticalAngle;
-      
-      // Smooth rotation interpolation
-      const rotationSpeed = 2.0; // radians per second
-      const maxRotation = Math.PI / 4; // 45 degrees max vertical rotation
-      
-      // Clamp vertical rotation
-      const clampedVerticalAngle = Math.max(-maxRotation, Math.min(maxRotation, targetRotationX));
-      
-      // Apply rotations
-      securityCamera.rotation.y = THREE.MathUtils.lerp(securityCamera.rotation.y, targetRotationY, rotationSpeed * 0.016);
-      securityCamera.rotation.x = THREE.MathUtils.lerp(securityCamera.rotation.x, clampedVerticalAngle, rotationSpeed * 0.016);
-    }
-  }
+  // Security camera tracking function removed for performance optimization
 
   // Stage 0: Awakening sequence management
   function startAwakeningSequence() {
@@ -928,8 +789,7 @@ export function createRoom0() {
       startAwakeningSequence();
     }
 
-    // Stage 0: Update security camera tracking
-    updateSecurityCamera(playerObject);
+    // Security camera tracking removed for performance optimization
     
     // Stage 0: Stable lighting - no flickering needed
 
@@ -1082,9 +942,28 @@ export function createRoom0() {
     const playerRadius = 0.5;
     const pos = playerObject.position;
 
-    // Side walls (x clamping) inside Room 0
-    if (pos.x < -roomWidthHalf + playerRadius) pos.x = -roomWidthHalf + playerRadius;
-    if (pos.x >  roomWidthHalf - playerRadius) pos.x =  roomWidthHalf - playerRadius;
+    // Side walls (x clamping) inside Room 0 with openings for hallways
+    // Left wall (West) with opening for Room 3 hallway
+    if (pos.x < -roomWidthHalf + playerRadius) {
+      // Check if player is aligned with the opening (z between -1 and 1)
+      if (pos.z >= -1 && pos.z <= 1) {
+        // Player is in the opening, allow passage
+      } else {
+        // Player is NOT aligned with the opening, so they hit the wall
+        pos.x = -roomWidthHalf + playerRadius;
+      }
+    }
+    
+    // Right wall (East) with opening for Room 1 hallway
+    if (pos.x > roomWidthHalf - playerRadius) {
+      // Check if player is aligned with the opening (z between -1 and 1)
+      if (pos.z >= -1 && pos.z <= 1) {
+        // Player is in the opening, allow passage
+      } else {
+        // Player is NOT aligned with the opening, so they hit the wall
+        pos.x = roomWidthHalf - playerRadius;
+      }
+    }
 
     // Front wall (positive Z) inside Room 0
     if (pos.z > roomDepthHalf - playerRadius) pos.z = roomDepthHalf - playerRadius;
@@ -1120,7 +999,7 @@ export function createRoom0() {
 
   // Hallway removed - now using reusable hallway component from main.js
 
-  // Create entry/exit anchors for future hallway/minimap work
+  // Create entry/exit anchors for hallway connections
   const entryAnchor = new THREE.Object3D();
   entryAnchor.name = 'entryAnchor';
   entryAnchor.position.set(0, 0, roomDepthHalf); // Front of room (entry point)
@@ -1131,14 +1010,40 @@ export function createRoom0() {
   exitAnchor.position.set(0, 0, -roomDepthHalf); // Back of room (exit point)
   group.add(exitAnchor);
 
+  // Create anchors for room connections (required by LevelManager)
+  const anchors = {
+    entry_from_room1: new THREE.Object3D(),
+    exit_to_room1: new THREE.Object3D(),
+    entry_from_room2: new THREE.Object3D(),
+    exit_to_room2: new THREE.Object3D(),
+    entry_from_room3: new THREE.Object3D(),
+    exit_to_room3: new THREE.Object3D(),
+  };
+
+  // Position the anchors around Room 0 (Hub)
+  anchors.exit_to_room1.position.set(9, 1, 0); // East exit
+  anchors.entry_from_room1.position.set(9, 1, 0); // East entry
+
+  anchors.exit_to_room2.position.set(0, 1, 7.5); // South exit
+  anchors.entry_from_room2.position.set(0, 1, 7.5); // South entry
+
+  anchors.exit_to_room3.position.set(-9, 1, 0); // West exit
+  anchors.entry_from_room3.position.set(-9, 1, 0); // West entry
+
+  Object.values(anchors).forEach(anchor => group.add(anchor));
+
   // Stage 0: Return room object with all necessary properties
   return {
     group,
-    anchors: { entry: entryAnchor, exit: exitAnchor },
+    anchors: { 
+      entry: entryAnchor, 
+      exit: exitAnchor,
+      ...anchors // Include all room connection anchors
+    },
     door,
     key,
     awakeningChair,
-    securityCamera,
+    // securityCamera removed for performance optimization
     triggers: { doorwayBox },
     state,
     updateRoom0,

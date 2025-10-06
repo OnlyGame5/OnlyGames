@@ -20,31 +20,72 @@ export function createRoom2() {
   floor.receiveShadow = true;
   group.add(floor);
 
-  // Walls (front wall has an opening near x ≈ -2 to align with Room 1 hallway at world x ≈ -8)
-  // Back wall now has an opening to connect to Room 3 hallway
-  const walls = [
-    // Back wall split into two segments to create a doorway/opening for Room 3 hallway
-    { size: [5, 4, 0.2], pos: [-3.5, 2, -6] }, // left segment
-    { size: [5, 4, 0.2], pos: [3.5, 2, -6] },  // right segment, leaves ~2 units gap centered at x ~0
-    // Front wall split into two segments to create a doorway/opening near left side
-    { size: [6, 4, 0.2], pos: [-3, 2, 6] }, // left segment
-    { size: [4, 4, 0.2], pos: [4, 2, 6] },  // right segment, leaves ~2 units gap centered at x ~1
-    // Left wall
-    { size: [0.2, 4, 12], pos: [-6, 2, 0] },
-    // Right wall
-    { size: [0.2, 4, 12], pos: [6, 2, 0] }
-  ];
+  // --- EXPLICIT WALL CREATION FOR ROOM 2 ---
 
-  walls.forEach(wall => {
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(...wall.size),
-      wallMaterial
-    );
-    mesh.position.set(...wall.pos);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-  });
+  const wallHeight = 4;
+  const wallThickness = 0.2;
+  const roomWidthHalf = 6;  // Room is 12x12
+  const roomDepthHalf = 6;
+
+  // Back wall (South, z=-6) - SOLID
+  const backWall = new THREE.Mesh(
+    new THREE.BoxGeometry(12, wallHeight, wallThickness),
+    wallMaterial
+  );
+  backWall.position.set(0, wallHeight / 2, -roomDepthHalf);
+  backWall.castShadow = true;
+  backWall.receiveShadow = true;
+  group.add(backWall);
+  
+  // Front wall (North, z=6) - WITH OPENING
+  const frontWall_LeftSegment = new THREE.Mesh(
+    new THREE.BoxGeometry(5, wallHeight, wallThickness), // 5 units wide
+    wallMaterial
+  );
+  frontWall_LeftSegment.position.set(-3.5, wallHeight / 2, roomDepthHalf);
+  frontWall_LeftSegment.castShadow = true;
+  frontWall_LeftSegment.receiveShadow = true;
+  group.add(frontWall_LeftSegment);
+
+  const frontWall_RightSegment = new THREE.Mesh(
+    new THREE.BoxGeometry(5, wallHeight, wallThickness), // 5 units wide
+    wallMaterial
+  );
+  frontWall_RightSegment.position.set(3.5, wallHeight / 2, roomDepthHalf);
+  frontWall_RightSegment.castShadow = true;
+  frontWall_RightSegment.receiveShadow = true;
+  group.add(frontWall_RightSegment);
+
+  // Left wall (West, x=-6) - SOLID
+  const leftWall = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, 12),
+    wallMaterial
+  );
+  leftWall.position.set(-roomWidthHalf, wallHeight / 2, 0);
+  leftWall.castShadow = true;
+  leftWall.receiveShadow = true;
+  group.add(leftWall);
+
+  // Right wall (East, x=6) - SOLID
+  const rightWall = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, wallHeight, 12),
+    wallMaterial
+  );
+  rightWall.position.set(roomWidthHalf, wallHeight / 2, 0);
+  rightWall.castShadow = true;
+  rightWall.receiveShadow = true;
+  group.add(rightWall);
+
+  // Header above the new North opening
+  const headerNorth = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 0.5, wallThickness), 
+    wallMaterial
+  );
+  headerNorth.position.set(0, 4.25, 6);
+  headerNorth.castShadow = true;
+  headerNorth.receiveShadow = true;
+  group.add(headerNorth);
+
 
   // Ceiling
   const ceiling = floor.clone();
@@ -55,7 +96,7 @@ export function createRoom2() {
   const loader = new GLTFLoader();
   loader.load('/models/scales.glb', (gltf) => {
       const scales = setupModel(gltf);
-      scales.position.set(0, 0, -5.5); // Position at the back, slightly elevated
+      scales.position.set(0, 0, -4.5); // Moved slightly forward to avoid blocking any potential opening
       scales.scale.set(0.05, 0.05, 0.05); // Keep existing scale
       group.add(scales);
   });
@@ -99,23 +140,6 @@ export function createRoom2() {
       group.add(book);
   });
 
-  // Add a small hallway stub to meet Room 1 hallway visually
-  const hallwayStub = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 0.2, 4),
-    wallMaterial
-  );
-  hallwayStub.position.set(-2, 0.1, 8); // extends slightly out of the room to meet incoming hallway
-  hallwayStub.receiveShadow = true;
-  group.add(hallwayStub);
-
-  // Add a hallway stub to connect to Room 3 hallway
-  const hallwayStubToRoom3 = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 0.2, 4),
-    wallMaterial
-  );
-  hallwayStubToRoom3.position.set(0, 0.1, -8); // extends slightly out of the room to meet Room 3 hallway
-  hallwayStubToRoom3.receiveShadow = true;
-  group.add(hallwayStubToRoom3);
 
   return {
     group,
@@ -139,17 +163,14 @@ export function createRoom2() {
         playerLocal.x = roomHalf - wallThickness - playerRadius;
         clamped = true;
       }
-      // Back wall with doorway/opening around x in [-1, 1] approximately
+      // Back wall (now solid)
       if (playerLocal.z - playerRadius < -roomHalf + wallThickness) {
-        const inBackOpeningX = (playerLocal.x >= -1 && playerLocal.x <= 1);
-        if (!inBackOpeningX) {
-          playerLocal.z = -roomHalf + wallThickness + playerRadius;
-          clamped = true;
-        }
+        playerLocal.z = -roomHalf + wallThickness + playerRadius;
+        clamped = true;
       }
-      // Front wall with doorway/opening around x in [-4, 0] approximately
+      // Front wall with opening for hub hallway (North)
       if (playerLocal.z + playerRadius > roomHalf - wallThickness) {
-        const inOpeningX = (playerLocal.x >= -4 && playerLocal.x <= 0);
+        const inOpeningX = (playerLocal.x >= -1 && playerLocal.x <= 1);
         if (!inOpeningX) {
           playerLocal.z = roomHalf - wallThickness - playerRadius;
           clamped = true;

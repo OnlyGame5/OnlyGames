@@ -70,32 +70,15 @@ export function createRoom1() {
     normalScale: new THREE.Vector2(0.3, 0.3)
   });
 
-  // Back wall - A single piece with an opening in the left corner (from x=-9 to x=-7)
-  const backWall = new THREE.Mesh(new THREE.BoxGeometry(16, 4, 0.2), wallMat);
-  backWall.position.set(1, 2, -9); // Positioned to leave a gap on the left
+  // Back wall - Solid wall spanning full width
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.2), wallMat);
+  backWall.position.set(0, 2, -9); // Centered
   backWall.userData = { type: 'wall', side: 'back' };
   backWall.castShadow = true;
   backWall.receiveShadow = true;
   group.add(backWall);
 
 
-  // Create hallway to room 2 using the reusable hallway component
-  const hallway = createReusableHallway({
-    length: 18,
-    width: 2,
-    height: 4,
-    positionX: -8,
-    positionY: 0,
-    positionZ: -18,
-    name: 'hallway-to-room2',
-    addLighting: true,
-    lightIntensity: 0.3,
-    ambientIntensity: 0.1,
-    textureSet: 'concrete031'
-  });
-  
-  // Add the reusable hallway to the group
-  group.add(hallway.group);
 
   // Front wall with doorway (split into two parts)
   const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat);
@@ -112,20 +95,34 @@ export function createRoom1() {
   frontWallRight.receiveShadow = true;
   group.add(frontWallRight);
 
-  // Side walls
-  const wall3 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 18), wallMat);
-  wall3.position.set(-9, 2, 0);
-  wall3.userData = { type: 'wall', side: 'left' };
-  wall3.castShadow = true;
-  wall3.receiveShadow = true;
-  group.add(wall3);
+  // Side walls - Left wall with opening for hub hallway
+  const wall3_part1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 8), wallMat);
+  wall3_part1.position.set(-9, 2, 5); // From z=1 to z=9
+  wall3_part1.userData = { type: 'wall', side: 'left-part1' };
+  wall3_part1.castShadow = true;
+  wall3_part1.receiveShadow = true;
+  group.add(wall3_part1);
 
-  const wall4 = wall3.clone();
+  const wall3_part2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 8), wallMat);
+  wall3_part2.position.set(-9, 2, -5); // From z=-1 to z=-9
+  wall3_part2.userData = { type: 'wall', side: 'left-part2' };
+  wall3_part2.castShadow = true;
+  wall3_part2.receiveShadow = true;
+  group.add(wall3_part2);
+
+  const wall4 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 18), wallMat);
   wall4.position.set(9, 2, 0);
   wall4.userData = { type: 'wall', side: 'right' };
   wall4.castShadow = true;
   wall4.receiveShadow = true;
   group.add(wall4);
+
+  // Header panel above the opening in the left wall (West wall)
+  const headerWest = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.5, 2), wallMat);
+  headerWest.position.set(-9, 4.25, 0);
+  headerWest.castShadow = true;
+  headerWest.receiveShadow = true;
+  group.add(headerWest);
 
   // Detailed industrial pillars with unique color scheme
   function createDetailedPillarMaterial() {
@@ -612,11 +609,42 @@ export function createRoom1() {
   wirePanel.group.position.set(8.2, 0.8, 0); // Position on the right wall
   wirePanel.group.rotation.y = -Math.PI / 2; // Rotate to face into the room (from the right wall)
   group.add(wirePanel.group);
+  
+  // Add a visible marker for debugging
+  const markerGeometry = new THREE.SphereGeometry(0.2, 8, 6);
+  const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const wirePanelMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+  wirePanelMarker.position.set(8.2, 0.8, 0);
+  wirePanelMarker.name = 'wirePanelMarker';
+  group.add(wirePanelMarker);
+  
+  console.log('Wire Panel initialized:', {
+    exists: !!wirePanel,
+    groupExists: !!wirePanel.group,
+    position: wirePanel.group.position.clone(),
+    name: wirePanel.group.name,
+    markerAdded: true
+  });
 
   // Simon Stand System - positioned on right wall, below wire panel
   const simonStand = createSimonStand([8.2, 0, -3]); // Right wall, below wire panel
   simonStand.name = 'simonStand';
   group.add(simonStand);
+  
+  // Add a visible marker for debugging
+  const simonMarkerGeometry = new THREE.SphereGeometry(0.15, 8, 6);
+  const simonMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const simonStandMarker = new THREE.Mesh(simonMarkerGeometry, simonMarkerMaterial);
+  simonStandMarker.position.set(8.2, 0, -3);
+  simonStandMarker.name = 'simonStandMarker';
+  group.add(simonStandMarker);
+  
+  console.log('Simon Stand initialized:', {
+    exists: !!simonStand,
+    position: simonStand.position.clone(),
+    name: simonStand.name,
+    markerAdded: true
+  });
   
   // Bookshelf Door - positioned on left wall, away from light switch
   const bookshelfDoor = createBookshelfDoor();
@@ -702,14 +730,28 @@ export function createRoom1() {
 
   // E-key interaction for wire panel
   function handleWirePanelEKey(playerObject) {
-    if (!wirePanel) return false;
+    console.log('Wire panel E-key check - wirePanel exists:', !!wirePanel);
+    
+    if (!wirePanel) {
+      console.log('Wire panel not found');
+      return false;
+    }
     
     // Check if player is near the wire panel
     const panelWorldPos = new THREE.Vector3();
     wirePanel.group.getWorldPosition(panelWorldPos);
     const distance = playerObject.position.distanceTo(panelWorldPos);
     
+    console.log('Wire panel distance check:', {
+      playerPos: playerObject.position.clone(),
+      panelPos: panelWorldPos.clone(),
+      distance: distance,
+      threshold: 3.0,
+      isCloseEnough: distance < 3.0
+    });
+    
     if (distance < 3.0) { // Within 3 units of the panel
+      console.log('Wire panel interaction triggered, isOpen:', wirePanel.state.isOpen);
       if (wirePanel.state.isOpen) {
         wirePanel.closePanel();
         console.log('Wire panel closed via E-key');
@@ -720,6 +762,7 @@ export function createRoom1() {
       return true;
     }
     
+    console.log('Wire panel too far away');
     return false;
   }
 
@@ -1031,20 +1074,39 @@ export function createRoom1() {
 
   // E-key interaction for Simon Stand
   function handleSimonStandEKey(playerObject) {
-    if (!simonStand) return false;
+    console.log('Simon Stand E-key check - simonStand exists:', !!simonStand);
+    
+    if (!simonStand) {
+      console.log('Simon Stand not found');
+      return false;
+    }
     
     // Get Simon Stand world position
     const standWorldPos = new THREE.Vector3();
     simonStand.getWorldPosition(standWorldPos);
     const distance = playerObject.position.distanceTo(standWorldPos);
     
-    // Check if player is close enough (within 3 units)
-    if (distance > 3.0) return false;
+    console.log('Simon Stand distance check:', {
+      playerPos: playerObject.position.clone(),
+      standPos: standWorldPos.clone(),
+      distance: distance,
+      threshold: 3.0,
+      isCloseEnough: distance <= 3.0
+    });
     
-    console.log('Simon Stand E-key interaction');
+    // Check if player is close enough (within 3 units)
+    if (distance > 3.0) {
+      console.log('Simon Stand too far away');
+      return false;
+    }
+    
+    console.log('Simon Stand E-key interaction triggered');
     const { wirePuzzleComplete, memoryPuzzleComplete } = gameStore;
     
+    console.log('Simon Stand puzzle states:', { wirePuzzleComplete, memoryPuzzleComplete });
+    
     if (!wirePuzzleComplete) {
+      console.log('Simon Stand locked - wire puzzle not complete');
       // Show locked message
       if (window.AI) {
         window.AI.say("Complete the wire puzzle first to unlock the memory training station.");
@@ -1053,6 +1115,7 @@ export function createRoom1() {
     }
     
     if (memoryPuzzleComplete) {
+      console.log('Simon Stand already completed');
       // Already completed
       if (window.AI) {
         window.AI.say("Memory training completed. The station is now offline.");
@@ -1060,6 +1123,7 @@ export function createRoom1() {
       return true;
     }
     
+    console.log('Opening Simon Stand memory UI');
     // Open memory UI
     gameStore.openMemoryUI();
     
@@ -1073,24 +1137,34 @@ export function createRoom1() {
 
   // E-key interaction for room1
   function handleEKeyInteraction(playerObject) {
+    console.log('Room 1 E-key handler called with player at:', playerObject.position.clone());
+    
     // Check wire panel first
+    console.log('Checking wire panel interaction...');
     if (handleWirePanelEKey(playerObject)) {
+      console.log('Wire panel interaction handled');
       return true;
     }
     
     // Check Simon Stand interaction
+    console.log('Checking Simon Stand interaction...');
     if (handleSimonStandEKey(playerObject)) {
+      console.log('Simon Stand interaction handled');
       return true;
     }
     
     // Check if player is near the light switch
+    console.log('Checking light switch interaction...');
     const lightSwitchGroup = group.getObjectByName('light-switch-group');
     if (lightSwitchGroup) {
       const switchWorldPos = new THREE.Vector3();
       lightSwitchGroup.getWorldPosition(switchWorldPos);
       const distanceToSwitch = playerObject.position.distanceTo(switchWorldPos);
       
+      console.log('Light switch distance:', distanceToSwitch, 'threshold: 4.0');
+      
       if (distanceToSwitch < 4.0) { // Increased from 2.0 to 4.0 units
+        console.log('Light switch interaction handled');
         // Toggle lights
         const currentState = lightsOn;
         setRoom1Lights(!currentState);
@@ -1099,13 +1173,25 @@ export function createRoom1() {
     }
     
     // Original safe interaction
-    if (!state.safeObject) return false;
+    console.log('Checking safe interaction...');
+    if (!state.safeObject) {
+      console.log('Safe object not found');
+      return false;
+    }
+    
     // Compare in world space because room1 group is offset in the scene
     const safeWorldPos = new THREE.Vector3();
     state.safeObject.getWorldPosition(safeWorldPos);
     const distance = playerObject.position.distanceTo(safeWorldPos);
-    if (distance > 2.2) return false;
+    
+    console.log('Safe distance:', distance, 'threshold: 2.2');
+    
+    if (distance > 2.2) {
+      console.log('No Room 1 interactions triggered');
+      return false;
+    }
 
+    console.log('Safe interaction handled');
     // Toggle keypad on/off
     toggleKeypad(!state.keypadOpen);
     return true;
@@ -1245,10 +1331,16 @@ export function createRoom1() {
     const playerWorldPos = playerObject.position.clone();
     const playerLocal = group.worldToLocal(playerWorldPos.clone());
 
-    // Left wall
+    // Left wall with opening for hub hallway
     if (playerLocal.x - playerRadius < -roomHalf + wallThickness) {
-      playerLocal.x = -roomHalf + wallThickness + playerRadius;
-      clamped = true;
+      // Check if player is aligned with the opening (z between -1 and 1)
+      if (playerLocal.z >= -1 && playerLocal.z <= 1) {
+        // Player is in the opening, allow passage
+      } else {
+        // Player is NOT aligned with the opening, so they hit the wall
+        playerLocal.x = -roomHalf + wallThickness + playerRadius;
+        clamped = true;
+      }
     }
     // Right wall
     if (playerLocal.x + playerRadius > roomHalf - wallThickness) {
@@ -1256,27 +1348,10 @@ export function createRoom1() {
       clamped = true;
     }
     
-    // Back wall and hallway collision
+    // Back wall (now solid)
     if (playerLocal.z - playerRadius < -roomHalf + wallThickness) {
-      // Player is at or behind the back wall line.
-      // Check if player is aligned with the opening (x between -9 and -7).
-      if (playerLocal.x >= -9 && playerLocal.x <= -7) {
-        // Player is in the hallway. Constrain their X position to the hallway walls.
-        // The player's Z position is not clamped here, allowing passage.
-        if (playerLocal.x - playerRadius < -9) {
-            playerLocal.x = -9 + playerRadius;
-            clamped = true;
-        }
-        if (playerLocal.x + playerRadius > -7) {
-            playerLocal.x = -7 - playerRadius;
-            clamped = true;
-        }
-      } else {
-        // Player is NOT aligned with the opening, so they hit the wall.
-        // Clamp their Z position to prevent them from passing through the wall.
-        playerLocal.z = -roomHalf + wallThickness + playerRadius;
-        clamped = true;
-      }
+      playerLocal.z = -roomHalf + wallThickness + playerRadius;
+      clamped = true;
     }
     
     // Front wall
@@ -1376,47 +1451,34 @@ export function createRoom1() {
   switchMountingBracket.position.set(0, -0.6, 0);
   lightSwitchGroup.add(switchMountingBracket);
   
-  // Position the entire switch group - moved to left wall for visibility
-  lightSwitchGroup.position.set(-8.5, 1.8, 0); // Left wall, away from edge
+  // Position the entire switch group - moved to left wall but away from new opening
+  lightSwitchGroup.position.set(-8.5, 1.8, 4); // Left wall, moved away from new opening
   lightSwitchGroup.rotation.y = Math.PI / 2; // Rotate 90 degrees to face the wall
   lightSwitchGroup.userData = { type: 'lightSwitch' };
   group.add(lightSwitchGroup);
   
   // Add a bright spotlight to illuminate the switch area
   const switchSpotlight = new THREE.SpotLight(0x00ff00, 1.0, 15, Math.PI / 6, 0.2, 1);
-  switchSpotlight.position.set(-8.5, 4.0, 0);
-  switchSpotlight.target.position.set(-8.5, 1.8, 0);
+  switchSpotlight.position.set(-8.5, 4.0, 4);
+  switchSpotlight.target.position.set(-8.5, 1.8, 4);
   switchSpotlight.castShadow = true;
   switchSpotlight.name = 'switch-spotlight';
   group.add(switchSpotlight);
   group.add(switchSpotlight.target);
   
   // Add a large glowing floor indicator to help find the switch
-  const floorIndicator = new THREE.Mesh(
-    new THREE.CircleGeometry(2.0, 16),
-    new THREE.MeshStandardMaterial({
-      color: 0x00ff00,
-      emissive: 0x00ff00,
-      emissiveIntensity: 0.8,
-      transparent: true,
-      opacity: 0.7
-    })
-  );
-  floorIndicator.position.set(-8.5, 0.01, 0);
-  floorIndicator.rotation.x = -Math.PI / 2;
-  floorIndicator.name = 'switch-indicator';
-  group.add(floorIndicator);
+  // Green floor indicator removed for performance optimization
   
   // Add a bright point light above the switch for extra visibility
   const switchLight = new THREE.PointLight(0x00ff00, 0.8, 10);
-  switchLight.position.set(-8.5, 3.0, 0);
+  switchLight.position.set(-8.5, 3.0, 4);
   switchLight.name = 'switch-point-light';
   group.add(switchLight);
   
   // Add switch lights to lights registry
   lights.switchSpotlight = new THREE.SpotLight(0x00ff00, 1.0, 15, Math.PI / 6, 0.2, 1);
-  lights.switchSpotlight.position.set(-8.5, 4.0, 0);
-  lights.switchSpotlight.target.position.set(-8.5, 1.8, 0);
+  lights.switchSpotlight.position.set(-8.5, 4.0, 4);
+  lights.switchSpotlight.target.position.set(-8.5, 1.8, 4);
   lights.switchSpotlight.castShadow = true;
   lights.switchSpotlight.name = 'switch-spotlight';
   lights.switchSpotlight.distance = 15; // Clamp distance
@@ -1434,7 +1496,7 @@ export function createRoom1() {
     emissiveIntensity: 0.5
   });
   const arrowIndicator = new THREE.Mesh(arrowGeometry, arrowMaterial);
-  arrowIndicator.position.set(-8.5, 3.5, 0);
+  arrowIndicator.position.set(-8.5, 3.5, 4);
   arrowIndicator.rotation.x = Math.PI;
   arrowIndicator.name = 'arrow-indicator';
   group.add(arrowIndicator);
@@ -1447,7 +1509,7 @@ export function createRoom1() {
   if (switchButtonRef) emissives.push(switchButtonRef);
   if (statusLight1Ref) emissives.push(statusLight1Ref);
   if (statusLight2Ref) emissives.push(statusLight2Ref);
-  if (floorIndicator) emissives.push(floorIndicator);
+  // floorIndicator removed for performance optimization
   if (arrowIndicator) emissives.push(arrowIndicator);
   
   // Add pulsing animation to the arrow
@@ -1717,11 +1779,6 @@ export function createRoom1() {
   
   // Update dialogue system
   function updateRoom1Dialogue() {
-    // Debug: Check if function is being called
-    if (!room1DialogueState.hasWelcomed) {
-      console.log('updateRoom1Dialogue called');
-    }
-    
     // Check if player is in Room 1
     if (window.leonardModel || window.player) {
       const activePlayer = window.leonardModel || window.player;
@@ -1733,9 +1790,9 @@ export function createRoom1() {
         localToRoom1.z >= -half && localToRoom1.z <= half
       );
       
-      // Debug logging - ALWAYS log when not welcomed
-      if (!room1DialogueState.hasWelcomed) {
-        console.log('Room 1 Dialogue Debug:', {
+      // Debug logging - Only log once when player first approaches
+      if (!room1DialogueState.hasWelcomed && playerPos.z < -15) {
+        console.log('Room 1 Dialogue Debug (Player approaching):', {
           playerWorldPos: { x: playerPos.x, y: playerPos.y, z: playerPos.z },
           room1GroupPos: { x: group.position.x, y: group.position.y, z: group.position.z },
           localToRoom1: { x: localToRoom1.x, y: localToRoom1.y, z: localToRoom1.z },

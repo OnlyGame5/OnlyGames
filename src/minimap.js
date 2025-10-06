@@ -13,18 +13,48 @@ export class Minimap {
     this.enlargedHeight = 400;
     this.isEnlarged = false;
     
+    // Performance optimization: track when redraw is needed
+    this.needsRedraw = true;
+    this.lastPlayerPosition = new THREE.Vector3();
+    this.lastPlayerRotation = 0;
+    this.redrawThreshold = 1.0; // Redraw if player moves more than 1.0 units (increased for better performance)
+    this.rotationThreshold = 0.2; // Redraw if player rotates more than 0.2 radians (increased for better performance)
+    this.lastRedrawTime = 0;
+    this.redrawInterval = 100; // Minimum 100ms between redraws
+    
     // Zoom settings
     this.zoomLevel = 1; // 1 = normal, 2 = zoomed in, 0.5 = zoomed out
     this.zoomLevels = [0.5, 1, 2, 4]; // Available zoom levels
     this.currentZoomIndex = 1; // Start at normal zoom
     
-    // Room data for accurate drawing based on actual world positions (Hub-and-Spoke Layout)
+    // Room data for accurate drawing based on actual world positions (Hub removed)
     this.roomData = {
-      hub: { width: 40, depth: 40, position: { x: 0, z: 0 } }, // Central hub (cylindrical, radius 20)
       room0: { width: 20, depth: 15, position: { x: 0, z: 0 } }, // Awakening chamber at origin
-      room1: { width: 18, depth: 18, position: { x: 30, z: 0 } }, // East of Hub
-      room2: { width: 12, depth: 12, position: { x: 0, z: 30 } }, // South of Hub
-      room3: { width: 12, depth: 12, position: { x: -30, z: 0 } } // West of Hub
+      room1: { width: 18, depth: 18, position: { x: 28, z: 0 } }, // East of origin (9 + 10 + 9 = 28)
+      room2: { width: 12, depth: 12, position: { x: 0, z: 22 } }, // South of origin (6 + 10 + 6 = 22)
+      room3: { width: 20, depth: 20, position: { x: -30, z: 0 } } // West of origin (10 + 10 + 10 = 30, circular)
+    };
+    
+    // Hallway data for connecting corridors (matching main.js positions)
+    this.hallwayData = {
+      hubToRoom1: { 
+        width: 2, 
+        length: 10, 
+        position: { x: 15, z: 0 },
+        rotation: Math.PI / 2 // 90 degrees (East direction)
+      },
+      hubToRoom2: { 
+        width: 2, 
+        length: 10, 
+        position: { x: 0, z: 12.5 },
+        rotation: 0 // no rotation (South direction)
+      },
+      hubToRoom3: { 
+        width: 2, 
+        length: 10, 
+        position: { x: -15, z: 0 },
+        rotation: Math.PI / 2 // 90 degrees (West direction)
+      }
     };
     
     // Calculate minimap bounds and scale
@@ -226,8 +256,40 @@ export class Minimap {
   }
   
   update() {
-    // Draw minimap to canvas
-    this.drawMinimapToCanvas();
+    // Performance optimization: Throttle redraws based on time
+    const currentTime = Date.now();
+    const timeSinceLastRedraw = currentTime - this.lastRedrawTime;
+    
+    // Only redraw if something significant has changed AND enough time has passed
+    if ((this.needsRedraw || this.shouldRedraw()) && timeSinceLastRedraw > this.redrawInterval) {
+      this.drawMinimapToCanvas();
+      this.needsRedraw = false;
+      this.lastRedrawTime = currentTime;
+    }
+  }
+  
+  shouldRedraw() {
+    const activePlayer = window.leonardModel || this.player;
+    
+    // Check if player position changed significantly
+    const positionChanged = this.lastPlayerPosition.distanceTo(activePlayer.position) > this.redrawThreshold;
+    
+    // Check if player rotation changed significantly
+    let currentRotation = 0;
+    if (window.isInFirstPerson !== undefined && window.isInFirstPerson()) {
+      currentRotation = window.camera ? window.camera.rotation.y : 0;
+    } else if (activePlayer && activePlayer.rotation) {
+      currentRotation = activePlayer.rotation.y;
+    }
+    const rotationChanged = Math.abs(currentRotation - this.lastPlayerRotation) > this.rotationThreshold;
+    
+    if (positionChanged || rotationChanged) {
+      this.lastPlayerPosition.copy(activePlayer.position);
+      this.lastPlayerRotation = currentRotation;
+      return true;
+    }
+    
+    return false;
   }
   
   drawMinimapToCanvas() {
@@ -263,16 +325,13 @@ export class Minimap {
       if (window.isInFirstPerson()) {
         // In first-person mode, use camera rotation
         angle = window.camera ? -window.camera.rotation.y : 0; // Negate to fix direction
-        console.log('First-person mode - Camera rotation.y:', angle);
       } else if (activePlayer && activePlayer.rotation) {
         // In third-person mode, use player/Leonard rotation
         angle = -activePlayer.rotation.y; // Negate to fix direction
-        console.log('Third-person mode - Player rotation.y:', angle);
       }
     } else {
       // Fallback: try to get rotation from camera directly
       angle = window.camera ? -window.camera.rotation.y : 0; // Negate to fix direction
-      console.log('Fallback - Camera rotation.y:', angle);
     }
     
     this.ctx.rotate(angle);
@@ -334,55 +393,25 @@ export class Minimap {
       // Only draw if room is large enough to be visible
       if (roomWidth > 1 && roomHeight > 1) {
         
-        // Special handling for hub (circular room)
-        if (roomName === 'hub') {
-          // Draw circular hub with distinct styling
-          const centerX = topLeft.x + roomWidth / 2;
-          const centerZ = topLeft.z + roomHeight / 2;
-          const radius = Math.min(roomWidth, roomHeight) / 2;
-          
-          // Hub fill with different color
-          this.ctx.fillStyle = 'rgba(0, 255, 255, 0.1)'; // Cyan tint for hub
-          this.ctx.beginPath();
-          this.ctx.arc(centerX, centerZ, radius, 0, 2 * Math.PI);
-          this.ctx.fill();
-          
-          // Hub outline with thicker line
-          this.ctx.strokeStyle = '#00ffff'; // Cyan for hub
-          this.ctx.lineWidth = 2.5;
-          this.ctx.beginPath();
-          this.ctx.arc(centerX, centerZ, radius, 0, 2 * Math.PI);
-          this.ctx.stroke();
-          
-          // Hub label
-          this.ctx.fillStyle = '#00ffff';
-          this.ctx.font = 'bold 10px monospace';
+        // Regular rectangular rooms
+        // Draw room fill
+        this.ctx.fillRect(topLeft.x, topLeft.z, roomWidth, roomHeight);
+        
+        // Draw room outline
+        this.ctx.strokeRect(topLeft.x, topLeft.z, roomWidth, roomHeight);
+        
+        // Add room labels (only if room is large enough)
+        if (roomWidth > 20 && roomHeight > 15) {
+          this.ctx.fillStyle = '#00ff41';
+          this.ctx.font = '8px monospace';
           this.ctx.textAlign = 'center';
-          this.ctx.shadowColor = '#00ffff';
-          this.ctx.shadowBlur = 3;
-          this.ctx.fillText('HUB', centerX, centerZ + 4);
-          
-        } else {
-          // Regular rectangular rooms
-          // Draw room fill
-          this.ctx.fillRect(topLeft.x, topLeft.z, roomWidth, roomHeight);
-          
-          // Draw room outline
-          this.ctx.strokeRect(topLeft.x, topLeft.z, roomWidth, roomHeight);
-          
-          // Add room labels (only if room is large enough)
-          if (roomWidth > 20 && roomHeight > 15) {
-            this.ctx.fillStyle = '#00ff41';
-            this.ctx.font = '8px monospace';
-            this.ctx.textAlign = 'center';
-            this.ctx.shadowColor = '#00ff41';
-            this.ctx.shadowBlur = 2;
-            this.ctx.fillText(
-              roomName.toUpperCase().replace('ROOM', 'R'),
-              topLeft.x + roomWidth / 2,
-              topLeft.z + roomHeight / 2 + 3
-            );
-          }
+          this.ctx.shadowColor = '#00ff41';
+          this.ctx.shadowBlur = 2;
+          this.ctx.fillText(
+            roomName.toUpperCase().replace('ROOM', 'R'),
+            topLeft.x + roomWidth / 2,
+            topLeft.z + roomHeight / 2 + 3
+          );
         }
         
         // Reset styles for next room
@@ -392,6 +421,66 @@ export class Minimap {
         this.ctx.shadowBlur = 0;
       }
     });
+    
+    // Draw hallways
+    this.drawHallways();
+  }
+  
+  drawHallways() {
+    // Set styles for hallway drawing (slightly different from rooms)
+    this.ctx.strokeStyle = '#00ff41';
+    this.ctx.lineWidth = 1;
+    this.ctx.fillStyle = 'rgba(0, 255, 65, 0.03)';
+    this.ctx.shadowColor = '#00ff41';
+    this.ctx.shadowBlur = 2;
+    
+    // Draw each hallway based on actual dimensions and positions
+    Object.entries(this.hallwayData).forEach(([hallwayName, hallway]) => {
+      let halfWidth = hallway.width / 2;
+      let halfLength = hallway.length / 2;
+      
+      // For rotated hallways (East and West), swap width and length dimensions
+      if (hallway.rotation === Math.PI / 2) {
+        // East and West hallways: swap width and length for proper orientation
+        const temp = halfWidth;
+        halfWidth = halfLength;
+        halfLength = temp;
+      }
+      
+      // Check if hallway is visible in current viewport
+      const hallwayMinX = hallway.position.x - halfWidth;
+      const hallwayMaxX = hallway.position.x + halfWidth;
+      const hallwayMinZ = hallway.position.z - halfLength;
+      const hallwayMaxZ = hallway.position.z + halfLength;
+      
+      // Skip if hallway is completely outside viewport
+      if (hallwayMaxX < this.bounds.minX || hallwayMinX > this.bounds.maxX ||
+          hallwayMaxZ < this.bounds.minZ || hallwayMinZ > this.bounds.maxZ) {
+        return;
+      }
+      
+      // Calculate minimap coordinates for the hallway corners
+      const topLeft = this.worldToMinimap(hallwayMinX, hallwayMinZ);
+      const bottomRight = this.worldToMinimap(hallwayMaxX, hallwayMaxZ);
+      
+      const hallwayWidth = bottomRight.x - topLeft.x;
+      const hallwayHeight = bottomRight.z - topLeft.z;
+      
+      // Only draw if hallway is large enough to be visible
+      if (hallwayWidth > 0.5 && hallwayHeight > 0.5) {
+        // Draw hallway fill (lighter than rooms)
+        this.ctx.fillRect(topLeft.x, topLeft.z, hallwayWidth, hallwayHeight);
+        
+        // Draw hallway outline (thinner than rooms)
+        this.ctx.strokeRect(topLeft.x, topLeft.z, hallwayWidth, hallwayHeight);
+      }
+    });
+    
+    // Reset styles for other drawing operations
+    this.ctx.fillStyle = 'rgba(0, 255, 65, 0.05)';
+    this.ctx.strokeStyle = '#00ff41';
+    this.ctx.lineWidth = 1.5;
+    this.ctx.shadowBlur = 0;
   }
   
   toggle() {
@@ -404,6 +493,7 @@ export class Minimap {
   
   toggleEnlarge() {
     this.isEnlarged = !this.isEnlarged;
+    this.needsRedraw = true; // Force redraw when toggling size
     
     if (this.isEnlarged) {
       // Enlarge to center of screen
@@ -449,6 +539,7 @@ export class Minimap {
     // Cycle through zoom levels
     this.currentZoomIndex = (this.currentZoomIndex + 1) % this.zoomLevels.length;
     this.zoomLevel = this.zoomLevels[this.currentZoomIndex];
+    this.needsRedraw = true; // Force redraw when zooming
     
     // Update the viewport to reflect new zoom level
     this.calculateBounds();

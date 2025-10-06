@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameStore Test</title>
+</head>
+<body>
+    <h1>GameStore Backward Compatibility Test</h1>
+    <div id="results"></div>
+    
+    <script type="module">
+        import { gameStore } from './src/state/gameStore.js';
+        
+        const results = document.getElementById('results');
+        
+        function log(message) {
+            console.log(message);
+            results.innerHTML += '<p>' + message + '</p>';
+        }
+        
+        log('=== GameStore Backward Compatibility Test ===');
+        
+        // Test 1: Check that old properties are accessible
+        log('1. Testing old property access:');
+        log('   wirePuzzleComplete: ' + gameStore.wirePuzzleComplete);
+        log('   memoryPuzzleComplete: ' + gameStore.memoryPuzzleComplete);
+        log('   pageTakenFromSafe: ' + gameStore.pageTakenFromSafe);
+        log('   bookshelfDoorOpen: ' + gameStore.bookshelfDoorOpen);
+        log('   stage: ' + gameStore.stage);
+        
+        // Test 2: Check that old properties can be set
+        log('2. Testing old property setting:');
+        gameStore.wirePuzzleComplete = true;
+        log('   Set wirePuzzleComplete to true: ' + gameStore.wirePuzzleComplete);
+        log('   New structure value: ' + gameStore.rooms.room1.puzzles.wirePuzzleComplete);
+        
+        gameStore.memoryPuzzleComplete = true;
+        log('   Set memoryPuzzleComplete to true: ' + gameStore.memoryPuzzleComplete);
+        log('   New structure value: ' + gameStore.rooms.room1.puzzles.memoryPuzzleComplete);
+        
+        gameStore.pageTakenFromSafe = true;
+        log('   Set pageTakenFromSafe to true: ' + gameStore.pageTakenFromSafe);
+        log('   New structure value: ' + gameStore.rooms.room1.puzzles.pageTakenFromSafe);
+        
+        // Test 3: Check that old methods still work
+        log('3. Testing old methods:');
+        gameStore.setWireComplete(false);
+        log('   setWireComplete(false): ' + gameStore.wirePuzzleComplete);
+        
+        gameStore.setMemoryComplete(false);
+        log('   setMemoryComplete(false): ' + gameStore.memoryPuzzleComplete);
+        
+        gameStore.setPageTaken(false);
+        log('   setPageTaken(false): ' + gameStore.pageTakenFromSafe);
+        
+        // Test 4: Check flags object compatibility
+        log('4. Testing flags object:');
+        log('   flags.room3: ' + JSON.stringify(gameStore.flags.room3));
+        log('   flags.room3.bridgeSolved: ' + gameStore.flags.room3.bridgeSolved);
+        
+        gameStore.setRoom3Flag('bridgeSolved', true);
+        log('   After setRoom3Flag("bridgeSolved", true): ' + gameStore.flags.room3.bridgeSolved);
+        
+        // Test 5: Check new structure
+        log('5. Testing new structure:');
+        log('   currentRoomId: ' + gameStore.currentRoomId);
+        log('   hub.tokensPlaced: ' + JSON.stringify(gameStore.hub.tokensPlaced));
+        log('   rooms.room1.puzzles: ' + JSON.stringify(gameStore.rooms.room1.puzzles));
+        log('   rooms.room2.puzzles: ' + JSON.stringify(gameStore.rooms.room2.puzzles));
+        
+        // Test 6: Check new methods
+        log('6. Testing new methods:');
+        gameStore.setCurrentRoom('room1');
+        log('   setCurrentRoom("room1"): ' + gameStore.currentRoomId);
+        
+        gameStore.collectRoomToken('room1');
+        log('   collectRoomToken("room1"): ' + gameStore.rooms.room1.tokenCollected);
+        
+        log('=== All tests completed successfully! ===');
+    </script>
+</body>
+</html>
