@@ -5,6 +5,7 @@ import { addToInventory, getPlayerInventory } from './player.js'; // Inventory f
 import { AI } from './ai.js'; // AI for feedback
 import { ScaleOfBalance } from './puzzles/ScaleOfBalance.js';
 import { CandleBeamPuzzle } from './puzzles/CandleBeamPuzzle.js';
+import { gameStore } from './state/gameStore.js'; // Game state tracking
 
 export function createRoom2() {
   const group = new THREE.Group();
@@ -19,6 +20,37 @@ export function createRoom2() {
   let noteRevealProgress = 0; // 0..1 fade
   let lastPromptText = '';
   const hiddenClues = []; // planes that show only with glasses selected
+
+  // Room 2 completion tracking
+  let room2Puzzles = {
+    scalePuzzleComplete: false,
+    candleBeamPuzzleComplete: false,
+    noteRevealed: false,
+    allCluesViewed: false
+  };
+
+  // Function to check if all Room 2 puzzles are completed
+  function checkRoom2Completion() {
+    const allComplete = room2Puzzles.scalePuzzleComplete && 
+                       room2Puzzles.candleBeamPuzzleComplete && 
+                       room2Puzzles.noteRevealed;
+    
+    if (allComplete && !gameStore.rooms.room2.isComplete) {
+      gameStore.rooms.room2.isComplete = true;
+      gameStore.rooms.room2.puzzles.scalePuzzleComplete = true;
+      gameStore.rooms.room2.puzzles.candleBeamPuzzleComplete = true;
+      gameStore.rooms.room2.puzzles.seventhObjectRevealed = true;
+      
+      console.log('Room 2 completed! All puzzles solved.');
+      if (window.AI) {
+        window.AI.say('Room 2 is complete. The path to Room 3 is now accessible.');
+      }
+      
+      // Notify game state listeners
+      gameStore.notify('room2Complete', true);
+      gameStore.notify('room3AccessGranted', true);
+    }
+  }
 
   const wallMaterial = new THREE.MeshStandardMaterial({
     color: 0x333344, 
@@ -114,7 +146,10 @@ export function createRoom2() {
     onSolved: () => {
       console.log('Candle beam puzzle solved!');
       if (window.AI) window.AI.say('The case slides open with a click.');
-      // You could spawn a reward here (e.g., a key) if desired
+      
+      // Update game state
+      room2Puzzles.candleBeamPuzzleComplete = true;
+      checkRoom2Completion();
     }
   });
   candleBeamPuzzle.attach();
@@ -145,7 +180,10 @@ export function createRoom2() {
         onSolved: () => {
           console.log('Scale puzzle solved!');
           if (window.AI) window.AI.say('Perfect equilibrium. A hidden latch releases...');
-          // Optionally set game state flag here
+          
+          // Update game state
+          room2Puzzles.scalePuzzleComplete = true;
+          checkRoom2Completion();
         }
       });
       scalePuzzle.attach();
@@ -424,6 +462,13 @@ export function createRoom2() {
     if (window.AI) {
       window.AI.say('Balance the four objects upon the scale. Equilibrium reveals the secret.');
     }
+    
+    // Track note revelation
+    if (!room2Puzzles.noteRevealed) {
+      room2Puzzles.noteRevealed = true;
+      checkRoom2Completion();
+    }
+    
     return true;
   }
 
