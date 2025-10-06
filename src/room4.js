@@ -9,6 +9,7 @@ import {
 import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling } from './materials/room4Materials.js';
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
+import { FloatingBinary } from './rooms/Room4/FloatingBinary.js';
 
 export function createRoom4() {
   const group = new THREE.Group();
@@ -116,14 +117,11 @@ export function createRoom4() {
   group.add(hallway);
   */
 
-  // Add a bright test cube to make sure room is visible
-  const testCube = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 2, 2),
-    new THREE.MeshBasicMaterial({ color: 0xff0000 })
-  );
-  testCube.position.set(0, 1, 0);
-  testCube.name = 'room4-test-cube';
-  group.add(testCube);
+  // Test cube removed - room is now clean
+
+  // Add floating binary text effect
+  const floatingBinary = new FloatingBinary();
+  floatingBinary.mount(group);
 
   // Add some basic lighting to Room 4
   const roomLighting = buildStandardLightRig({
@@ -136,24 +134,7 @@ export function createRoom4() {
   });
   group.add(roomLighting);
 
-  // Add a simple table or object to make the room interesting
-  const loader = new GLTFLoader();
-  
-  // Load sci-fi table (same as Room 1)
-  loader.load('/models/sci_fi_table.glb', (gltf) => {
-    const sciFiTable = gltf.scene;
-    sciFiTable.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-    // Position table in the center of the room
-    sciFiTable.position.set(0, 0, 0);
-    group.add(sciFiTable);
-  }, undefined, (err) => {
-    console.error('Failed to load sci_fi_table.glb for Room 4', err);
-  });
+  // Table removed - room is now empty and ready for custom content
 
   // Add entry/exit anchors for level management
   group.anchors = {
@@ -184,5 +165,54 @@ export function createRoom4() {
 
   console.log('Room 4 created successfully with', group.children.length, 'children');
   console.log('Room 4 children:', group.children.map(child => child.name));
-  return group;
+  
+  // Return object with group property like other rooms
+  return {
+    group,
+    update: (delta) => {
+      // Update floating binary animation
+      if (floatingBinary) {
+        floatingBinary.update(delta);
+      }
+    },
+    checkWallCollisions: (player) => {
+      // Basic collision detection
+      if (!player || !player.position) return;
+      const playerRadius = 0.5;
+      const roomHalf = 9;
+      const wallThickness = 0.1;
+      let clamped = false;
+
+      const playerLocal = group.worldToLocal(player.position.clone());
+
+      // Left wall
+      if (playerLocal.x - playerRadius < -roomHalf + wallThickness) {
+        playerLocal.x = -roomHalf + wallThickness + playerRadius;
+        clamped = true;
+      }
+      // Right wall
+      if (playerLocal.x + playerRadius > roomHalf - wallThickness) {
+        playerLocal.x = roomHalf - wallThickness - playerRadius;
+        clamped = true;
+      }
+      // Back wall
+      if (playerLocal.z - playerRadius < -roomHalf + wallThickness) {
+        playerLocal.z = -roomHalf + wallThickness + playerRadius;
+        clamped = true;
+      }
+      // Front wall with opening
+      if (playerLocal.z + playerRadius > roomHalf - wallThickness) {
+        const inOpeningX = (playerLocal.x >= -1 && playerLocal.x <= 1);
+        if (!inOpeningX) {
+          playerLocal.z = roomHalf - wallThickness - playerRadius;
+          clamped = true;
+        }
+      }
+
+      if (clamped) {
+        const newWorld = group.localToWorld(playerLocal);
+        player.position.copy(newWorld);
+      }
+    }
+  };
 }

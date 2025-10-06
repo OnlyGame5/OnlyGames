@@ -53,14 +53,7 @@ export function createRoom4Simple() {
   ceiling.name = 'ceiling';
   group.add(ceiling);
 
-  // Bright test cube
-  const testCube = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 2, 2),
-    new THREE.MeshBasicMaterial({ color: 0xff0000 })
-  );
-  testCube.position.set(0, 1, 0);
-  testCube.name = 'test-cube';
-  group.add(testCube);
+  // Test cube removed - room is now working correctly
 
   console.log('Simple Room 4 created with', group.children.length, 'children');
   console.log('Simple Room 4 children:', group.children.map(child => child.name));

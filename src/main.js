@@ -6,7 +6,6 @@ import { createRoom1 } from './room1.js';
 import { createRoom2 } from './room2.js';
 import { createRoom3 } from './room3.js';
 import { createRoom4 } from './room4.js';
-import { createRoom4Simple } from './room4-simple.js';
 import { handleMouseClick, handleStage0Click } from './utils.js';
 import { initInput, isDown as inputIsDown, getBindings } from './systems/input.js';
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
@@ -153,7 +152,7 @@ async function initGame() {
     updateProgress(1); // Room 2
     gameState.room3 = createRoom3();
     updateProgress(1); // Room 3
-    gameState.room4 = createRoom4Simple();
+    gameState.room4 = createRoom4();
     console.log('Room 4 created and added to gameState');
     updateProgress(1); // Room 4
     
@@ -296,7 +295,7 @@ async function initGame() {
     gameState.room1 = createRoom1();
     gameState.room2 = createRoom2();
     gameState.room3 = createRoom3();
-    gameState.room4 = createRoom4Simple();
+    gameState.room4 = createRoom4();
     console.log('Fallback: Room 4 created and added to gameState');
     
     // Register them with the Level Manager (Room 0 serves as hub)
@@ -708,6 +707,11 @@ function animate(currentTime) {
   // Update Room 3 systems
   if (gameState.room3 && typeof gameState.room3.update === 'function') {
     gameState.room3.update(deltaTime);
+  }
+
+  // Update Room 4 systems (floating binary animation)
+  if (gameState.room4 && typeof gameState.room4.update === 'function') {
+    gameState.room4.update(deltaTime);
   }
 
   // Enter Room 3 logic and stage progression
