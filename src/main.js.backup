@@ -719,8 +719,6 @@ function animate(currentTime) {
   // Update Room 4 systems (floating binary animation)
   if (gameState.room4 && typeof gameState.room4.update === 'function') {
     gameState.room4.update(deltaTime);
-  }
-  
   // Update Room 2 systems
   if (gameState.room2 && typeof gameState.room2.update === 'function') {
     gameState.room2.update(deltaTime);
