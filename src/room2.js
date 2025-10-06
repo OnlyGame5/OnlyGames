@@ -4,6 +4,7 @@ import { setupModel } from './utils.js';
 import { addToInventory, getPlayerInventory } from './player.js'; // Inventory functions
 import { AI } from './ai.js'; // AI for feedback
 import { ScaleOfBalance } from './puzzles/ScaleOfBalance.js';
+import { CandleBeamPuzzle } from './puzzles/CandleBeamPuzzle.js';
 
 export function createRoom2() {
   const group = new THREE.Group();
@@ -12,6 +13,7 @@ export function createRoom2() {
   const pickableObjects = []; // Array to hold objects that can be picked up
   const roomObjects = {}; // To store references to the models for cloning
   let scalePuzzle = null; // Puzzle controller
+  let candleBeamPuzzle = null; // Candle + Mirrors puzzle
   let noteInkMesh = null; // Hidden ink plane (opacity 0 initially)
   let noteBaseMesh = null; // Base paper plane
   let noteRevealProgress = 0; // 0..1 fade
@@ -105,6 +107,18 @@ export function createRoom2() {
   group.add(ceiling);
 
   const loader = new GLTFLoader();
+
+  // Candle + Mirrors Beam Puzzle: place stand, mirrors, target, and case
+  candleBeamPuzzle = new CandleBeamPuzzle({
+    roomGroup: group,
+    // Position candle stand somewhere on the west side; target on east wall defined in class
+    onSolved: () => {
+      console.log('Candle beam puzzle solved!');
+      if (window.AI) window.AI.say('The case slides open with a click.');
+      // You could spawn a reward here (e.g., a key) if desired
+    }
+  });
+  candleBeamPuzzle.attach();
 
   // Add scales model
   loader.load('/models/scales.glb', (gltf) => {
@@ -332,6 +346,14 @@ export function createRoom2() {
     return player.position.distanceTo(world) <= 1.6;
   }
 
+  function playerNearCandlePuzzle(player) {
+    if (!candleBeamPuzzle || !player) return false;
+    const pts = [];
+    if (candleBeamPuzzle.objects.stand) pts.push(candleBeamPuzzle.objects.stand.getWorldPosition(new THREE.Vector3()));
+    if (candleBeamPuzzle.objects.aimer) pts.push(candleBeamPuzzle.objects.aimer.getWorldPosition(new THREE.Vector3()));
+    return pts.some(p => player.position.distanceTo(p) <= 1.8);
+  }
+
   function handleEKeyInteraction(player) {
     if (window.disablePlayerControls) return false;
 
@@ -369,6 +391,12 @@ export function createRoom2() {
     // 2) If near the scale, open the Scale UI
     if (scalePuzzle && playerNearScale(player)) {
       const opened = scalePuzzle.tryOpenUI(player);
+      if (opened) return true;
+    }
+
+    // 3) If near candle beam puzzle, open its UI
+    if (candleBeamPuzzle && playerNearCandlePuzzle(player)) {
+      const opened = candleBeamPuzzle.tryOpenUI(player);
       if (opened) return true;
     }
 
@@ -412,6 +440,7 @@ export function createRoom2() {
 
     // Update scale puzzle animations
     if (scalePuzzle) scalePuzzle.update(deltaTime);
+  if (candleBeamPuzzle) candleBeamPuzzle.update(deltaTime);
 
     // Toggle hidden clues based on glasses selection
     const inv = getPlayerInventory();
@@ -438,6 +467,12 @@ export function createRoom2() {
     // Check scale prompt
     if (playerNearScale(activePlayer)) {
       showPrompt('[E] Use Scale');
+      return;
+    }
+
+    // Check candle aimer prompt
+    if (playerNearCandlePuzzle(activePlayer)) {
+      showPrompt('[E] Aim Beam');
       return;
     }
 
