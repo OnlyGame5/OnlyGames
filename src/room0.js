@@ -8,6 +8,8 @@ import {
   buildStandardLightRig,
   removeExistingLights,
 } from './lighting/standardLighting.js';
+import { createFuturisticDoor } from './game/props/FuturisticDoor.js';
+import { createWarningLabelTexture } from './game/props/fx/doorTextures.js';
 
 // Stage 0: Lobby/Entry Room
 export function createRoom0() {
@@ -259,7 +261,7 @@ export function createRoom0() {
     new THREE.BoxGeometry(8, wallHeight, wallThickness),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  backCollisionWallLeft.position.set(-6, wallHeight/2, -roomDepthHalf);
+  backCollisionWallLeft.position.set(-6, wallHeight/2, -roomDepthHalf - 0.5);
   backCollisionWallLeft.userData = { type: 'collision-wall', side: 'back-left' };
   group.add(backCollisionWallLeft);
   
@@ -268,7 +270,7 @@ export function createRoom0() {
     new THREE.BoxGeometry(8, wallHeight, wallThickness),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  backCollisionWallRight.position.set(6, wallHeight/2, -roomDepthHalf);
+  backCollisionWallRight.position.set(6, wallHeight/2, -roomDepthHalf - 0.5);
   backCollisionWallRight.userData = { type: 'collision-wall', side: 'back-right' };
   group.add(backCollisionWallRight);
   
@@ -527,121 +529,142 @@ export function createRoom0() {
   cornerPillar2.receiveShadow = true;
   group.add(cornerPillar2);
 
-  // Stage 0: Locked door (positioned in the doorway opening)
-  const doorGroup = new THREE.Group();
-  doorGroup.name = 'door-group';
-  
-  // Main door panel
-  const doorPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(3, 3.5, 0.2), // Changed width from 2 to 3
-    new THREE.MeshStandardMaterial({ 
-      color: 0x1a1a1a,
-      metalness: 0.9,
-      roughness: 0.2,
-      emissive: new THREE.Color(0x001122),
-      emissiveIntensity: 0.1
-    })
-  );
-  doorPanel.position.set(0, 1.75, 0);
-  doorPanel.castShadow = true;
-  doorGroup.add(doorPanel);
-  
-  // Door frame
-  const doorFrame = new THREE.Mesh(
-    new THREE.BoxGeometry(3.2, 3.7, 0.1), // Changed width from 2.2 to 3.2
-    new THREE.MeshStandardMaterial({ 
-      color: 0x333333,
-      metalness: 0.8,
-      roughness: 0.3
-    })
-  );
-  doorFrame.position.set(0, 1.75, -0.05);
-  doorGroup.add(doorFrame);
-  
-  // Lock mechanism (glowing)
-  const lockMechanism = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.15, 0.15, 0.1, 16),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x444444,
-      metalness: 0.9,
-      roughness: 0.1,
-      emissive: new THREE.Color(0x0066ff),
-      emissiveIntensity: 0.3
-    })
-  );
-  lockMechanism.name = 'lock-mechanism';
-  lockMechanism.position.set(0, 1.75, 0.11);
-  lockMechanism.rotation.x = Math.PI / 2;
-  doorGroup.add(lockMechanism);
-  
-  // Lock keyhole
-  const keyhole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05, 0.05, 0.15, 8),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x000000,
-      emissive: new THREE.Color(0x00aaff),
-      emissiveIntensity: 0.5
-    })
-  );
-  keyhole.name = 'keyhole';
-  keyhole.position.set(0, 1.75, 0.16);
-  keyhole.rotation.x = Math.PI / 2;
-  doorGroup.add(keyhole);
-  
-  // Door handle
-  const doorHandle = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.08, 0.3, 8),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x666666,
-      metalness: 0.9,
-      roughness: 0.1
-    })
-  );
-  doorHandle.position.set(1.2, 1.75, 0.11);
-  doorHandle.rotation.x = Math.PI / 2;
-  doorGroup.add(doorHandle);
-  
-  // Door panel details (rivets)
-  for (let i = 0; i < 4; i++) {
-    for (let j = 0; j < 3; j++) {
-      const rivet = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.03, 0.03, 0.05, 8),
-        new THREE.MeshStandardMaterial({ 
-          color: 0x555555,
-          metalness: 0.8,
-          roughness: 0.2
-        })
-      );
-      rivet.position.set(
-        -0.8 + i * 0.5, 
-        1.0 + j * 0.4, 
-        0.11
-      );
-      doorGroup.add(rivet);
+  // Stage 0: Futuristic door (replaces old door implementation)
+  const door = createFuturisticDoor({
+    keyId: 'stage0-key',
+    locked: true,
+    position: { x: 0, y: 1.75, z: -roomDepthHalf + 0.15 },
+    rotationY: 0,
+    width: 3.0,
+    height: 3.5,
+    openOffset: 4.0, // Panels slide much further out of the way
+    labelText: "RESTRICTED SECTOR", // Starts with red warning text
+    id: 'stage0-door'
+  });
+
+  // Set up door events
+  door.userData.onOpen = () => {
+    if (window.AI) {
+      window.AI.say("Perfect. Beyond this door… more challenges await. I'll guide you.");
     }
-  }
-  
-  // Warning label
-  const warningLabel = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.8, 0.3),
-    new THREE.MeshStandardMaterial({ 
-      color: 0xff0000,
-      emissive: new THREE.Color(0xff0000),
-      emissiveIntensity: 0.2,
-      transparent: true,
-      opacity: 0.8
-    })
-  );
-  warningLabel.position.set(-0.8, 2.5, 0.11);
-  doorGroup.add(warningLabel);
-  
-  doorGroup.position.set(0, 0, -roomDepthHalf + 0.15); // Positioned in doorway
-  doorGroup.userData = { type: 'interactable', id: 'stage0-door' };
-  doorGroup.castShadow = true;
-  group.add(doorGroup);
-  
-  // Store reference to door group for animation
-  const door = doorGroup;
+  };
+
+  door.userData.onUnlock = () => {
+    if (window.AI) {
+      window.AI.say("Access granted. The door is now unlocked.");
+    }
+  };
+
+  door.userData.onDenied = () => {
+    if (window.AI) {
+      window.AI.say("Access denied. You need the proper key to open this door.");
+    }
+  };
+
+  door.castShadow = true;
+  group.add(door);
+
+  // Stage 0: East door (to Room 1) - Always accessible
+  const eastDoor = createFuturisticDoor({
+    keyId: null, // No key required
+    locked: false, // Always unlocked
+    position: { x: 9, y: 1.75, z: 0 },
+    rotationY: -Math.PI / 2, // Rotate -90 degrees to face west (toward room0)
+    width: 3.0,
+    height: 3.5,
+    openOffset: 4.0,
+    labelText: "EAST SECTOR",
+    id: 'east-door'
+  });
+
+  eastDoor.userData.onOpen = () => {
+    if (window.AI) {
+      window.AI.say("East sector accessible. Your first challenge awaits.");
+    }
+  };
+
+  eastDoor.userData.onUnlock = () => {
+    if (window.AI) {
+      window.AI.say("East access granted.");
+    }
+  };
+
+  eastDoor.userData.onDenied = () => {
+    if (window.AI) {
+      window.AI.say("East sector requires proper authorization.");
+    }
+  };
+
+  eastDoor.castShadow = true;
+  group.add(eastDoor);
+
+  // Stage 0: South door (to Room 2) - Locked until Room 1 completed
+  const southDoor = createFuturisticDoor({
+    keyId: null, // No physical key, unlocked by game state
+    locked: true, // Starts locked
+    position: { x: 0, y: 1.75, z: 6.5 }, // Moved forward from 7.5 to 6.5
+    rotationY: Math.PI, // Face north (toward room0)
+    width: 3.0,
+    height: 3.5,
+    openOffset: 4.0,
+    labelText: "SOUTH SECTOR",
+    id: 'south-door'
+  });
+
+  southDoor.userData.onOpen = () => {
+    if (window.AI) {
+      window.AI.say("South sector unlocked. Advanced protocols await.");
+    }
+  };
+
+  southDoor.userData.onUnlock = () => {
+    if (window.AI) {
+      window.AI.say("South access granted.");
+    }
+  };
+
+  southDoor.userData.onDenied = () => {
+    if (window.AI) {
+      window.AI.say("Complete the east sector first to unlock south access.");
+    }
+  };
+
+  southDoor.castShadow = true;
+  group.add(southDoor);
+
+  // Stage 0: West door (to Room 3)
+  const westDoor = createFuturisticDoor({
+    keyId: 'west-key',
+    locked: true,
+    position: { x: -9, y: 1.75, z: 0 },
+    rotationY: Math.PI / 2, // Rotate 90 degrees to face east (toward room0)
+    width: 3.0,
+    height: 3.5,
+    openOffset: 4.0,
+    labelText: "WEST SECTOR",
+    id: 'west-door'
+  });
+
+  westDoor.userData.onOpen = () => {
+    if (window.AI) {
+      window.AI.say("West sector unlocked. Final challenges lie ahead.");
+    }
+  };
+
+  westDoor.userData.onUnlock = () => {
+    if (window.AI) {
+      window.AI.say("West access granted.");
+    }
+  };
+
+  westDoor.userData.onDenied = () => {
+    if (window.AI) {
+      window.AI.say("West sector requires proper authorization.");
+    }
+  };
+
+  westDoor.castShadow = true;
+  group.add(westDoor);
 
   // Stage 0: Doorway trigger volume (Box3 for transition check)
   const doorwayBox = new THREE.Box3();
@@ -750,14 +773,6 @@ export function createRoom0() {
   // Stage 0: Room state
   const state = {
     hasKey: false,
-    doorOpen: false,
-    doorAnim: {
-      active: false,
-      startY: door.position.y,
-      targetY: door.position.y + 2.0,
-      t: 0,
-      dur: 0.8
-    },
     hintTimer: null,
     hintShown: false,
     // Security camera removed for performance optimization
@@ -770,15 +785,6 @@ export function createRoom0() {
     }
   };
 
-  // Stage 0: Helper function to open door
-  function openDoor(state, door) {
-    if (!state.doorOpen && !state.doorAnim.active) {
-      state.doorAnim.active = true;
-      state.doorAnim.startY = door.position.y;
-      state.doorAnim.targetY = door.position.y + 4.0; // Higher opening to clear doorway
-      state.doorAnim.t = 0;
-    }
-  }
 
   // Security camera tracking function removed for performance optimization
 
@@ -811,50 +817,13 @@ export function createRoom0() {
     
     // Stage 0: Stable lighting - no flickering needed
 
-    // Stage 0: Door animation
-    if (state.doorAnim.active) {
-      state.doorAnim.t += dt;
-      const progress = Math.min(state.doorAnim.t / state.doorAnim.dur, 1);
-      
-      // Smooth easing function
-      const easedProgress = 1 - Math.pow(1 - progress, 3);
-      door.position.y = THREE.MathUtils.lerp(
-        state.doorAnim.startY, 
-        state.doorAnim.targetY, 
-        easedProgress
-      );
-
-      // Update lock mechanism visual feedback during animation
-      const lockMechanism = door.getObjectByName('lock-mechanism');
-      const keyhole = door.getObjectByName('keyhole');
-      if (lockMechanism && keyhole) {
-        // Change lock color from blue to green as it unlocks
-        const lockMaterial = lockMechanism.material;
-        const keyholeMaterial = keyhole.material;
-        
-        if (progress < 0.5) {
-          // First half: unlock sequence
-          const unlockProgress = progress * 2;
-          lockMaterial.emissive.setHex(0x0066ff).multiplyScalar(1 - unlockProgress);
-          lockMaterial.emissive.add(new THREE.Color(0x00ff00).multiplyScalar(unlockProgress));
-          keyholeMaterial.emissive.setHex(0x00aaff).multiplyScalar(1 - unlockProgress);
-          keyholeMaterial.emissive.add(new THREE.Color(0x00ff88).multiplyScalar(unlockProgress));
-        } else {
-          // Second half: door opening
-          lockMaterial.emissive.setHex(0x00ff00);
-          keyholeMaterial.emissive.setHex(0x00ff88);
-        }
+    // Update all doors
+    const doors = [door, eastDoor, southDoor, westDoor];
+    doors.forEach(currentDoor => {
+      if (currentDoor && currentDoor.userData.update) {
+        currentDoor.userData.update(dt);
       }
-
-      if (progress >= 1) {
-        state.doorAnim.active = false;
-        state.doorOpen = true;
-        // AI says door is open
-        if (ai) {
-          ai.say("Perfect. Beyond this door… more challenges await. I'll guide you.");
-        }
-      }
-    }
+    });
 
     // Stage 0: Hint timer (5 seconds after room load)
     if (!state.hintShown && !state.hasKey) {
@@ -896,27 +865,91 @@ export function createRoom0() {
       }
     }
     
-    // Check if player is near the door
-    const doorDistance = playerObject.position.distanceTo(door.position);
-    if (doorDistance < 3.0) { // Within 3 units of the door
-      if (!hasInInventory('stage0-key')) {
-        // Door is locked, no key
-        if (window.AI) {
-          window.AI.say("The door is locked. You need a key to open it.");
+    // Check all doors for interaction
+    const doors = [door, eastDoor, southDoor, westDoor];
+    
+    for (const currentDoor of doors) {
+      const doorDistance = playerObject.position.distanceTo(currentDoor.position);
+      console.log(`Door ${currentDoor.userData.id}: distance=${doorDistance.toFixed(2)}, locked=${currentDoor.userData.locked}`);
+      if (doorDistance < 3.0) { // Within 3 units of the door
+        if (currentDoor.userData.locked) {
+          // Special case for south door - show denial message
+          if (currentDoor.userData.id === 'south-door') {
+            // Room 1 not completed, show denial message
+            if (currentDoor.userData.onDenied) {
+              currentDoor.userData.onDenied();
+            }
+            return true;
+          } else {
+            // Regular key-based doors
+            const hasKey = hasInInventory(currentDoor.userData.keyId);
+            const unlocked = currentDoor.userData.tryUnlock(hasKey);
+            
+            if (unlocked) {
+              currentDoor.userData.openDoor();
+              if (window.AI) {
+                window.AI.say("You used the key to unlock the door. It slides open smoothly.");
+              }
+              return true;
+            }
+          }
+        } else {
+          // Door is unlocked, just toggle it
+          console.log(`Opening unlocked door: ${currentDoor.userData.id}`);
+          console.log('Door state before toggle:', currentDoor.userData.state);
+          currentDoor.userData.toggle();
+          console.log('Door state after toggle:', currentDoor.userData.state);
+          return true;
         }
-        return false;
-      } else if (!state.doorOpen && !state.doorAnim.active) {
-        // Use key to open door
-        removeFromInventory('stage0-key');
-        openDoor(state, door);
-        if (window.AI) {
-          window.AI.say("You used the key to unlock the door. It slides open smoothly.");
-        }
-        return true;
       }
     }
     
     return false;
+  }
+
+  // Function to unlock south door when Room 1 is completed
+  function unlockSouthDoor() {
+    if (southDoor && southDoor.userData.locked) {
+      southDoor.userData.locked = false;
+      
+      // Force immediate visual update
+      const leftLED = southDoor.getObjectByName('left-led');
+      const rightLED = southDoor.getObjectByName('right-led');
+      const centerSeam = southDoor.getObjectByName('center-seam');
+      const lockRing = southDoor.getObjectByName('lock-ring');
+      const warningLabel = southDoor.getObjectByName('warning-label');
+      
+      // Update LEDs to green
+      if (leftLED && rightLED) {
+        leftLED.material.color.setHex(0x00ff00);
+        leftLED.material.emissive.setHex(0x00ff00);
+        rightLED.material.color.setHex(0x00ff00);
+        rightLED.material.emissive.setHex(0x00ff00);
+      }
+      
+      // Update center seam to green
+      if (centerSeam) {
+        centerSeam.material.color.setHex(0x00ff00);
+        centerSeam.material.emissive.setHex(0x00ff00);
+      }
+      
+      // Update lock ring to green
+      if (lockRing) {
+        lockRing.material.color.setHex(0x00ff00);
+        lockRing.material.emissive.setHex(0x00ff00);
+      }
+      
+      // Update warning label to green "SOUTH SECTOR"
+      if (warningLabel && warningLabel.material.map) {
+        const greenTexture = createWarningLabelTexture("SOUTH SECTOR", 256, 64, false);
+        warningLabel.material.map = greenTexture;
+        warningLabel.material.needsUpdate = true;
+      }
+      
+      if (window.AI) {
+        window.AI.say("South sector has been unlocked. You may now proceed to advanced protocols.");
+      }
+    }
   }
 
   // Stage 0: Legacy interaction handler (for mouse clicks)
@@ -988,7 +1021,7 @@ export function createRoom0() {
 
     // Back wall (negative Z) with doorway at center (x in [-2, 2])
     const inDoorwayX = Math.abs(pos.x) <= 2;
-    const doorIsOpen = !!state.doorOpen;
+    const doorIsOpen = door && door.userData && door.userData.state && door.userData.state.openAmount > 0.9;
     const backWallZ = -roomDepthHalf;
 
     if (pos.z < backWallZ + playerRadius) {
@@ -1059,6 +1092,9 @@ export function createRoom0() {
       ...anchors // Include all room connection anchors
     },
     door,
+    eastDoor,
+    southDoor,
+    westDoor,
     key,
     awakeningChair,
     // securityCamera removed for performance optimization
@@ -1069,7 +1105,8 @@ export function createRoom0() {
     handleEKeyInteraction,
     checkDoorwayTrigger,
     checkDoorCollision,
-    checkWallCollisions
+    checkWallCollisions,
+    unlockSouthDoor
   };
 }
 

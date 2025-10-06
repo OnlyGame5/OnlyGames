@@ -267,10 +267,20 @@ async function initGame() {
     hallwayToRoom4.group.position.set(0, 0, -12.5);
     scene.add(hallwayToRoom4.group);
     
+    // Hallway behind the door (North/Back)
+    const hallwayBehindDoor = createReusableHallway({
+      ...hallwayConfig,
+      name: 'hallway-behind-door'
+    });
+    // Position hallway behind the door (negative Z direction)
+    hallwayBehindDoor.group.position.set(0, 0, -12.5); // Back of room + hallway length/2
+    scene.add(hallwayBehindDoor.group);
+    
     // Store hallways in gameState for collision detection
     gameState.hallwayToRoom1 = hallwayToRoom1;
     gameState.hallwayToRoom2 = hallwayToRoom2;
     gameState.hallwayToRoom3 = hallwayToRoom3;
+    gameState.hallwayBehindDoor = hallwayBehindDoor;
     gameState.hallwayToRoom4 = hallwayToRoom4;
     
     // Add first-person item display to scene
@@ -305,6 +315,9 @@ async function initGame() {
     
     // Make gameState globally accessible for first-person item display
     window.gameState = gameState;
+    
+    // Make gameStore globally accessible for puzzle completion checks
+    window.gameStore = gameStore;
     
     // Initialize input and menu systems (moved to onContinue)
     initMenu({ onPauseChange: (paused) => { gameState.paused = paused; } });
@@ -539,9 +552,12 @@ window.addEventListener('keydown', (e) => {
       }
     }
 
-    // Then try Room 0 if in stage 0
-    if (gameState.stage === 0 && gameState.room0) {
-      console.log('Handling E-key in Stage 0 (Room 0)');
+    // Check if player is in Room 0 (hub room)
+    const isInRoom0 = activePlayer.position.x >= -10 && activePlayer.position.x <= 10 && 
+                     activePlayer.position.z >= -7.5 && activePlayer.position.z <= 7.5;
+    
+    if (isInRoom0 && gameState.room0) {
+      console.log('Handling E-key in Room 0 (Hub)');
       gameState.room0.handleEKeyInteraction(activePlayer);
     } else {
       // More robust room detection with debugging
@@ -715,6 +731,9 @@ function animate(currentTime) {
   if (gameState.hallwayToRoom3 && gameState.hallwayToRoom3.checkCollisions) {
     gameState.hallwayToRoom3.checkCollisions(activePlayer);
   }
+  if (gameState.hallwayBehindDoor && gameState.hallwayBehindDoor.checkCollisions) {
+    gameState.hallwayBehindDoor.checkCollisions(activePlayer);
+  }
 
   // Simple check for Room 3 for stage progression
   const playerWorld = activePlayer.position.clone();
@@ -728,11 +747,12 @@ function animate(currentTime) {
   };
   insideRoom3 = gameState.room3 && isInsideRoom(gameState.room3.group, 10, 10);
   
-  // Stage 0: Update Stage 0 if active (but not if player is in Room 1)
-  if (gameState.stage === 0 && gameState.room0) {
-    const activePlayer = leonardModel || player;
-    
-    // Always run Room 0 updates to allow door message to play
+  // Update Room 0 when player is in Room 0 (hub room)
+  const isInRoom0 = activePlayer.position.x >= -10 && activePlayer.position.x <= 10 && 
+                   activePlayer.position.z >= -7.5 && activePlayer.position.z <= 7.5;
+  
+  if (isInRoom0 && gameState.room0) {
+    // Always run Room 0 updates to allow door animations and interactions
     gameState.room0.updateRoom0(deltaTime, { playerObject: activePlayer, ai: AI });
     
     // Stage 0: Check for doorway trigger
@@ -798,13 +818,20 @@ function animate(currentTime) {
   }
   
   // Check if wire puzzle is solved and unlock door
-  if (gameState.room1 && gameState.room1.isWirePuzzleSolved && gameState.room1.isWirePuzzleSolved()) {
+  const wirePuzzleSolved = (gameState.room1 && gameState.room1.isWirePuzzleSolved && gameState.room1.isWirePuzzleSolved()) || 
+                          (window.gameStore && window.gameStore.getWireComplete && window.gameStore.getWireComplete());
+  
+  if (wirePuzzleSolved) {
     // Wire puzzle solved - unlock door to next room
-    if (gameState.stage === 1) {
+    if (gameState.stage < 2) {
       gameState.stage = 2;
       if (window.AI) {
         window.AI.onRoom1Complete();
       }
+    }
+    // Always unlock the south door when puzzle is solved (regardless of stage)
+    if (gameState.room0 && gameState.room0.unlockSouthDoor) {
+      gameState.room0.unlockSouthDoor();
     }
   }
   
