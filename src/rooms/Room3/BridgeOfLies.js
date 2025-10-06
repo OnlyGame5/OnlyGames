@@ -1,3 +1,5 @@
+// src/rooms/Room3/BridgeOfLies.js
+
 import * as THREE from 'three';
 import { gameStore } from '../../state/gameStore.js';
 import { room3Audio } from '../../audio/room3Audio.js';
