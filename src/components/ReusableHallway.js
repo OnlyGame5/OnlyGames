@@ -237,12 +237,84 @@ export function createReusableHallway(options = {}) {
   // Hallways will rely on global scene lighting instead
   // This eliminates multiple light sources that were causing performance issues
 
+  // Add invisible collision walls for proper collision detection
+  const wallThickness = 0.1;
+  
+  // Left collision wall
+  const leftCollisionWall = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, config.height, config.length),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  leftCollisionWall.position.set(-config.width/2 - wallThickness/2, config.height/2, 0);
+  leftCollisionWall.userData = { type: 'collision-wall', side: 'hallway-left' };
+  leftCollisionWall.name = 'hallway-collision-left';
+  hallway.add(leftCollisionWall);
+  
+  // Right collision wall
+  const rightCollisionWall = new THREE.Mesh(
+    new THREE.BoxGeometry(wallThickness, config.height, config.length),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  rightCollisionWall.position.set(config.width/2 + wallThickness/2, config.height/2, 0);
+  rightCollisionWall.userData = { type: 'collision-wall', side: 'hallway-right' };
+  rightCollisionWall.name = 'hallway-collision-right';
+  hallway.add(rightCollisionWall);
+  
+  // No front/back collision walls - hallways are open at both ends for free passage
+
+  // Collision detection function for hallway walls
+  function checkHallwayCollisions(playerObject) {
+    if (!playerObject || !playerObject.position) return false;
+    
+    const playerRadius = 0.5;
+    const pos = playerObject.position;
+    
+    // Convert world position to hallway local position
+    const localPos = hallway.worldToLocal(pos.clone());
+    
+    // Only apply collision detection if player is within hallway bounds
+    // Add some margin to prevent edge cases
+    const margin = 2.0;
+    const isInsideHallway = (
+      localPos.x >= -config.width/2 - margin && localPos.x <= config.width/2 + margin &&
+      localPos.z >= -config.length/2 - margin && localPos.z <= config.length/2 + margin
+    );
+    
+    if (!isInsideHallway) {
+      return false; // Player is not in hallway, no collision needed
+    }
+    
+    // Check left wall collision
+    if (localPos.x - playerRadius < -config.width/2) {
+      localPos.x = -config.width/2 + playerRadius;
+      const newWorldPos = hallway.localToWorld(localPos);
+      playerObject.position.copy(newWorldPos);
+      return true;
+    }
+    
+    // Check right wall collision
+    if (localPos.x + playerRadius > config.width/2) {
+      localPos.x = config.width/2 - playerRadius;
+      const newWorldPos = hallway.localToWorld(localPos);
+      playerObject.position.copy(newWorldPos);
+      return true;
+    }
+    
+    // No collision detection for front/back walls - hallways are open at both ends
+    // Players can walk through the entrance and exit freely
+    
+    return false;
+  }
+
   // Position the entire hallway at origin - positioning will be handled by the caller
   hallway.position.set(0, 0, 0);
 
   // Return the hallway group with utility methods
   return {
     group: hallway,
+    
+    // Collision detection method
+    checkCollisions: checkHallwayCollisions,
     
     // Utility methods
     setVisible: (visible) => {
