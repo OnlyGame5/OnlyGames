@@ -725,101 +725,9 @@ export function createRoom0() {
     awakeningChair = fallbackChair;
   });
 
-  // Stage 0: Security camera using GLB model
-  let securityCamera = null;
-  const cameraLoader = new GLTFLoader();
+  // Security camera removed for performance optimization
   
-  cameraLoader.load('/models/camera.glb', (gltf) => {
-    securityCamera = gltf.scene;
-    securityCamera.name = 'security-camera';
-    
-    // Scale the camera model to appropriate size
-    securityCamera.scale.set(2.0, 2.0, 2.0);
-    
-    // Enable shadows for the camera model
-    securityCamera.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-    
-    // Position camera on the right wall, facing into the room (moved forward from wall)
-    securityCamera.position.set(roomWidthHalf - 0.5, wallHeight - 1.5, 0);
-    securityCamera.rotation.y = Math.PI; // Face into the room
-    group.add(securityCamera);
-    
-    console.log('Security camera GLB model loaded successfully!');
-  }, (progress) => {
-    console.log('Loading camera model...', (progress.loaded / progress.total * 100) + '%');
-  }, (error) => {
-    console.error('Error loading camera model:', error);
-    
-    // Fallback to simple camera if loading fails
-    const fallbackCamera = new THREE.Group();
-    fallbackCamera.name = 'security-camera';
-    
-    // Camera body (main housing)
-    const cameraBody = new THREE.Mesh(
-      new THREE.BoxGeometry(0.4, 0.3, 0.2),
-      new THREE.MeshStandardMaterial({ 
-        color: 0x222222,
-        metalness: 0.8,
-        roughness: 0.2
-      })
-    );
-    cameraBody.castShadow = true;
-    fallbackCamera.add(cameraBody);
-    
-    // Camera lens
-    const cameraLens = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.08, 0.05, 16),
-      new THREE.MeshStandardMaterial({ 
-        color: 0x000000,
-        metalness: 0.9,
-        roughness: 0.1
-      })
-    );
-    cameraLens.position.set(0, 0, 0.15);
-    cameraLens.rotation.x = Math.PI / 2;
-    cameraLens.castShadow = true;
-    fallbackCamera.add(cameraLens);
-    
-    // Red status light
-    const redLight = new THREE.Mesh(
-      new THREE.SphereGeometry(0.03, 8, 6),
-      new THREE.MeshStandardMaterial({ 
-        color: 0xff0000,
-        emissive: 0xff0000,
-        emissiveIntensity: 0.8
-      })
-    );
-    redLight.position.set(0.15, 0.1, 0.1);
-    fallbackCamera.add(redLight);
-    
-    // Mounting bracket
-    const mount = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 0.1, 0.3),
-      new THREE.MeshStandardMaterial({ 
-        color: 0x333333,
-        metalness: 0.7,
-        roughness: 0.3
-      })
-    );
-    mount.position.set(0, -0.2, 0);
-    mount.castShadow = true;
-    fallbackCamera.add(mount);
-    
-    // Position camera on the right wall, facing into the room (moved forward from wall)
-    fallbackCamera.position.set(roomWidthHalf - 0.5, wallHeight - 1.5, 0);
-    fallbackCamera.rotation.y = Math.PI; // Face into the room
-    group.add(fallbackCamera);
-    securityCamera = fallbackCamera;
-  });
-  
-  // Camera tracking state
-  let isTrackingPlayer = false;
-  let playerInRoom = false;
+  // Camera tracking removed for performance optimization
 
   // Stage 0: Room state
   const state = {
@@ -834,10 +742,7 @@ export function createRoom0() {
     },
     hintTimer: null,
     hintShown: false,
-    securityCamera: {
-      isTracking: false,
-      playerInRoom: false
-    },
+    // Security camera removed for performance optimization
     awakening: {
       isAwakening: true,
       fadeInComplete: false,
@@ -857,62 +762,7 @@ export function createRoom0() {
     }
   }
 
-  // Stage 0: Security camera tracking function
-  function updateSecurityCamera(playerObject) {
-    // Only track if camera is loaded
-    if (!securityCamera) return;
-    
-    const playerPos = playerObject.position;
-    
-    // Check if player is in room (within room boundaries)
-    const inRoom = (
-      playerPos.x >= -roomWidthHalf + 1 && 
-      playerPos.x <= roomWidthHalf - 1 && 
-      playerPos.z >= -roomDepthHalf + 1 && 
-      playerPos.z <= roomDepthHalf - 1
-    );
-    
-    // Update tracking state
-    if (inRoom && !state.securityCamera.playerInRoom) {
-      // Player entered room - start tracking
-      state.securityCamera.playerInRoom = true;
-      state.securityCamera.isTracking = true;
-    } else if (!inRoom && state.securityCamera.playerInRoom) {
-      // Player left room - stop tracking
-      state.securityCamera.playerInRoom = false;
-      state.securityCamera.isTracking = false;
-    }
-    
-    // Update camera rotation to track player
-    if (state.securityCamera.isTracking) {
-      // Calculate direction from camera to player
-      const cameraPos = securityCamera.position;
-      const direction = new THREE.Vector3(
-        playerPos.x - cameraPos.x,
-        playerPos.y - cameraPos.y,
-        playerPos.z - cameraPos.z
-      );
-      
-      // Calculate rotation angles
-      const horizontalAngle = Math.atan2(direction.x, direction.z);
-      const verticalAngle = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
-      
-      // Apply rotation with some smoothing
-      const targetRotationY = horizontalAngle;
-      const targetRotationX = -verticalAngle;
-      
-      // Smooth rotation interpolation
-      const rotationSpeed = 2.0; // radians per second
-      const maxRotation = Math.PI / 4; // 45 degrees max vertical rotation
-      
-      // Clamp vertical rotation
-      const clampedVerticalAngle = Math.max(-maxRotation, Math.min(maxRotation, targetRotationX));
-      
-      // Apply rotations
-      securityCamera.rotation.y = THREE.MathUtils.lerp(securityCamera.rotation.y, targetRotationY, rotationSpeed * 0.016);
-      securityCamera.rotation.x = THREE.MathUtils.lerp(securityCamera.rotation.x, clampedVerticalAngle, rotationSpeed * 0.016);
-    }
-  }
+  // Security camera tracking function removed for performance optimization
 
   // Stage 0: Awakening sequence management
   function startAwakeningSequence() {
@@ -939,8 +789,7 @@ export function createRoom0() {
       startAwakeningSequence();
     }
 
-    // Stage 0: Update security camera tracking
-    updateSecurityCamera(playerObject);
+    // Security camera tracking removed for performance optimization
     
     // Stage 0: Stable lighting - no flickering needed
 
@@ -1194,7 +1043,7 @@ export function createRoom0() {
     door,
     key,
     awakeningChair,
-    securityCamera,
+    // securityCamera removed for performance optimization
     triggers: { doorwayBox },
     state,
     updateRoom0,

@@ -1,7 +1,19 @@
 import * as THREE from 'three';
 
+// Performance optimization: Shared material pool
+const materialPool = {
+  concrete: null,
+  tiles: null
+};
+
+// Performance optimization: Shared texture cache
+const textureCache = {
+  concrete: null,
+  tiles: null
+};
+
 /**
- * Reusable Hallway Component
+ * Reusable Hallway Component - PERFORMANCE OPTIMIZED
  * Creates a textured hallway that can be used between any rooms
  * 
  * @param {Object} options - Configuration options for the hallway
@@ -58,97 +70,103 @@ export function createReusableHallway(options = {}) {
   // Choose texture set
   const textureFiles = config.textureSet === 'tiles136c' ? tiles136cFiles : concrete031Files;
 
-  // Helper function to create concrete031 material (keeping the same implementation)
-  function makeConcrete031MaterialFlexible(width, height, files, options = {}) {
-    const loader = new THREE.TextureLoader();
+  // Performance optimized: Get or create shared concrete material
+  function getSharedConcreteMaterial(width, height, options = {}) {
+    if (!materialPool.concrete) {
+      const loader = new THREE.TextureLoader();
+      
+      const colorTexture = loader.load("/textures/concrete031/Concrete031_2K-JPG_Color.jpg");
+      const normalTexture = loader.load("/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg");
+      const roughTexture = loader.load("/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg");
+      const aoTexture = loader.load("/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg");
+      
+      // Performance optimization: Reduce anisotropy to 1
+      const anisotropy = 1; // Reduced from 4 to 1 for better performance
+      [colorTexture, normalTexture, roughTexture, aoTexture].forEach(tex => {
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.anisotropy = anisotropy;
+        tex.generateMipmaps = true;
+      });
+      
+      materialPool.concrete = new THREE.MeshStandardMaterial({
+        map: colorTexture,
+        normalMap: normalTexture,
+        roughnessMap: roughTexture,
+        aoMap: aoTexture,
+        color: 0x8a8a8a,
+        roughness: 0.8,
+        metalness: 0.1,
+        normalScale: new THREE.Vector2(0.5, 0.5)
+      });
+    }
     
-    const colorTexture = loader.load(files.color);
-    const normalTexture = loader.load(files.normal);
-    const roughTexture = loader.load(files.rough);
-    const aoTexture = loader.load(files.ao);
-    
-    // Configure textures
-    const anisotropy = options.anisotropy || 4; // Reduced from 16 to 4 for performance
-    [colorTexture, normalTexture, roughTexture, aoTexture].forEach(tex => {
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-      tex.anisotropy = anisotropy;
-      tex.generateMipmaps = true;
-    });
-    
+    // Clone the shared material and adjust UV scaling
+    const material = materialPool.concrete.clone();
     const uScale = options.uScale || 1.0;
     const vScale = options.vScale || 1.0;
     
-    colorTexture.repeat.set(uScale * width, vScale * height);
-    normalTexture.repeat.set(uScale * width, vScale * height);
-    roughTexture.repeat.set(uScale * width, vScale * height);
-    aoTexture.repeat.set(uScale * width, vScale * height);
-    
-    const material = new THREE.MeshStandardMaterial({
-      map: colorTexture,
-      normalMap: normalTexture,
-      roughnessMap: roughTexture,
-      aoMap: aoTexture,
-      color: 0x8a8a8a,
-      roughness: 0.8,
-      metalness: 0.1,
-      normalScale: new THREE.Vector2(0.5, 0.5)
-    });
+    if (material.map) material.map.repeat.set(uScale * width, vScale * height);
+    if (material.normalMap) material.normalMap.repeat.set(uScale * width, vScale * height);
+    if (material.roughnessMap) material.roughnessMap.repeat.set(uScale * width, vScale * height);
+    if (material.aoMap) material.aoMap.repeat.set(uScale * width, vScale * height);
     
     return material;
   }
 
-  // Helper function to create tiles136c material
-  function makeTiles136cMaterialFlexible(width, height, files, options = {}) {
-    const loader = new THREE.TextureLoader();
+  // Performance optimized: Get or create shared tiles material
+  function getSharedTilesMaterial(width, height, options = {}) {
+    if (!materialPool.tiles) {
+      const loader = new THREE.TextureLoader();
+      
+      const colorTexture = loader.load("/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg");
+      const normalTexture = loader.load("/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg");
+      const roughTexture = loader.load("/textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg");
+      const aoTexture = loader.load("/textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg");
+      
+      // Performance optimization: Reduce anisotropy to 1
+      const anisotropy = 1; // Reduced from 4 to 1 for better performance
+      [colorTexture, normalTexture, roughTexture, aoTexture].forEach(tex => {
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.anisotropy = anisotropy;
+        tex.generateMipmaps = true;
+      });
+      
+      materialPool.tiles = new THREE.MeshStandardMaterial({
+        map: colorTexture,
+        normalMap: normalTexture,
+        roughnessMap: roughTexture,
+        aoMap: aoTexture,
+        color: 0x8a8a8a,
+        roughness: 0.8,
+        metalness: 0.1,
+        normalScale: new THREE.Vector2(0.3, 0.3)
+      });
+    }
     
-    const colorTexture = loader.load(files.color);
-    const normalTexture = loader.load(files.normal);
-    const roughTexture = loader.load(files.rough);
-    const aoTexture = loader.load(files.ao);
-    
-    // Configure textures
-    const anisotropy = options.anisotropy || 4; // Reduced from 16 to 4 for performance
-    [colorTexture, normalTexture, roughTexture, aoTexture].forEach(tex => {
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-      tex.anisotropy = anisotropy;
-      tex.generateMipmaps = true;
-    });
-    
+    // Clone the shared material and adjust UV scaling
+    const material = materialPool.tiles.clone();
     const uScale = options.uScale || 1.0;
     const vScale = options.vScale || 1.0;
     
-    colorTexture.repeat.set(uScale * width, vScale * height);
-    normalTexture.repeat.set(uScale * width, vScale * height);
-    roughTexture.repeat.set(uScale * width, vScale * height);
-    aoTexture.repeat.set(uScale * width, vScale * height);
-    
-    const material = new THREE.MeshStandardMaterial({
-      map: colorTexture,
-      normalMap: normalTexture,
-      roughnessMap: roughTexture,
-      aoMap: aoTexture,
-      color: 0x8a8a8a,
-      roughness: 0.8,
-      metalness: 0.1,
-      normalScale: new THREE.Vector2(0.3, 0.3)
-    });
+    if (material.map) material.map.repeat.set(uScale * width, vScale * height);
+    if (material.normalMap) material.normalMap.repeat.set(uScale * width, vScale * height);
+    if (material.roughnessMap) material.roughnessMap.repeat.set(uScale * width, vScale * height);
+    if (material.aoMap) material.aoMap.repeat.set(uScale * width, vScale * height);
     
     return material;
   }
 
-  // Create material based on texture set
+  // Performance optimized: Use shared materials
   const createMaterial = config.textureSet === 'tiles136c' ? 
-    makeTiles136cMaterialFlexible : makeConcrete031MaterialFlexible;
+    getSharedTilesMaterial : getSharedConcreteMaterial;
 
-  // Hallway floor
+  // Hallway floor - Performance optimized
   const hallwayFloorGeo = new THREE.BoxGeometry(config.width, 0.2, config.length);
   const hallwayFloor = new THREE.Mesh(
     hallwayFloorGeo,
-    createMaterial(config.width, config.length, textureFiles, {
+    createMaterial(config.width, config.length, {
       uScale: 0.4,
-      vScale: 0.4,
-      anisotropy: 4, // Reduced from 16 to 4 for performance
-      attachAOToGeometry: hallwayFloorGeo,
+      vScale: 0.4
     })
   );
   hallwayFloor.position.set(0, -0.15, 0);
@@ -156,15 +174,13 @@ export function createReusableHallway(options = {}) {
   hallwayFloor.name = 'hallway-floor';
   hallway.add(hallwayFloor);
 
-  // Left wall
+  // Left wall - Performance optimized
   const hallwayWall1Geo = new THREE.BoxGeometry(0.2, config.height, config.length);
   const hallwayWall1 = new THREE.Mesh(
     hallwayWall1Geo,
-    createMaterial(0.2, config.height, textureFiles, {
+    createMaterial(0.2, config.height, {
       uScale: 0.3,
-      vScale: 0.3,
-      anisotropy: 4, // Reduced from 16 to 4 for performance
-      attachAOToGeometry: hallwayWall1Geo,
+      vScale: 0.3
     })
   );
   hallwayWall1.position.set(
@@ -178,15 +194,13 @@ export function createReusableHallway(options = {}) {
   hallwayWall1.name = 'hallway-wall-left';
   hallway.add(hallwayWall1);
 
-  // Right wall
+  // Right wall - Performance optimized
   const hallwayWall2Geo = new THREE.BoxGeometry(0.2, config.height, config.length);
   const hallwayWall2 = new THREE.Mesh(
     hallwayWall2Geo,
-    createMaterial(0.2, config.height, textureFiles, {
+    createMaterial(0.2, config.height, {
       uScale: 0.3,
-      vScale: 0.3,
-      anisotropy: 4, // Reduced from 16 to 4 for performance
-      attachAOToGeometry: hallwayWall2Geo,
+      vScale: 0.3
     })
   );
   hallwayWall2.position.set(
@@ -201,15 +215,13 @@ export function createReusableHallway(options = {}) {
   hallwayWall2.name = 'hallway-wall-right';
   hallway.add(hallwayWall2);
 
-  // Hallway ceiling
+  // Hallway ceiling - Performance optimized
   const hallwayCeilingGeo = new THREE.BoxGeometry(config.width, 0.3, config.length);
   const hallwayCeiling = new THREE.Mesh(
     hallwayCeilingGeo,
-    createMaterial(config.width, config.length, textureFiles, {
+    createMaterial(config.width, config.length, {
       uScale: 0.4,
-      vScale: 0.4,
-      anisotropy: 4, // Reduced from 16 to 4 for performance
-      attachAOToGeometry: hallwayCeilingGeo,
+      vScale: 0.4
     })
   );
   hallwayCeiling.position.set(
@@ -221,28 +233,9 @@ export function createReusableHallway(options = {}) {
   hallwayCeiling.name = 'hallway-ceiling';
   hallway.add(hallwayCeiling);
 
-  // Add atmospheric lighting if requested
-  if (config.addLighting) {
-    // Ambient light
-    const hallwayAmbientLight = new THREE.AmbientLight(0x202020, config.ambientIntensity);
-    hallwayAmbientLight.name = 'hallway-ambient-light';
-    hallway.add(hallwayAmbientLight);
-
-    // Point lights along the hallway
-    const numLights = Math.max(1, Math.floor(config.length / 6)); // One light every 6 units
-    for (let i = 0; i < numLights; i++) {
-      const lightZ = (i * (config.length / numLights)) - (config.length / 2);
-      const hallwayLight = new THREE.PointLight(0xffffff, config.lightIntensity, 8);
-      hallwayLight.position.set(0, 3, lightZ);
-      hallwayLight.castShadow = true;
-      hallwayLight.shadow.mapSize.width = 256;
-      hallwayLight.shadow.mapSize.height = 256;
-      hallwayLight.shadow.camera.near = 0.1;
-      hallwayLight.shadow.camera.far = 15;
-      hallwayLight.name = `hallway-light-${i}`;
-      hallway.add(hallwayLight);
-    }
-  }
+  // Performance optimization: Remove individual hallway lighting to eliminate lag
+  // Hallways will rely on global scene lighting instead
+  // This eliminates multiple light sources that were causing performance issues
 
   // Position the entire hallway at origin - positioning will be handled by the caller
   hallway.position.set(0, 0, 0);

@@ -1467,20 +1467,7 @@ export function createRoom1() {
   group.add(switchSpotlight.target);
   
   // Add a large glowing floor indicator to help find the switch
-  const floorIndicator = new THREE.Mesh(
-    new THREE.CircleGeometry(2.0, 16),
-    new THREE.MeshStandardMaterial({
-      color: 0x00ff00,
-      emissive: 0x00ff00,
-      emissiveIntensity: 0.8,
-      transparent: true,
-      opacity: 0.7
-    })
-  );
-  floorIndicator.position.set(-8.5, 0.01, 4);
-  floorIndicator.rotation.x = -Math.PI / 2;
-  floorIndicator.name = 'switch-indicator';
-  group.add(floorIndicator);
+  // Green floor indicator removed for performance optimization
   
   // Add a bright point light above the switch for extra visibility
   const switchLight = new THREE.PointLight(0x00ff00, 0.8, 10);
@@ -1522,7 +1509,7 @@ export function createRoom1() {
   if (switchButtonRef) emissives.push(switchButtonRef);
   if (statusLight1Ref) emissives.push(statusLight1Ref);
   if (statusLight2Ref) emissives.push(statusLight2Ref);
-  if (floorIndicator) emissives.push(floorIndicator);
+  // floorIndicator removed for performance optimization
   if (arrowIndicator) emissives.push(arrowIndicator);
   
   // Add pulsing animation to the arrow

@@ -17,8 +17,10 @@ export class Minimap {
     this.needsRedraw = true;
     this.lastPlayerPosition = new THREE.Vector3();
     this.lastPlayerRotation = 0;
-    this.redrawThreshold = 0.5; // Redraw if player moves more than 0.5 units
-    this.rotationThreshold = 0.1; // Redraw if player rotates more than 0.1 radians
+    this.redrawThreshold = 1.0; // Redraw if player moves more than 1.0 units (increased for better performance)
+    this.rotationThreshold = 0.2; // Redraw if player rotates more than 0.2 radians (increased for better performance)
+    this.lastRedrawTime = 0;
+    this.redrawInterval = 100; // Minimum 100ms between redraws
     
     // Zoom settings
     this.zoomLevel = 1; // 1 = normal, 2 = zoomed in, 0.5 = zoomed out
@@ -254,10 +256,15 @@ export class Minimap {
   }
   
   update() {
-    // Only redraw if something significant has changed
-    if (this.needsRedraw || this.shouldRedraw()) {
+    // Performance optimization: Throttle redraws based on time
+    const currentTime = Date.now();
+    const timeSinceLastRedraw = currentTime - this.lastRedrawTime;
+    
+    // Only redraw if something significant has changed AND enough time has passed
+    if ((this.needsRedraw || this.shouldRedraw()) && timeSinceLastRedraw > this.redrawInterval) {
       this.drawMinimapToCanvas();
       this.needsRedraw = false;
+      this.lastRedrawTime = currentTime;
     }
   }
   

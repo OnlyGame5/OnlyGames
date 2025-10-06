@@ -118,7 +118,7 @@ async function initGame() {
     createFadeOverlay();
     
     // Track loading progress for new loading screen
-    let totalItems = 7; // leonard(1) + rooms(4) + models(2)
+    let totalItems = 6; // leonard(1) + rooms(4) + models(1) - security camera removed
     let loadedItems = 0;
     
     function updateProgress(itemCount = 1) {
@@ -301,7 +301,7 @@ async function initGame() {
     window.gameState = gameState;
     
     // Complete loading even in fallback case
-    updateProgress(7); // All items loaded
+    updateProgress(6); // All items loaded
   }
 }
 
