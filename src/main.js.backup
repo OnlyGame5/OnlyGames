@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory } from './player.js';
+import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel } from './player.js';
 import { AI } from './ai.js';
 import { createRoom0 } from './room0.js';
 import { createRoom1 } from './room1.js';
@@ -43,8 +43,6 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap; // Changed from PCFSoftShadowMap for better performance
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Reduced from 2 to 1.5 for better performance
 document.body.appendChild(renderer.domElement);
-// We'll render an overlay after the main scene; disable automatic clearing between renders
-renderer.autoClear = false;
 
 // Install performance debugger
 
@@ -63,49 +61,6 @@ let minimap = null;
 
 // FPS Counter setup
 let fpsCounter = null;
-
-// === Glasses vignette overlay (shader) ===
-const overlayScene = new THREE.Scene();
-const overlayCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-const vignetteUniforms = {
-  uStrength: { value: 0.0 },
-  // Slightly more saturated cyan tint
-  uColor: { value: new THREE.Color(0x4db5ff) }
-};
-const vignetteMaterial = new THREE.ShaderMaterial({
-  uniforms: vignetteUniforms,
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform float uStrength;
-    uniform vec3 uColor;
-    varying vec2 vUv;
-    void main() {
-      // Radial vignette from center
-      vec2 p = vUv - 0.5;
-      float r = length(p);
-      float inner = 0.35; // start earlier for more coverage
-      float outer = 0.85; // reach strength sooner
-      float v = smoothstep(inner, outer, r);
-      // Slight ease to emphasize edges a bit more
-      v = pow(v, 0.9);
-      float alpha = v * 0.7 * uStrength; // stronger tint
-      gl_FragColor = vec4(uColor, alpha);
-    }
-  `,
-  transparent: true,
-  depthTest: false,
-  depthWrite: false,
-  blending: THREE.NormalBlending
-});
-const overlayQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), vignetteMaterial);
-overlayQuad.position.z = 0;
-overlayScene.add(overlayQuad);
 
 // Stage 0: Game state management
 let gameState = {
@@ -267,20 +222,10 @@ async function initGame() {
     hallwayToRoom4.group.position.set(0, 0, -12.5);
     scene.add(hallwayToRoom4.group);
     
-    // Hallway behind the door (North/Back)
-    const hallwayBehindDoor = createReusableHallway({
-      ...hallwayConfig,
-      name: 'hallway-behind-door'
-    });
-    // Position hallway behind the door (negative Z direction)
-    hallwayBehindDoor.group.position.set(0, 0, -12.5); // Back of room + hallway length/2
-    scene.add(hallwayBehindDoor.group);
-    
     // Store hallways in gameState for collision detection
     gameState.hallwayToRoom1 = hallwayToRoom1;
     gameState.hallwayToRoom2 = hallwayToRoom2;
     gameState.hallwayToRoom3 = hallwayToRoom3;
-    gameState.hallwayBehindDoor = hallwayBehindDoor;
     gameState.hallwayToRoom4 = hallwayToRoom4;
     
     // Add first-person item display to scene
@@ -315,9 +260,6 @@ async function initGame() {
     
     // Make gameState globally accessible for first-person item display
     window.gameState = gameState;
-    
-    // Make gameStore globally accessible for puzzle completion checks
-    window.gameStore = gameStore;
     
     // Initialize input and menu systems (moved to onContinue)
     initMenu({ onPauseChange: (paused) => { gameState.paused = paused; } });
@@ -552,12 +494,9 @@ window.addEventListener('keydown', (e) => {
       }
     }
 
-    // Check if player is in Room 0 (hub room)
-    const isInRoom0 = activePlayer.position.x >= -10 && activePlayer.position.x <= 10 && 
-                     activePlayer.position.z >= -7.5 && activePlayer.position.z <= 7.5;
-    
-    if (isInRoom0 && gameState.room0) {
-      console.log('Handling E-key in Room 0 (Hub)');
+    // Then try Room 0 if in stage 0
+    if (gameState.stage === 0 && gameState.room0) {
+      console.log('Handling E-key in Stage 0 (Room 0)');
       gameState.room0.handleEKeyInteraction(activePlayer);
     } else {
       // More robust room detection with debugging
@@ -731,9 +670,6 @@ function animate(currentTime) {
   if (gameState.hallwayToRoom3 && gameState.hallwayToRoom3.checkCollisions) {
     gameState.hallwayToRoom3.checkCollisions(activePlayer);
   }
-  if (gameState.hallwayBehindDoor && gameState.hallwayBehindDoor.checkCollisions) {
-    gameState.hallwayBehindDoor.checkCollisions(activePlayer);
-  }
 
   // Simple check for Room 3 for stage progression
   const playerWorld = activePlayer.position.clone();
@@ -747,12 +683,11 @@ function animate(currentTime) {
   };
   insideRoom3 = gameState.room3 && isInsideRoom(gameState.room3.group, 10, 10);
   
-  // Update Room 0 when player is in Room 0 (hub room)
-  const isInRoom0 = activePlayer.position.x >= -10 && activePlayer.position.x <= 10 && 
-                   activePlayer.position.z >= -7.5 && activePlayer.position.z <= 7.5;
-  
-  if (isInRoom0 && gameState.room0) {
-    // Always run Room 0 updates to allow door animations and interactions
+  // Stage 0: Update Stage 0 if active (but not if player is in Room 1)
+  if (gameState.stage === 0 && gameState.room0) {
+    const activePlayer = leonardModel || player;
+    
+    // Always run Room 0 updates to allow door message to play
     gameState.room0.updateRoom0(deltaTime, { playerObject: activePlayer, ai: AI });
     
     // Stage 0: Check for doorway trigger
@@ -784,8 +719,6 @@ function animate(currentTime) {
   // Update Room 4 systems (floating binary animation)
   if (gameState.room4 && typeof gameState.room4.update === 'function') {
     gameState.room4.update(deltaTime);
-  }
-  
   // Update Room 2 systems
   if (gameState.room2 && typeof gameState.room2.update === 'function') {
     gameState.room2.update(deltaTime);
@@ -818,20 +751,13 @@ function animate(currentTime) {
   }
   
   // Check if wire puzzle is solved and unlock door
-  const wirePuzzleSolved = (gameState.room1 && gameState.room1.isWirePuzzleSolved && gameState.room1.isWirePuzzleSolved()) || 
-                          (window.gameStore && window.gameStore.getWireComplete && window.gameStore.getWireComplete());
-  
-  if (wirePuzzleSolved) {
+  if (gameState.room1 && gameState.room1.isWirePuzzleSolved && gameState.room1.isWirePuzzleSolved()) {
     // Wire puzzle solved - unlock door to next room
-    if (gameState.stage < 2) {
+    if (gameState.stage === 1) {
       gameState.stage = 2;
       if (window.AI) {
         window.AI.onRoom1Complete();
       }
-    }
-    // Always unlock the south door when puzzle is solved (regardless of stage)
-    if (gameState.room0 && gameState.room0.unlockSouthDoor) {
-      gameState.room0.unlockSouthDoor();
     }
   }
   
@@ -854,16 +780,6 @@ function animate(currentTime) {
   // Performance debugger removed
   
   // Stage 0: Render scene
-  renderer.clear();
   renderer.render(scene, camera);
-  // Glasses vignette: fade based on inventory selection each frame
-  const inv = getPlayerInventory ? getPlayerInventory() : null;
-  const selected = inv && (inv.getSelectedItem ? inv.getSelectedItem() : inv.slots?.[inv.selectedSlot]);
-  const target = selected && selected.name === 'glasses' ? 1.0 : 0.0;
-  const s = vignetteUniforms.uStrength.value;
-  vignetteUniforms.uStrength.value = s + (target - s) * Math.min(1, deltaTime * 6);
-  if (vignetteUniforms.uStrength.value > 0.01) {
-    renderer.render(overlayScene, overlayCamera);
-  }
 }
 animate(0);

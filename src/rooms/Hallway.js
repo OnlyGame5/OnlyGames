@@ -1,3 +1,5 @@
+// src/rooms/Hallway.js
+
 import * as THREE from 'three';
 
 /**

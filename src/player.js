@@ -119,11 +119,20 @@ function getItemIcon(itemName) {
     case 'statue':
       return '🗽';
     case 'bowling-pin':
-      return '♙'; // Using a pawn as it resembles a pin
+      return '♙'; // legacy id (room2 now uses bowling_pin)
     case 'bowling-ball':
-      return '🎱'; // Using a pool ball for the ball
+      return '🎱'; // legacy id (room2 now uses bowling_ball)
     case 'book':
       return '📖';
+    // New standardized ids for Room 2 puzzle
+    case 'liberty':
+      return '🗽';
+    case 'bowling_pin':
+      return '📍';
+    case 'bowling_ball':
+      return '🎳';
+    case 'candle':
+      return '🕯️';
     default:
       return '📦';
   }
@@ -745,4 +754,10 @@ export function getPlayerInventory() { return playerInventory; }
 export function addToInventory(item) { return playerInventory.addItem(item); }
 export function hasInInventory(itemName) { return playerInventory.hasItem(itemName); }
 export function removeFromInventory(itemName) { return playerInventory.removeItem(itemName); }
+
+// Snapshot helper for external UIs (e.g., ScaleOfBalance)
+export function getInventorySnapshot() {
+  // return shallow copy of slots; normalize objects shape
+  return playerInventory.slots.map((it) => it ? { ...it } : null);
+}
 
