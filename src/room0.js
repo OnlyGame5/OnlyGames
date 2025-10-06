@@ -200,14 +200,15 @@ export function createRoom0() {
   // --- ADD HEADER PANELS FOR HALLWAY OPENINGS ---
   const headerMaterial = new THREE.MeshStandardMaterial({ color: 0xbbc1c9, metalness: 0.8, roughness: 0.3 });
   const headerHeight = 0.5; // Assuming a standard wall height of 4.5, adjust if needed
-  const hallwayWidth = 2;
+  const hallwayWidth = 3; // Changed from 2 to 3 to match the door opening width
 
   // Header for Room 1 Opening (East Wall / Right Wall)
   const headerEast = new THREE.Mesh(
-    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
+    new THREE.BoxGeometry(wallThickness, headerHeight, hallwayWidth), // Swapped width and depth
     headerMaterial
   );
   headerEast.position.set(10, 4.25, 0); // Positioned above the opening
+  headerEast.rotation.y = Math.PI / 2; // Rotate to align with Z-axis
   group.add(headerEast);
 
   // Header for Room 2 Opening (South Wall / Back Wall)
@@ -220,10 +221,11 @@ export function createRoom0() {
 
   // Header for Room 3 Opening (West Wall / Left Wall)
   const headerWest = new THREE.Mesh(
-    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
+    new THREE.BoxGeometry(wallThickness, headerHeight, hallwayWidth), // Swapped width and depth
     headerMaterial
   );
   headerWest.position.set(-10, 4.25, 0);
+  headerWest.rotation.y = Math.PI / 2; // Rotate to align with Z-axis
   group.add(headerWest);
   
   // Add invisible collision walls for front wall (matching the visible panels)
@@ -523,7 +525,7 @@ export function createRoom0() {
   
   // Main door panel
   const doorPanel = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 3.5, 0.2),
+    new THREE.BoxGeometry(3, 3.5, 0.2), // Changed width from 2 to 3
     new THREE.MeshStandardMaterial({ 
       color: 0x1a1a1a,
       metalness: 0.9,
@@ -538,7 +540,7 @@ export function createRoom0() {
   
   // Door frame
   const doorFrame = new THREE.Mesh(
-    new THREE.BoxGeometry(2.2, 3.7, 0.1),
+    new THREE.BoxGeometry(3.2, 3.7, 0.1), // Changed width from 2.2 to 3.2
     new THREE.MeshStandardMaterial({ 
       color: 0x333333,
       metalness: 0.8,
@@ -993,7 +995,7 @@ export function createRoom0() {
     // Keep player within hallway width (x in [-1, 1]) once past the back wall
     // Updated to match the reusable hallway component positioning
     if (pos.z < backWallZ - 0.01) {
-      const hallwayHalf = 1 - playerRadius; // Updated to match hallway width of 2 units
+      const hallwayHalf = hallwayWidth / 2 - playerRadius; // Updated to match hallway width of 3 units
       if (pos.x < -hallwayHalf) pos.x = -hallwayHalf;
       if (pos.x >  hallwayHalf) pos.x =  hallwayHalf;
     }

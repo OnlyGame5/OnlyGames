@@ -32,34 +32,34 @@ export function createRoom2() {
   const roomWidthHalf = 6;  // Room is 12x12
   const roomDepthHalf = 6;
 
-  // Back wall (South, z=-6) - SOLID
-  const backWall = new THREE.Mesh(
+  // Back wall (South, z=-6) - WITH OPENING
+  const backWall_LeftSegment = new THREE.Mesh(
+    new THREE.BoxGeometry(5.5, wallHeight, wallThickness),
+    wallMaterial
+  );
+  backWall_LeftSegment.position.set(-3.75, wallHeight / 2, -roomDepthHalf ); // Adjusted z position by -1.5
+  backWall_LeftSegment.castShadow = true;
+  backWall_LeftSegment.receiveShadow = true;
+  group.add(backWall_LeftSegment);
+
+  const backWall_RightSegment = new THREE.Mesh(
+    new THREE.BoxGeometry(5.5, wallHeight, wallThickness),
+    wallMaterial
+  );
+  backWall_RightSegment.position.set(3.75, wallHeight / 2, -roomDepthHalf ); // Adjusted z position by -1.5
+  backWall_RightSegment.castShadow = true;
+  backWall_RightSegment.receiveShadow = true;
+  group.add(backWall_RightSegment);
+  
+  // Front wall (North, z=6) - SOLID
+  const frontWall = new THREE.Mesh(
     new THREE.BoxGeometry(12, wallHeight, wallThickness),
     wallMaterial
   );
-  backWall.position.set(0, wallHeight / 2, -roomDepthHalf);
-  backWall.castShadow = true;
-  backWall.receiveShadow = true;
-  group.add(backWall);
-  
-  // Front wall (North, z=6) - WITH OPENING
-  const frontWall_LeftSegment = new THREE.Mesh(
-    new THREE.BoxGeometry(5, wallHeight, wallThickness), // 5 units wide
-    wallMaterial
-  );
-  frontWall_LeftSegment.position.set(-3.5, wallHeight / 2, roomDepthHalf);
-  frontWall_LeftSegment.castShadow = true;
-  frontWall_LeftSegment.receiveShadow = true;
-  group.add(frontWall_LeftSegment);
-
-  const frontWall_RightSegment = new THREE.Mesh(
-    new THREE.BoxGeometry(5, wallHeight, wallThickness), // 5 units wide
-    wallMaterial
-  );
-  frontWall_RightSegment.position.set(3.5, wallHeight / 2, roomDepthHalf);
-  frontWall_RightSegment.castShadow = true;
-  frontWall_RightSegment.receiveShadow = true;
-  group.add(frontWall_RightSegment);
+  frontWall.position.set(0, wallHeight / 2, roomDepthHalf);
+  frontWall.castShadow = true;
+  frontWall.receiveShadow = true;
+  group.add(frontWall);
 
   // Left wall (West, x=-6) - SOLID
   const leftWall = new THREE.Mesh(
@@ -81,16 +81,15 @@ export function createRoom2() {
   rightWall.receiveShadow = true;
   group.add(rightWall);
 
-  // Header above the new North opening
-  const headerNorth = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 0.5, wallThickness), 
+  // Header above the new South opening
+  const headerSouth = new THREE.Mesh(
+    new THREE.BoxGeometry(3, 0.5, wallThickness), 
     wallMaterial
   );
-  headerNorth.position.set(0, 4.25, 6);
-  headerNorth.castShadow = true;
-  headerNorth.receiveShadow = true;
-  group.add(headerNorth);
-
+  headerSouth.position.set(0, 4.25, -roomDepthHalf - 1.5); // Adjusted z position by -1.5
+  headerSouth.castShadow = true;
+  headerSouth.receiveShadow = true;
+  group.add(headerSouth);
 
   // Ceiling
   const ceiling = floor.clone();
@@ -102,7 +101,7 @@ export function createRoom2() {
   // Add scales model
   loader.load('/models/scales.glb', (gltf) => {
       const scales = setupModel(gltf);
-      scales.position.set(0, 0.2, -4.5);
+      scales.position.set(0, 0.2, 4.5);
       scales.scale.set(0.05, 0.05, 0.05);
       group.add(scales);
   });
@@ -220,18 +219,18 @@ export function createRoom2() {
         playerLocal.x = roomHalf - wallThickness - playerRadius;
         clamped = true;
       }
-      // Back wall (now solid)
-      if (playerLocal.z - playerRadius < -roomHalf + wallThickness) {
-        playerLocal.z = -roomHalf + wallThickness + playerRadius;
-        clamped = true;
-      }
-      // Front wall with opening for hub hallway (North)
-      if (playerLocal.z + playerRadius > roomHalf - wallThickness) {
-        const inOpeningX = (playerLocal.x >= -1 && playerLocal.x <= 1);
+      // Back wall with opening for hub hallway (South)
+      if (playerLocal.z - playerRadius < -roomHalf + wallThickness - 1.5) { // Adjusted z for collision as well
+        const inOpeningX = (playerLocal.x >= -1.5 && playerLocal.x <= 1.5); // 3-unit opening
         if (!inOpeningX) {
-          playerLocal.z = roomHalf - wallThickness - playerRadius;
+          playerLocal.z = -roomHalf + wallThickness + playerRadius - 1.5; // Adjusted z for collision as well
           clamped = true;
         }
+      }
+      // Front wall (now solid)
+      if (playerLocal.z + playerRadius > roomHalf - wallThickness) {
+        playerLocal.z = roomHalf - wallThickness - playerRadius;
+        clamped = true;
       }
 
       if (clamped) {
