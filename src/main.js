@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel } from './player.js';
+import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory } from './player.js';
 import { AI } from './ai.js';
 import { createRoom0 } from './room0.js';
 import { createRoom1 } from './room1.js';
@@ -42,6 +42,8 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap; // Changed from PCFSoftShadowMap for better performance
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Reduced from 2 to 1.5 for better performance
 document.body.appendChild(renderer.domElement);
+// We'll render an overlay after the main scene; disable automatic clearing between renders
+renderer.autoClear = false;
 
 // Install performance debugger
 
@@ -60,6 +62,49 @@ let minimap = null;
 
 // FPS Counter setup
 let fpsCounter = null;
+
+// === Glasses vignette overlay (shader) ===
+const overlayScene = new THREE.Scene();
+const overlayCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const vignetteUniforms = {
+  uStrength: { value: 0.0 },
+  // Slightly more saturated cyan tint
+  uColor: { value: new THREE.Color(0x4db5ff) }
+};
+const vignetteMaterial = new THREE.ShaderMaterial({
+  uniforms: vignetteUniforms,
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uStrength;
+    uniform vec3 uColor;
+    varying vec2 vUv;
+    void main() {
+      // Radial vignette from center
+      vec2 p = vUv - 0.5;
+      float r = length(p);
+      float inner = 0.35; // start earlier for more coverage
+      float outer = 0.85; // reach strength sooner
+      float v = smoothstep(inner, outer, r);
+      // Slight ease to emphasize edges a bit more
+      v = pow(v, 0.9);
+      float alpha = v * 0.7 * uStrength; // stronger tint
+      gl_FragColor = vec4(uColor, alpha);
+    }
+  `,
+  transparent: true,
+  depthTest: false,
+  depthWrite: false,
+  blending: THREE.NormalBlending
+});
+const overlayQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), vignetteMaterial);
+overlayQuad.position.z = 0;
+overlayScene.add(overlayQuad);
 
 // Stage 0: Game state management
 let gameState = {
@@ -747,6 +792,16 @@ function animate(currentTime) {
   // Performance debugger removed
   
   // Stage 0: Render scene
+  renderer.clear();
   renderer.render(scene, camera);
+  // Glasses vignette: fade based on inventory selection each frame
+  const inv = getPlayerInventory ? getPlayerInventory() : null;
+  const selected = inv && (inv.getSelectedItem ? inv.getSelectedItem() : inv.slots?.[inv.selectedSlot]);
+  const target = selected && selected.name === 'glasses' ? 1.0 : 0.0;
+  const s = vignetteUniforms.uStrength.value;
+  vignetteUniforms.uStrength.value = s + (target - s) * Math.min(1, deltaTime * 6);
+  if (vignetteUniforms.uStrength.value > 0.01) {
+    renderer.render(overlayScene, overlayCamera);
+  }
 }
 animate(0);
