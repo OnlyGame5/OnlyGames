@@ -4,8 +4,8 @@ import { AI } from './ai.js';
 import { createRoom0 } from './room0.js';
 import { createRoom1 } from './room1.js';
 import { createRoom2 } from './room2.js';
-import { createRoom3 } from './room3.js';
 import { createRoom4 } from './room4.js';
+import { createRoom3 } from './rooms/serverRoom.js';
 import { handleMouseClick, handleStage0Click } from './utils.js';
 import { initInput, isDown as inputIsDown, getBindings } from './systems/input.js';
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
@@ -438,12 +438,18 @@ window.addEventListener('keydown', (e) => {
      }
    }
    
-   // F key for FPS counter toggle
-   if (e.code === 'KeyF') {
-     if (fpsCounter) {
-       fpsCounter.toggle();
-     }
-   }
+  // F key for FPS counter toggle and Room 2 note interaction
+  if (e.code === 'KeyF') {
+    let handled = false;
+    // If Room 2 has a special F interaction (shine light), try it first
+    const activePlayer = leonardModel || player;
+    if (gameState.room2 && typeof gameState.room2.handleFKeyInteraction === 'function') {
+      handled = gameState.room2.handleFKeyInteraction(activePlayer) || false;
+    }
+    if (!handled && fpsCounter) {
+      fpsCounter.toggle();
+    }
+  }
   
   // E key interaction handler
   if (e.code === getBindings().interact) {
@@ -712,6 +718,9 @@ function animate(currentTime) {
   // Update Room 4 systems (floating binary animation)
   if (gameState.room4 && typeof gameState.room4.update === 'function') {
     gameState.room4.update(deltaTime);
+  // Update Room 2 systems
+  if (gameState.room2 && typeof gameState.room2.update === 'function') {
+    gameState.room2.update(deltaTime);
   }
 
   // Enter Room 3 logic and stage progression
