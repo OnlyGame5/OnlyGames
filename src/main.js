@@ -5,7 +5,7 @@ import { createRoom0 } from './room0.js';
 import { createRoom1 } from './room1.js';
 import { createRoom2 } from './room2.js';
 import { createRoom4 } from './room4.js';
-import { createRoom3 } from './rooms/serverRoom.js';
+import { createServerRoom } from './rooms/serverRoom.js';
 import { handleMouseClick, handleStage0Click } from './utils.js';
 import { initInput, isDown as inputIsDown, getBindings } from './systems/input.js';
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
@@ -195,7 +195,7 @@ async function initGame() {
     updateProgress(1); // Room 1
     gameState.room2 = createRoom2();
     updateProgress(1); // Room 2
-    gameState.room3 = createRoom3();
+    gameState.room3 = createServerRoom();
     updateProgress(1); // Room 3
     gameState.room4 = createRoom4();
     console.log('Room 4 created and added to gameState');
@@ -352,7 +352,7 @@ async function initGame() {
     gameState.room0 = createRoom0();
     gameState.room1 = createRoom1();
     gameState.room2 = createRoom2();
-    gameState.room3 = createRoom3();
+    gameState.room3 = createServerRoom();
     gameState.room4 = createRoom4();
     console.log('Fallback: Room 4 created and added to gameState');
     

@@ -39,6 +39,7 @@ class GameStore {
         puzzles: {
           bridgeSolved: false,
           overrideSolved: false,
+          dataStormSolved: false,
           finalChoice: null,
           coreUnlocked: false
         }

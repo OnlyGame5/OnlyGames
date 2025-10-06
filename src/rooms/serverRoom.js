@@ -4,14 +4,12 @@ import * as THREE from 'three';
 import { AI } from '../ai.js';
 import { gameStore } from '../state/gameStore.js';
 import { buildStandardLightRig, removeExistingLights } from '../lighting/standardLighting.js';
-import { BridgeOfLies } from './Room3/BridgeOfLies.js';
-import { SystemOverrideTerminal } from './Room3/SystemOverrideTerminal.js';
-import { FinalChoiceConsoles } from './Room3/FinalChoiceConsoles.js';
+import { DataStormPuzzle } from './Room3/DataStormPuzzle.js';
 import { room3Audio } from '../audio/room3Audio.js';
 
-// Room 3 – The Core
+// Server Room – The Core
 // Controller responsible for assembling the chamber, mounting puzzles, and handling per-frame updates.
-export class Room3 {
+export class ServerRoom {
   constructor({ scene, loader, player, materials, assets } = {}) {
     this.scene = scene;
     this.loader = loader;
@@ -21,7 +19,7 @@ export class Room3 {
 
     // Root group
     const group = new THREE.Group();
-    group.name = 'room3-core-chamber';
+    group.name = 'server-room-core-chamber';
     this.group = group;
 
     // Layout parameters
@@ -30,9 +28,8 @@ export class Room3 {
 
     // Subgroups
     this.catwalk = new THREE.Group(); this.catwalk.name = 'catwalk-entry';
-    this.bridgeMount = new THREE.Group(); this.bridgeMount.name = 'bridge-mount';
     this.centerPlatform = new THREE.Group(); this.centerPlatform.name = 'central-platform';
-    group.add(this.catwalk, this.bridgeMount, this.centerPlatform);
+    group.add(this.catwalk, this.centerPlatform);
 
     // Geometry: cylindrical pit with central platform
     this._buildShell();
@@ -43,19 +40,8 @@ export class Room3 {
     this._initLights();
 
     // Puzzles
-    this.bridge = new BridgeOfLies({
-      rows: 3, cols: 5,
-      patternSeed: 713,
-      respawnPosition: this.spawn.clone(),
-      stepSfx: { ok: 'chime1', fail: 'buzz1' }
-    });
-    this.bridge.mount(this.bridgeMount);
-
-    this.override = new SystemOverrideTerminal();
-    this.override.mount(this.centerPlatform);
-
-    this.choices = new FinalChoiceConsoles({ onChoice: (type) => this._handleFinalChoice(type) });
-    this.choices.mount(this.centerPlatform);
+    this.dataStormPuzzle = new DataStormPuzzle();
+    this.dataStormPuzzle.mount(this.centerPlatform);
 
     // Entry/Exit anchors
     this.anchors = {
@@ -77,9 +63,9 @@ export class Room3 {
     window.addEventListener('keydown', (e) => {
       // Use 'p' to trigger the alarm for testing
       if (e.key.toLowerCase() === 'p') {
-        // Check if the player is currently considered to be in room 3
+        // Check if the player is currently considered to be in server room
         if (gameStore.stage === 3) {
-          console.log("DEBUG: Manually triggering Room 3 alarm!");
+          console.log("DEBUG: Manually triggering Server Room alarm!");
           this._enableAlarmState();
         }
       }
@@ -335,7 +321,7 @@ export class Room3 {
         }
       });
     }
-    console.log(`[Room 3] Entered. Hid ${this._hiddenExternalLights.length} external lights.`);
+    console.log(`[Server Room] Entered. Hid ${this._hiddenExternalLights.length} external lights.`);
     // --- END OF BLOCK ---
 
     // --- DISABLE THE ENVIRONMENT MAP ---
@@ -345,7 +331,7 @@ export class Room3 {
       // Disable it to achieve true darkness
       scene.environment = null;
     }
-    console.log(`[Room 3] Disabled scene.environment.`);
+    console.log(`[Server Room] Disabled scene.environment.`);
     // --- END OF BLOCK ---
 
     // Place the player at catwalk start if available
@@ -362,7 +348,7 @@ export class Room3 {
     this._entered = false; // Allow re-entry logic to run
 
     // --- RESTORE EXTERNAL LIGHTS ---
-    console.log(`[Room 3] Exiting. Restoring ${this._hiddenExternalLights.length} external lights.`);
+    console.log(`[Server Room] Exiting. Restoring ${this._hiddenExternalLights.length} external lights.`);
     this._hiddenExternalLights.forEach(light => {
       light.visible = true; // Restore visibility
     });
@@ -375,7 +361,7 @@ export class Room3 {
       // Restore the original environment map
       scene.environment = this._previousEnvironment;
     }
-    console.log(`[Room 3] Restored scene.environment.`);
+    console.log(`[Server Room] Restored scene.environment.`);
     // --- END OF BLOCK ---
   }
 
@@ -418,24 +404,7 @@ export class Room3 {
     }
 
     // Subsystems
-    const tfOn = !!gameStore.isTruthFilterOn;
-    if (this.bridge) this.bridge.update(delta, tfOn, this.player);
-    if (this.override) this.override.update(delta, tfOn);
-    if (this.choices) this.choices.update(delta);
-
-    // Flag wiring
-    if (!gameStore.flags.room3.bridgeSolved && this.bridge?.isSolved?.()) {
-      gameStore.setRoom3Flag('bridgeSolved', true);
-      AI.onBridgePuzzleDefiance(); // reflective bark as player succeeded without following orders
-    }
-
-    // Unlock choices after override
-    if (!gameStore.flags.room3.overrideSolved && this.override?.isSolved?.()) {
-      gameStore.setRoom3Flag('overrideSolved', true);
-      gameStore.setRoom3Flag('coreUnlocked', true);
-      this._enableAlarmState();
-      AI.onSystemOverrideSuccess();
-    }
+    if (this.dataStormPuzzle) this.dataStormPuzzle.update(delta);
   }
 
   _enableAlarmState() {
@@ -463,13 +432,8 @@ export class Room3 {
 
     // Vertical pits: if leaving walkable surfaces (y below -1), respawn
     if (player && player.position && player.position.y < -1) {
-      // Bridge handles a clean reset when present
-      if (this.bridge && this.bridge.handleFallReset) {
-        this.bridge.handleFallReset(player);
-      } else {
-        // fallback: snap to spawn
-        player.position.copy(this.group.localToWorld(this.spawn.clone()));
-      }
+      // Snap to spawn
+      player.position.copy(this.group.localToWorld(this.spawn.clone()));
     }
 
     const newWorld = this.group.localToWorld(local);
@@ -478,28 +442,22 @@ export class Room3 {
 
   handleEKeyInteraction(player) {
     if (!player) return false;
-    // Interact with main terminal if nearby
-    if (this.override?.mainTerminal) {
-      const termWorld = this.override.mainTerminal.getWorldPosition(new THREE.Vector3());
-      const dist = termWorld.distanceTo(player.position);
-      if (dist < 2.0 && !gameStore.flags.room3.overrideSolved) {
-        this.override.openUI();
-        return true;
+    
+    // Check for data storm fragment interactions
+    if (this.dataStormPuzzle && this.dataStormPuzzle.sprites) {
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2(0, 0); // center of screen
+      raycaster.setFromCamera(mouse, window.camera);
+      const intersects = raycaster.intersectObjects(this.dataStormPuzzle.sprites, true);
+      if (intersects.length > 0) {
+        const hit = intersects[0].object;
+        if (hit.userData.interactionId === 'data_storm_fragment') {
+          this.dataStormPuzzle.handleInteraction(hit);
+          return true;
+        }
       }
     }
-    // Interact with final choice consoles if unlocked
-    if (gameStore.flags.room3.coreUnlocked && this.choices?.group) {
-      const local = this.choices.group.worldToLocal(player.position.clone());
-      // In front of consoles and within X span
-      const near = Math.abs(local.z - 1.0) < 1.2 && Math.abs(local.x) < 3.5;
-      if (near) {
-        // Left or right
-        const type = local.x < 0 ? 'purge' : 'reboot';
-        AI.onFinalChoice();
-        this.choices.handleChoice(type);
-        return true;
-      }
-    }
+    
     return false;
   }
 
@@ -511,7 +469,7 @@ export class Room3 {
 }
 
 // Factory for compatibility with existing main.js import style
-export function createRoom3(ctx = {}) {
-  const r = new Room3(ctx);
+export function createServerRoom(ctx = {}) {
+  const r = new ServerRoom(ctx);
   return r;
 }
