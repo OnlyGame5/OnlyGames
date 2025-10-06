@@ -32,6 +32,7 @@ export class Minimap {
       room0: { width: 20, depth: 15, position: { x: 0, z: 0 } }, // Awakening chamber at origin
       room1: { width: 18, depth: 18, position: { x: 28, z: 0 } }, // East of origin (9 + 10 + 9 = 28)
       room2: { width: 12, depth: 12, position: { x: 0, z: 22 } }, // South of origin (6 + 10 + 6 = 22)
+      room4: { width: 18, depth: 18, position: { x: 0, z: -26.5 } }, // North of origin (7.5 + 10 + 9 = 26.5)
       room3: { width: 20, depth: 20, position: { x: -30, z: 0 }, label: 'SERVER ROOM' } // West of origin (10 + 10 + 10 = 30, circular)
     };
     
@@ -54,6 +55,12 @@ export class Minimap {
         length: 10, 
         position: { x: -15, z: 0 },
         rotation: Math.PI / 2 // 90 degrees (West direction)
+      },
+      hubToRoom4: { 
+        width: 3, 
+        length: 10, 
+        position: { x: 0, z: -13.25 },
+        rotation: 0 // no rotation (North direction)
       }
     };
     

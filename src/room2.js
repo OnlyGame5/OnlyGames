@@ -4,6 +4,7 @@ import { setupModel } from './utils.js';
 import { addToInventory, getPlayerInventory } from './player.js'; // Inventory functions
 import { AI } from './ai.js'; // AI for feedback
 import { ScaleOfBalance } from './puzzles/ScaleOfBalance.js';
+import { CandleBeamPuzzle } from './puzzles/CandleBeamPuzzle.js';
 
 export function createRoom2() {
   const group = new THREE.Group();
@@ -12,10 +13,12 @@ export function createRoom2() {
   const pickableObjects = []; // Array to hold objects that can be picked up
   const roomObjects = {}; // To store references to the models for cloning
   let scalePuzzle = null; // Puzzle controller
+  let candleBeamPuzzle = null; // Candle + Mirrors puzzle
   let noteInkMesh = null; // Hidden ink plane (opacity 0 initially)
   let noteBaseMesh = null; // Base paper plane
   let noteRevealProgress = 0; // 0..1 fade
   let lastPromptText = '';
+  const hiddenClues = []; // planes that show only with glasses selected
 
   const wallMaterial = new THREE.MeshStandardMaterial({
     color: 0x333344, 
@@ -103,6 +106,18 @@ export function createRoom2() {
   group.add(ceiling);
 
   const loader = new GLTFLoader();
+
+  // Candle + Mirrors Beam Puzzle: place stand, mirrors, target, and case
+  candleBeamPuzzle = new CandleBeamPuzzle({
+    roomGroup: group,
+    // Position candle stand somewhere on the west side; target on east wall defined in class
+    onSolved: () => {
+      console.log('Candle beam puzzle solved!');
+      if (window.AI) window.AI.say('The case slides open with a click.');
+      // You could spawn a reward here (e.g., a key) if desired
+    }
+  });
+  candleBeamPuzzle.attach();
 
   // Add scales model
   loader.load('/models/scales.glb', (gltf) => {
@@ -226,6 +241,69 @@ export function createRoom2() {
   group.add(candle);
   pickableObjects.push(candle);
 
+  // Glasses pickup (simple mesh)
+  const glasses = new THREE.Group();
+  glasses.name = 'glasses-prop';
+  // Frame
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.6, roughness: 0.4 });
+  const lensMat = new THREE.MeshStandardMaterial({ color: 0x88aaff, opacity: 0.35, transparent: true, metalness: 0.1, roughness: 0.9 });
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.02), frameMat);
+  const leftRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.01, 8, 16), frameMat);
+  const rightRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.01, 8, 16), frameMat);
+  leftRing.rotation.x = Math.PI / 2;
+  rightRing.rotation.x = Math.PI / 2;
+  leftRing.position.set(-0.1, 0, 0);
+  rightRing.position.set(0.1, 0, 0);
+  bridge.position.set(0, 0, 0);
+  const leftLens = new THREE.Mesh(new THREE.CircleGeometry(0.075, 24), lensMat);
+  const rightLens = new THREE.Mesh(new THREE.CircleGeometry(0.075, 24), lensMat);
+  leftLens.position.set(-0.1, 0, 0.005);
+  rightLens.position.set(0.1, 0, 0.005);
+  glasses.add(leftRing, rightRing, bridge, leftLens, rightLens);
+  glasses.position.set(-1.0, 0.22, -2.2);
+  glasses.userData.pickupId = 'glasses';
+  glasses.userData.displayName = 'Glasses';
+  glasses.userData.isPickable = true;
+  group.add(glasses);
+  pickableObjects.push(glasses);
+
+  // Hidden wall clues that show only with glasses selected
+  // Create simple quads with emissive text-like look
+  const clueMat = new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.0 });
+  const clueGeo = new THREE.PlaneGeometry(1.0, 0.25);
+  const wallZ = -5.9; // near the south wall
+  const cluesData = [
+    { text: 'Bowling Ball = 12', pos: new THREE.Vector3(-3.5, 1.4, wallZ) },
+    { text: 'Liberty = 5', pos: new THREE.Vector3(-1.2, 1.1, wallZ) },
+    { text: 'Pin = 4', pos: new THREE.Vector3(1.2, 0.9, wallZ) },
+    { text: 'Book = 3', pos: new THREE.Vector3(3.2, 0.8, wallZ) }
+  ];
+  cluesData.forEach(({ text, pos }) => {
+    const m = clueMat.clone();
+    // Add label using a CanvasTexture for the text
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#66ccff';
+    ctx.font = '28px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#1a3d5c';
+    ctx.shadowBlur = 8;
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    m.map = tex;
+    m.opacity = 0.0; // hidden by default
+    const mesh = new THREE.Mesh(clueGeo, m);
+    mesh.position.copy(pos);
+    mesh.rotation.y = 0; // facing the room
+    mesh.name = `room2-clue-${text.replace(/\s+/g, '-')}`;
+    group.add(mesh);
+    hiddenClues.push(mesh);
+  });
+
   // UI prompt helper
   function ensurePrompt() {
     let prompt = document.getElementById('interactPrompt');
@@ -267,6 +345,14 @@ export function createRoom2() {
     return player.position.distanceTo(world) <= 1.6;
   }
 
+  function playerNearCandlePuzzle(player) {
+    if (!candleBeamPuzzle || !player) return false;
+    const pts = [];
+    if (candleBeamPuzzle.objects.stand) pts.push(candleBeamPuzzle.objects.stand.getWorldPosition(new THREE.Vector3()));
+    if (candleBeamPuzzle.objects.aimer) pts.push(candleBeamPuzzle.objects.aimer.getWorldPosition(new THREE.Vector3()));
+    return pts.some(p => player.position.distanceTo(p) <= 1.8);
+  }
+
   function handleEKeyInteraction(player) {
     if (window.disablePlayerControls) return false;
 
@@ -304,6 +390,12 @@ export function createRoom2() {
     // 2) If near the scale, open the Scale UI
     if (scalePuzzle && playerNearScale(player)) {
       const opened = scalePuzzle.tryOpenUI(player);
+      if (opened) return true;
+    }
+
+    // 3) If near candle beam puzzle, open its UI
+    if (candleBeamPuzzle && playerNearCandlePuzzle(player)) {
+      const opened = candleBeamPuzzle.tryOpenUI(player);
       if (opened) return true;
     }
 
@@ -347,6 +439,20 @@ export function createRoom2() {
 
     // Update scale puzzle animations
     if (scalePuzzle) scalePuzzle.update(deltaTime);
+  if (candleBeamPuzzle) candleBeamPuzzle.update(deltaTime);
+
+    // Toggle hidden clues based on glasses selection
+    const inv = getPlayerInventory();
+    const selected = inv.getSelectedItem ? inv.getSelectedItem() : inv.slots?.[inv.selectedSlot];
+    const showClues = !!(selected && selected.name === 'glasses');
+    hiddenClues.forEach((mesh) => {
+      const target = showClues ? 1.0 : 0.0;
+      const cur = mesh.material.opacity;
+      const t = Math.min(1, deltaTime * 6);
+      mesh.material.opacity = cur + (target - cur) * t;
+      mesh.material.needsUpdate = true;
+      mesh.visible = mesh.material.opacity > 0.02;
+    });
 
     // Interaction prompts
     const cam = window.camera;
@@ -360,6 +466,12 @@ export function createRoom2() {
     // Check scale prompt
     if (playerNearScale(activePlayer)) {
       showPrompt('[E] Use Scale');
+      return;
+    }
+
+    // Check candle aimer prompt
+    if (playerNearCandlePuzzle(activePlayer)) {
+      showPrompt('[E] Aim Beam');
       return;
     }
 
