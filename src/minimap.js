@@ -510,7 +510,7 @@ export class Minimap {
       this.minimapContainer.style.top = '50%';
       this.minimapContainer.style.right = 'auto';
       this.minimapContainer.style.left = '50%';
-      this.minimapContainer.style.transform = 'translate(-50%, -50%)';
+      this.minimapContainer.style.transform = 'translate(-50%, 50%)';
       this.minimapContainer.style.zIndex = '2000';
       this.minimapContainer.style.position = 'fixed';
       
