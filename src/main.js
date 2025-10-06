@@ -427,6 +427,7 @@ window.addEventListener('keydown', (e) => {
       stage: gameState.stage, 
       room0Exists: !!gameState.room0,
       room1Exists: !!gameState.room1,
+      room2Exists: !!gameState.room2,
       room3Exists: !!gameState.room3
     });
     
@@ -442,6 +443,16 @@ window.addEventListener('keydown', (e) => {
       }
     }
     
+    // Then, try Room 2 for pickable objects
+    if (gameState.room2 && gameState.room2.handleEKeyInteraction) {
+      console.log('Trying Room 2 E-key handler');
+      const handled = gameState.room2.handleEKeyInteraction(activePlayer);
+      if (handled) {
+          console.log('Room 2 E-key handler succeeded');
+          return; // If an item was picked up, stop processing
+      }
+    }
+
     // Then try Room 0 if in stage 0
     if (gameState.stage === 0 && gameState.room0) {
       console.log('Handling E-key in Stage 0 (Room 0)');

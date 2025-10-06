@@ -116,6 +116,14 @@ function getItemIcon(itemName) {
       return '🗝️';
     case 'room1-note':
       return '📝';
+    case 'statue':
+      return '🗽';
+    case 'bowling-pin':
+      return '♙'; // Using a pawn as it resembles a pin
+    case 'bowling-ball':
+      return '🎱'; // Using a pool ball for the ball
+    case 'book':
+      return '📖';
     default:
       return '📦';
   }
@@ -289,18 +297,10 @@ function createItemMesh(item) {
         mesh = keyGroup;
       }
       break;
-      
-    default:
-      // Generic item box
-      mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.2, 0.2),
-        new THREE.MeshStandardMaterial({ 
-          color: 0x888888,
-          metalness: 0.3,
-          roughness: 0.7
-        })
-      );
-      break;
+    
+    
+
+    
   }
   
   if (mesh) {
@@ -745,3 +745,4 @@ export function getPlayerInventory() { return playerInventory; }
 export function addToInventory(item) { return playerInventory.addItem(item); }
 export function hasInInventory(itemName) { return playerInventory.hasItem(itemName); }
 export function removeFromInventory(itemName) { return playerInventory.removeItem(itemName); }
+
