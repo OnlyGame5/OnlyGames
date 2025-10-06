@@ -17,6 +17,7 @@ import { Minimap } from './minimap.js';
 import { FPSCounter } from './ui/FPSCounter.js';
 import { LevelManager } from './game/levels/LevelManager.js';
 import { gameStore } from './state/gameStore.js';
+import { createFuturisticDoor } from './game/props/FuturisticDoor.js';
 
 
 // --- Scene, Camera, Renderer ---
@@ -164,7 +165,7 @@ async function initGame() {
     createFadeOverlay();
     
     // Track loading progress for new loading screen
-    let totalItems = 7; // leonard(1) + rooms(5) + models(1) - security camera removed
+    let totalItems = 8; // leonard(1) + rooms(5) + models(2) - security camera removed
     let loadedItems = 0;
     
     function updateProgress(itemCount = 1) {
@@ -282,6 +283,20 @@ async function initGame() {
     gameState.hallwayToRoom3 = hallwayToRoom3;
     gameState.hallwayBehindDoor = hallwayBehindDoor;
     gameState.hallwayToRoom4 = hallwayToRoom4;
+
+    // Room 3 access is controlled by the existing westDoor in room0.js
+    // Subscribe to Room 2 completion to unlock the west door
+    gameStore.subscribe('room2Complete', (completed) => {
+      if (completed) {
+        console.log('Room 2 completed - unlocking west door to Room 3');
+        // Find the west door in room0 and unlock it
+        const room0WestDoor = gameState.room0?.westDoor;
+        if (room0WestDoor) {
+          room0WestDoor.userData.setLocked(false);
+          room0WestDoor.userData.openDoor();
+        }
+      }
+    });
     
     // Add first-person item display to scene
     addFirstPersonItemToScene(scene);
@@ -552,6 +567,8 @@ window.addEventListener('keydown', (e) => {
       }
     }
 
+    // Room 3 access door interaction is handled by room0.js westDoor
+
     // Check if player is in Room 0 (hub room)
     const isInRoom0 = activePlayer.position.x >= -10 && activePlayer.position.x <= 10 && 
                      activePlayer.position.z >= -7.5 && activePlayer.position.z <= 7.5;
@@ -790,6 +807,8 @@ function animate(currentTime) {
   if (gameState.room2 && typeof gameState.room2.update === 'function') {
     gameState.room2.update(deltaTime);
   }
+
+  // Room 3 access door is handled by room0.js westDoor
 
   // Enter Room 3 logic and stage progression
   if (insideRoom3 && gameState.stage < 3 && gameState.room3 && typeof gameState.room3.enter === 'function') {
