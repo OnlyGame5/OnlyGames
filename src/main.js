@@ -5,6 +5,8 @@ import { createRoom0 } from './room0.js';
 import { createRoom1 } from './room1.js';
 import { createRoom2 } from './room2.js';
 import { createRoom3 } from './room3.js';
+import { createRoom4 } from './room4.js';
+import { createRoom4Simple } from './room4-simple.js';
 import { handleMouseClick, handleStage0Click } from './utils.js';
 import { initInput, isDown as inputIsDown, getBindings } from './systems/input.js';
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
@@ -118,7 +120,7 @@ async function initGame() {
     createFadeOverlay();
     
     // Track loading progress for new loading screen
-    let totalItems = 6; // leonard(1) + rooms(4) + models(1) - security camera removed
+    let totalItems = 7; // leonard(1) + rooms(5) + models(1) - security camera removed
     let loadedItems = 0;
     
     function updateProgress(itemCount = 1) {
@@ -151,13 +153,20 @@ async function initGame() {
     updateProgress(1); // Room 2
     gameState.room3 = createRoom3();
     updateProgress(1); // Room 3
+    gameState.room4 = createRoom4Simple();
+    console.log('Room 4 created and added to gameState');
+    updateProgress(1); // Room 4
     
     // Register them with the Level Manager (Room 0 serves as hub)
     levelManager.registerRoom('room0', gameState.room0);
     levelManager.registerRoom('room1', gameState.room1);
     levelManager.registerRoom('room2', gameState.room2);
     levelManager.registerRoom('room3', gameState.room3);
+    levelManager.registerRoom('room4', gameState.room4);
     levelManager.setHub(gameState.room0); // Use Room 0 as the hub
+    
+    console.log('Room 4 registered with LevelManager');
+    console.log('Scene children count:', scene.children.length);
     
     // Position player in the awakening chair
     if (gameState.room0.awakeningChair) {
@@ -203,11 +212,22 @@ async function initGame() {
     hallwayToRoom3.group.position.set(-15, 0, 0);
     hallwayToRoom3.group.rotation.y = Math.PI / 2; // Rotate to align with X-axis
     scene.add(hallwayToRoom3.group);
+
+    // Hallway to Room 4 (North) - Width 3 to match door opening
+    const hallwayToRoom4 = createReusableHallway({
+      ...hallwayConfig,
+      width: 3, // Match the door opening width
+      name: 'hallway-hub-to-room4'
+    });
+    // Hallway to Room 4 (Position = -(HubWall + HallwayLength/2) = -(7.5 + 5) = -12.5)
+    hallwayToRoom4.group.position.set(0, 0, -12.5);
+    scene.add(hallwayToRoom4.group);
     
     // Store hallways in gameState for collision detection
     gameState.hallwayToRoom1 = hallwayToRoom1;
     gameState.hallwayToRoom2 = hallwayToRoom2;
     gameState.hallwayToRoom3 = hallwayToRoom3;
+    gameState.hallwayToRoom4 = hallwayToRoom4;
     
     // Add first-person item display to scene
     addFirstPersonItemToScene(scene);
@@ -227,10 +247,14 @@ async function initGame() {
     // Room 3 (Radius 10) is West. Position = 10 + 10 + 10 = 30
     gameState.room3.group.position.set(-30, 0, 0);
     
+    // Room 4 (Radius 9) is North. Position = 7.5 + 10 + 9 = 26.5
+    gameState.room4.group.position.set(0, 0, -26.5);
+    
     // All rooms visible from start to prevent loading freezes
     gameState.room1.group.visible = true;
     gameState.room2.group.visible = true;
     gameState.room3.group.visible = true;
+    gameState.room4.group.visible = true;
     
     // Make AI globally accessible for room0 interactions
     window.AI = AI;
@@ -272,12 +296,15 @@ async function initGame() {
     gameState.room1 = createRoom1();
     gameState.room2 = createRoom2();
     gameState.room3 = createRoom3();
+    gameState.room4 = createRoom4Simple();
+    console.log('Fallback: Room 4 created and added to gameState');
     
     // Register them with the Level Manager (Room 0 serves as hub)
     levelManager.registerRoom('room0', gameState.room0);
     levelManager.registerRoom('room1', gameState.room1);
     levelManager.registerRoom('room2', gameState.room2);
     levelManager.registerRoom('room3', gameState.room3);
+    levelManager.registerRoom('room4', gameState.room4);
     levelManager.setHub(gameState.room0); // Use Room 0 as the hub
     
     // Add first-person item display to scene
@@ -288,11 +315,14 @@ async function initGame() {
     gameState.room1.group.position.set(29, 0, 0); // East of Room 0 (10 + 10 + 9 = 29)
     gameState.room2.group.position.set(0, 0, 23.5); // South of Room 0 (7.5 + 10 + 6 = 23.5)
     gameState.room3.group.position.set(-30, 0, 0); // West of Room 0 (10 + 10 + 10 = 30)
+    gameState.room4.group.position.set(0, 0, -26.5); // North of Room 0 (7.5 + 10 + 9 = 26.5)
+    console.log('Room 4 positioned at:', gameState.room4.group.position);
     
     // All rooms visible from start to prevent loading freezes
     gameState.room1.group.visible = true;
     gameState.room2.group.visible = true;
     gameState.room3.group.visible = true;
+    gameState.room4.group.visible = true;
     
     window.AI = AI;
     
@@ -306,7 +336,7 @@ async function initGame() {
     window.gameState = gameState;
     
     // Complete loading even in fallback case
-    updateProgress(6); // All items loaded
+    updateProgress(7); // All items loaded
   }
 }
 

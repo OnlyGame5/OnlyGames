@@ -225,6 +225,14 @@ export function createRoom0() {
   );
   headerWest.position.set(-10, 4.25, 0);
   group.add(headerWest);
+
+  // Header for Room 4 Opening (North Wall / Front Wall)
+  const headerNorth = new THREE.Mesh(
+    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
+    headerMaterial
+  );
+  headerNorth.position.set(0, 4.25, 7.5);
+  group.add(headerNorth);
   
   // Add invisible collision walls for front wall (matching the visible panels)
   const frontCollisionWallLeft = new THREE.Mesh(
