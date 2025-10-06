@@ -409,12 +409,18 @@ window.addEventListener('keydown', (e) => {
      }
    }
    
-   // F key for FPS counter toggle
-   if (e.code === 'KeyF') {
-     if (fpsCounter) {
-       fpsCounter.toggle();
-     }
-   }
+  // F key for FPS counter toggle and Room 2 note interaction
+  if (e.code === 'KeyF') {
+    let handled = false;
+    // If Room 2 has a special F interaction (shine light), try it first
+    const activePlayer = leonardModel || player;
+    if (gameState.room2 && typeof gameState.room2.handleFKeyInteraction === 'function') {
+      handled = gameState.room2.handleFKeyInteraction(activePlayer) || false;
+    }
+    if (!handled && fpsCounter) {
+      fpsCounter.toggle();
+    }
+  }
   
   // E key interaction handler
   if (e.code === getBindings().interact) {
@@ -678,6 +684,11 @@ function animate(currentTime) {
   // Update Room 3 systems
   if (gameState.room3 && typeof gameState.room3.update === 'function') {
     gameState.room3.update(deltaTime);
+  }
+
+  // Update Room 2 systems
+  if (gameState.room2 && typeof gameState.room2.update === 'function') {
+    gameState.room2.update(deltaTime);
   }
 
   // Enter Room 3 logic and stage progression
