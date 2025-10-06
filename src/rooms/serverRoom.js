@@ -70,6 +70,8 @@ export class Room3 {
     this._entered = false;
     this._alarm = { on: false, t: 0 };
     this._tmpVec = new THREE.Vector3();
+    this._hiddenExternalLights = [];
+    this._previousEnvironment = null;
 
     // --- DEBUG TRIGGER ---
     window.addEventListener('keydown', (e) => {
@@ -291,6 +293,11 @@ export class Room3 {
     removeExistingLights(this.group);
     // Standard lighting removed - only red emergency lights remain
 
+    // Add a dark ambient light to counteract the white ambient light from Room 0
+    const darkAmbient = new THREE.AmbientLight(0x000000, 0.0); // Completely dark ambient
+    darkAmbient.name = 'dark-ambient-override';
+    this.group.add(darkAmbient);
+
     // Perimeter red alarm lights (N, E, S, W) - always on
     const y = this.dim.height - 0.5;
     const r = this.dim.radius - 1.0;
@@ -317,6 +324,30 @@ export class Room3 {
       window.gameState.stage = 3;
     }
 
+    // --- HIDE EXTERNAL LIGHTS ---
+    const scene = this.group.parent;
+    if (scene) {
+      scene.traverse((object) => {
+        // If the object is a light AND it's not a child of this room's group...
+        if (object.isLight && !object.parent.name.includes('room3')) {
+          this._hiddenExternalLights.push(object); // Store it
+          object.visible = false; // Hide it
+        }
+      });
+    }
+    console.log(`[Room 3] Entered. Hid ${this._hiddenExternalLights.length} external lights.`);
+    // --- END OF BLOCK ---
+
+    // --- DISABLE THE ENVIRONMENT MAP ---
+    if (scene) {
+      // Save the current environment map before changing it
+      this._previousEnvironment = scene.environment;
+      // Disable it to achieve true darkness
+      scene.environment = null;
+    }
+    console.log(`[Room 3] Disabled scene.environment.`);
+    // --- END OF BLOCK ---
+
     // Place the player at catwalk start if available
     // Optional snap to spawn if player reference provided to constructor
     if (this.player && this.player.position) {
@@ -327,7 +358,26 @@ export class Room3 {
     AI.onCoreChamberEntry();
   }
 
-  exit() {}
+  exit() {
+    this._entered = false; // Allow re-entry logic to run
+
+    // --- RESTORE EXTERNAL LIGHTS ---
+    console.log(`[Room 3] Exiting. Restoring ${this._hiddenExternalLights.length} external lights.`);
+    this._hiddenExternalLights.forEach(light => {
+      light.visible = true; // Restore visibility
+    });
+    this._hiddenExternalLights = []; // Clear the list
+    // --- END OF BLOCK ---
+
+    // --- RESTORE THE ENVIRONMENT MAP ---
+    const scene = this.group.parent;
+    if (scene) {
+      // Restore the original environment map
+      scene.environment = this._previousEnvironment;
+    }
+    console.log(`[Room 3] Restored scene.environment.`);
+    // --- END OF BLOCK ---
+  }
 
   update(delta) {
     // Animate CPU Core (rings + emissive scroll)
