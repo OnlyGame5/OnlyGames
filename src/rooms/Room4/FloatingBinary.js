@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 
 /**
- * Floating Binary Text Effect with Hidden NEXUS Message
+ * Floating Binary Text Effect with Hidden NEXUS Message and Deceptive ChatGPT Letters
  * Creates floating binary code sprites with a hidden message that appears when truth filter is active
+ * Also includes deceptive "ChatGPT" letters that appear in blue to trick players
  */
 export class FloatingBinary {
   constructor(truthFilterEnabled = false) {
@@ -17,6 +18,7 @@ export class FloatingBinary {
     this._binaryStrings = this._generateBinaryStrings(80); // Much increased for better room coverage
     this._sprites = [];
     this._nexusSprites = []; // Special sprites for NEXUS letters
+    this._deceptiveSprites = []; // Special sprites for deceptive "ChatGPT" letters
     this._t = 0;
     this.pulsingIntensity = 0; // Initialize pulsing intensity
     
@@ -25,17 +27,17 @@ export class FloatingBinary {
     try {
       this._buildBinarySprites();
       this._createNexusMessage();
+      this._createDeceptiveMessage(); // Add deceptive ChatGPT letters
       
-      console.log('FloatingBinary: Created', this._sprites.length, 'binary sprites and', this._nexusSprites.length, 'NEXUS letters');
+      console.log('FloatingBinary: Created', this._sprites.length, 'binary sprites,', this._nexusSprites.length, 'NEXUS letters, and', this._deceptiveSprites.length, 'deceptive letters');
       console.log('FloatingBinary: Group children count:', this.group.children.length);
       console.log('FloatingBinary: NEXUS sprites:', this._nexusSprites.map(s => s.userData.letter));
+      console.log('FloatingBinary: Deceptive sprites:', this._deceptiveSprites.map(s => s.userData.letter));
     } catch (error) {
       console.error('FloatingBinary: Error during creation:', error);
       // Continue with empty group if there's an error
     }
   }
-
-
 
   /**
    * Convert text to binary representation
@@ -83,7 +85,7 @@ export class FloatingBinary {
       const binaryText = this._textToBinary(letter);
       
       // Create a sprite that looks like regular binary code but is red
-      const sprite = this._createBinarySprite(binaryText, true);
+      const sprite = this._createBinarySprite(binaryText, true, false);
       
       if (sprite) {
         // Position NEXUS letters randomly with other binary streams
@@ -108,18 +110,58 @@ export class FloatingBinary {
         
         this.group.add(sprite);
         this._nexusSprites.push(sprite);
-        
       }
     });
   }
 
+  /**
+   * Create deceptive "ChatGPT" letters that appear in blue to trick players
+   */
+  _createDeceptiveMessage() {
+    const deceptiveLetters = ['C', 'h', 'a', 't', 'G', 'P', 'T'];
+    
+    deceptiveLetters.forEach((letter, index) => {
+      // Convert letter to binary
+      const binaryText = this._textToBinary(letter);
+      
+      // Create a sprite that looks like regular binary code but is blue (deceptive)
+      const sprite = this._createBinarySprite(binaryText, false, true); // isNexusLetter=false, isDeceptive=true
+      
+      if (sprite) {
+        // Position deceptive letters randomly with other binary streams
+        const roomHalf = 9; // Full room width (18m room)
+        const roomHeight = 4; // Full room height
+        const x = (Math.random() - 0.5) * roomHalf;
+        const y = 0.5 + Math.random() * roomHeight;
+        const z = (Math.random() - 0.5) * roomHalf;
+        
+        sprite.position.set(x, y, z);
+        
+        // Mark as deceptive letter and store the actual letter
+        sprite.userData.isDeceptiveLetter = true;
+        sprite.userData.letter = letter;
+        sprite.userData.binaryText = binaryText;
+        sprite.userData.initialX = x;
+        sprite.userData.initialY = y;
+        sprite.userData.initialZ = z;
+        sprite.userData.offset = index * 0.3;
+        sprite.userData.speed = 0.3 + Math.random() * 0.7;
+        sprite.userData.amplitude = 0.05 + Math.random() * 0.15;
+        
+        this.group.add(sprite);
+        this._deceptiveSprites.push(sprite);
+      }
+    });
+  }
 
   /**
    * Create a sprite with binary text
    * @param {string} text - Binary text to display
+   * @param {boolean} isNexusLetter - Whether this is a NEXUS letter
+   * @param {boolean} isDeceptive - Whether this is a deceptive ChatGPT letter
    * @returns {THREE.Sprite} Sprite with binary text
    */
-  _createBinarySprite(text, isNexusLetter = false) {
+  _createBinarySprite(text, isNexusLetter = false, isDeceptive = false) {
     try {
       const canvas = document.createElement('canvas');
       canvas.width = 512; // Larger for better readability
@@ -134,18 +176,27 @@ export class FloatingBinary {
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      // Style the text - larger and more readable
-      // NEXUS letters are green by default (same as regular binary)
-      ctx.fillStyle = 'rgba(0, 255, 100, 0.9)';
+      // Style the text based on type (no background blocks, just text color)
+      if (isDeceptive) {
+        // Deceptive letters: blue text only
+        ctx.fillStyle = '#0088ff';
+      } else if (isNexusLetter) {
+        // NEXUS letters: green text (same as regular binary)
+        ctx.fillStyle = '#00ff88';
+      } else {
+        // Regular binary: green text
+        ctx.fillStyle = '#00ff88';
+      }
+      
       ctx.font = 'bold 24px monospace'; // Larger font for better readability
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
       // Add text shadow for better visibility
-      ctx.shadowColor = 'rgba(0, 255, 100, 0.5)';
-      ctx.shadowBlur = 2;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
       
       // Draw the binary text
       ctx.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -164,10 +215,13 @@ export class FloatingBinary {
       
       // Create sprite
       const sprite = new THREE.Sprite(material);
-      // Make NEXUS letters much larger for debugging
-      sprite.scale.set(isNexusLetter ? 2.5 : 1.2, isNexusLetter ? 1.2 : 0.6, 1);
+      // Scale based on type
+      if (isDeceptive) {
+        sprite.scale.set(1.2, 0.6, 1); // Same size as regular binary
+      } else {
+        sprite.scale.set(isNexusLetter ? 1.2 : 1.2, isNexusLetter ? 0.6 : 0.6, 1);
+      }
       sprite.userData.binaryText = text;
-      
       
       return sprite;
     } catch (error) {
@@ -207,7 +261,6 @@ export class FloatingBinary {
         
         this.group.add(sprite);
         this._sprites.push(sprite);
-        
       }
     });
     
@@ -225,6 +278,11 @@ export class FloatingBinary {
       // Update NEXUS sprites to show letters instead of binary
       this._nexusSprites.forEach(sprite => {
         this._updateNexusSpriteDisplay(sprite);
+      });
+      
+      // Update deceptive sprites (they should always show as blue when truth filter is OFF)
+      this._deceptiveSprites.forEach(sprite => {
+        this._updateDeceptiveSpriteDisplay(sprite);
       });
     }
   }
@@ -297,12 +355,55 @@ export class FloatingBinary {
   }
 
   /**
+   * Update deceptive sprite display based on truth filter state
+   * @param {THREE.Sprite} sprite - The deceptive sprite to update
+   */
+  _updateDeceptiveSpriteDisplay(sprite) {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; // Larger for better readability
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        console.error('Failed to get 2D context for deceptive sprite update');
+        return;
+      }
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Deceptive letters are always blue to trick players (no background block)
+      ctx.fillStyle = '#0088ff';
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      // Add text shadow for better visibility
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+      
+      // Draw the binary text
+      ctx.fillText(sprite.userData.binaryText, canvas.width / 2, canvas.height / 2);
+      
+      // Update texture
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      sprite.material.map = texture;
+      sprite.material.needsUpdate = true;
+    } catch (error) {
+      console.error('Error updating deceptive sprite display:', error);
+    }
+  }
+
+  /**
    * Update the mini-game
    * @param {number} delta - Time delta
    */
   update(delta) {
     this.pulsingIntensity += delta * 2;
-    
     
     // Update all binary sprites with simpler animation
     this._sprites.forEach((sprite, index) => {
@@ -322,6 +423,25 @@ export class FloatingBinary {
     
     // Update NEXUS letters with same animation as binary sprites
     this._nexusSprites.forEach(sprite => {
+      const offset = sprite.userData.offset;
+      const speed = sprite.userData.speed;
+      const amplitude = sprite.userData.amplitude;
+      const t = this.pulsingIntensity + offset;
+      
+      // Same floating motion as binary sprites
+      sprite.position.x = sprite.userData.initialX + Math.sin(t * speed) * amplitude;
+      sprite.position.y = sprite.userData.initialY + Math.cos(t * speed * 0.7) * amplitude;
+      sprite.position.z = sprite.userData.initialZ + Math.sin(t * speed * 0.5) * amplitude;
+      
+      // Gentle rotation
+      sprite.rotation.z = Math.sin(t * speed * 0.3) * 0.1;
+      
+      // Pulsing opacity - less dramatic for better readability
+      sprite.material.opacity = 0.8 + Math.sin(t * speed * 1.5) * 0.1;
+    });
+    
+    // Update deceptive letters with same animation as binary sprites
+    this._deceptiveSprites.forEach(sprite => {
       const offset = sprite.userData.offset;
       const speed = sprite.userData.speed;
       const amplitude = sprite.userData.amplitude;
