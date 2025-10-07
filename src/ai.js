@@ -197,6 +197,19 @@ export const AI = {
   onSpawn: () => {
     return AI.deliverDialogue('ACT_I.ON_SPAWN.INITIAL');
   },
+
+  // Room 4 dialogue methods
+  onRoom4Entry: () => {
+    return AI.deliverDialogue('ACT_I.ROOM_4_ENTRY');
+  },
+
+  onRoom4BinaryDecoder: () => {
+    return AI.deliverDialogue('ACT_I.ROOM_4_BINARY_DECODER');
+  },
+
+  onRoom4PasswordFound: () => {
+    return AI.deliverDialogue('ACT_I.ROOM_4_PASSWORD_FOUND');
+  },
   
   // Show continuous error state when truth filter is active
   showTruthFilterError: () => {
