@@ -38,6 +38,7 @@ export class ServerRoom {
     this._buildShell();
     this._buildCatwalk();
     this._buildCenterPlatform();
+    this._buildLaptopWorkstation();
 
     // Local lighting
     this._initLights();
@@ -51,6 +52,9 @@ export class ServerRoom {
     if (this.renderer) {
       this.purgeMinigame = new PurgeMinigame(this.renderer);
     }
+
+    // Create laptop UI
+    this._createLaptopUI();
 
     // Entry/Exit anchors
     this.anchors = {
@@ -131,13 +135,239 @@ export class ServerRoom {
     this.catwalk.add(mesh);
   }
 
+  _createPlatformTexture() {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const center = size / 2;
+
+    // Background
+    ctx.fillStyle = '#f3f7fb'; // Match platform color
+    ctx.fillRect(0, 0, size, size);
+
+    // Concentric rings
+    ctx.strokeStyle = 'rgba(102, 170, 255, 0.5)';
+    ctx.lineWidth = 2;
+    for (let i = 1; i < 5; i++) {
+      ctx.beginPath();
+      ctx.arc(center, center, (size / 2) * (i / 5), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Sweeping lines
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(102, 170, 255, 0.8)';
+    ctx.beginPath();
+    ctx.arc(center, center, size * 0.3, 0, Math.PI * 0.2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(center, center, size * 0.4, Math.PI, Math.PI * 1.3);
+    ctx.stroke();
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  _createLaptopUI() {
+    if (document.getElementById('laptop-ui')) return; // Don't create duplicates
+
+    const uiContainer = document.createElement('div');
+    uiContainer.id = 'laptop-ui';
+    
+    const style = document.createElement('style');
+    style.textContent = `
+      #laptop-ui {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #0a192f;
+        z-index: 10000;
+        display: none;
+        font-family: 'Courier New', 'Consolas', monospace;
+        overflow: hidden;
+      }
+
+      /* The application window that holds the puzzle */
+      .laptop-window {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 500px;
+        background: rgba(15, 30, 50, 0.9);
+        border: 2px solid #00ff7f;
+        border-radius: 8px;
+        box-shadow: 0 0 25px rgba(0, 255, 127, 0.3);
+        color: #00ff7f;
+      }
+
+      .window-titlebar {
+        padding: 10px;
+        background: #00ff7f;
+        color: #051018;
+        font-weight: bold;
+        border-top-left-radius: 5px;
+        border-top-right-radius: 5px;
+        cursor: default;
+      }
+
+      .window-content {
+        padding: 25px;
+      }
+
+      .window-content h3 { text-align: center; margin-top: 0; }
+      .laptop-input-row { margin: 20px 0; }
+      .laptop-input-row label { display: block; margin-bottom: 8px; color: #8899aa; }
+      .laptop-input-row select {
+        width: 100%;
+        padding: 10px;
+        background-color: #051018;
+        color: #00ff7f;
+        border: 1px solid #00ff7f;
+        font-family: inherit;
+        font-size: 1rem;
+        cursor: pointer;
+        
+        /* Hide default browser styling */
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        
+        /* Custom green arrow */
+        background-image: url('data:image/svg+xml;utf8,<svg fill="%2300ff7f" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+      }
+      .laptop-buttons { display: flex; justify-content: space-between; margin-top: 30px; }
+      .laptop-btn {
+        padding: 10px 20px; background: transparent; border: 1px solid #00ff7f;
+        color: #00ff7f; font-size: 1rem; cursor: pointer; transition: all 0.2s;
+      }
+      .laptop-btn:hover { background: #00ff7f; color: #051018; }
+
+      /* A simple, cosmetic taskbar at the bottom */
+      .laptop-taskbar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 40px;
+        background: rgba(5, 15, 30, 0.9);
+        border-top: 1px solid #00ff7f;
+      }
+      
+      /* Custom cursor styling for UI */
+      .laptop-ui-active {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
+      }
+      .laptop-ui-active * {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
+      }
+    `;
+
+    uiContainer.innerHTML = `
+      <div class="laptop-window">
+        <div class="window-titlebar">NEXUS_CORE_OVERRIDE.EXE</div>
+        <div class="window-content">
+          <h3>SYSTEM OVERRIDE</h3>
+          <div class="laptop-input-row">
+            <label for="phrase-1">DECRYPTION KEY 1:</label>
+            <select id="phrase-1"></select>
+          </div>
+          <div class="laptop-input-row">
+            <label for="phrase-2">DECRYPTION KEY 2:</label>
+            <select id="phrase-2"></select>
+          </div>
+          <div class="laptop-input-row">
+            <label for="phrase-3">DECRYPTION KEY 3:</label>
+            <select id="phrase-3"></select>
+          </div>
+          <div class="laptop-buttons">
+            <button id="laptop-cancel" class="laptop-btn">CANCEL</button>
+            <button id="laptop-submit" class="laptop-btn">SUBMIT</button>
+          </div>
+        </div>
+      </div>
+      <div class="laptop-taskbar"></div>
+    `;
+    
+    document.body.appendChild(style);
+    document.body.appendChild(uiContainer);
+  }
+
+  openLaptopUI() {
+    const ui = document.getElementById('laptop-ui');
+    if (!ui) return;
+
+    // Set global UI visibility flag and unlock pointer
+    window.isUIVisible = true;
+    if (window.player?.controls) window.player.controls.unlock();
+    document.exitPointerLock();
+
+    window.disablePlayerControls = true; // Disable player movement
+    
+    // Show mouse cursor and unlock it for UI interaction
+    document.body.style.cursor = 'default';
+    document.body.classList.add('laptop-ui-active'); // Add custom cursor styling
+    if (window.camera && window.camera.controls) {
+      window.camera.controls.enabled = false; // Disable camera controls
+    }
+    
+    const selects = [ui.querySelector('#phrase-1'), ui.querySelector('#phrase-2'), ui.querySelector('#phrase-3')];
+    const allPhrases = this.dataStormPuzzle.sprites.map(s => s.userData.phrase); // Get phrases from DataStormPuzzle
+
+    // Populate dropdowns
+    selects.forEach(select => {
+      select.innerHTML = '<option value="">-- SELECT PHRASE --</option>';
+      allPhrases.forEach(phrase => {
+        const option = document.createElement('option');
+        option.value = phrase;
+        option.textContent = phrase;
+        select.appendChild(option);
+      });
+    });
+
+    ui.style.display = 'block';
+
+    // Handle button clicks
+    document.getElementById('laptop-submit').onclick = () => {
+      const submission = selects.map(s => s.value);
+      const success = this.dataStormPuzzle.submitAttempt(submission); // Use DataStormPuzzle for logic
+      if (success) {
+        this.closeLaptopUI();
+      } else {
+        AI.say("Access denied. Sequence incorrect.");
+        // Optional: visual feedback for failure
+      }
+    };
+    
+    document.getElementById('laptop-cancel').onclick = () => this.closeLaptopUI();
+  }
+
+  closeLaptopUI() {
+    const ui = document.getElementById('laptop-ui');
+    if (ui) ui.style.display = 'none';
+    
+    // Set global UI visibility flag to false
+    window.isUIVisible = false;
+    
+    window.disablePlayerControls = false; // Re-enable player movement
+    
+    // Hide mouse cursor and restore camera controls
+    document.body.style.cursor = 'none';
+    document.body.classList.remove('laptop-ui-active'); // Remove custom cursor styling
+    if (window.camera && window.camera.controls) {
+      window.camera.controls.enabled = true; // Re-enable camera controls
+    }
+  }
+
   _buildCenterPlatform() {
-    const platR = 3.5;
-    const mat = new THREE.MeshStandardMaterial({ color: 0xf3f7fb, metalness: 0.25, roughness: 0.6, emissive: new THREE.Color(0x66aaff), emissiveIntensity: 0.2 });
-    const platform = new THREE.Mesh(new THREE.CylinderGeometry(platR, platR, 0.4, 32), mat);
-    platform.position.set(0, 0.2, 0);
-    platform.castShadow = true; platform.receiveShadow = true;
-    this.centerPlatform.add(platform);
+    // Platform removed - no white circular base
 
     // CPU Core (visual)
     const coreGroup = new THREE.Group();
@@ -236,6 +466,84 @@ export class ServerRoom {
       heatsinks,
       circuitTex
     };
+  }
+
+  _buildLaptopWorkstation() {
+    // Create a workstation group on the side of the room
+    const workstation = new THREE.Group();
+    workstation.name = 'laptop-workstation';
+    
+    // Position the workstation on the opposite side of the room
+    const sidePosition = this.dim.radius * 0.7; // 70% of room radius
+    workstation.position.set(-sidePosition, 0, 0); // Negative X for opposite side
+    
+    // Small square table/platform
+    const tableMat = new THREE.MeshStandardMaterial({ 
+      color: 0x2a2a2a, 
+      metalness: 0.3, 
+      roughness: 0.7 
+    });
+    const table = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 0.8, 1.2), 
+      tableMat
+    );
+    table.position.set(0, 0.4, 0);
+    table.castShadow = true;
+    table.receiveShadow = true;
+    workstation.add(table);
+    
+    // Create open laptop
+    const laptopGroup = new THREE.Group();
+    laptopGroup.position.set(0, 0.85, 0);
+    
+    // Laptop base (keyboard part)
+    const baseMat = new THREE.MeshStandardMaterial({ 
+      color: 0x1a1a1a, 
+      metalness: 0.8, 
+      roughness: 0.4 
+    });
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.05, 0.4), 
+      baseMat
+    );
+    base.position.set(0, 0, 0);
+    laptopGroup.add(base);
+    
+    // Laptop screen (open at ~120 degree angle)
+    const screenMat = new THREE.MeshStandardMaterial({ 
+      color: 0x0a0a0a, 
+      metalness: 0.9, 
+      roughness: 0.3 
+    });
+    const screen = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.05, 0.4), 
+      screenMat
+    );
+    screen.position.set(0, 0.2, -0.15);
+    screen.rotation.x = Math.PI * 0.33; // ~60 degrees from vertical
+    laptopGroup.add(screen);
+    
+    // Screen display (glowing blue)
+    const displayMat = new THREE.MeshBasicMaterial({ 
+      color: 0x0066ff, 
+      transparent: true,
+      opacity: 0.8
+    });
+    const display = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.5, 0.3), 
+      displayMat
+    );
+    display.position.set(0, 0.21, -0.15);
+    display.rotation.x = Math.PI * 0.33;
+    laptopGroup.add(display);
+    
+    // Make laptop interactable
+    laptopGroup.userData.isInteractable = true;
+    laptopGroup.userData.interactionId = 'room3_laptop_terminal';
+    this.laptopObject = laptopGroup; // Store reference for interaction
+    
+    workstation.add(laptopGroup);
+    this.group.add(workstation);
   }
 
   _buildTerminalScreen() {
@@ -678,19 +986,13 @@ export class ServerRoom {
 
   handleEKeyInteraction(player) {
     if (!player) return false;
-    
-    // Check for data storm fragment interactions
-    if (this.dataStormPuzzle && this.dataStormPuzzle.sprites) {
-      const raycaster = new THREE.Raycaster();
-      const mouse = new THREE.Vector2(0, 0); // center of screen
-      raycaster.setFromCamera(mouse, window.camera);
-      const intersects = raycaster.intersectObjects(this.dataStormPuzzle.sprites, true);
-      if (intersects.length > 0) {
-        const hit = intersects[0].object;
-        if (hit.userData.interactionId === 'data_storm_fragment') {
-          this.dataStormPuzzle.handleInteraction(hit);
-          return true;
-        }
+
+    // Check for laptop interaction
+    if (this.laptopObject) {
+      const dist = this.laptopObject.getWorldPosition(new THREE.Vector3()).distanceTo(player.position);
+      if (dist < 2.0) {
+        this.openLaptopUI();
+        return true;
       }
     }
     

@@ -548,7 +548,8 @@ export function setupPlayer(scene) {
 
   // Click to lock pointer in first-person
   window.addEventListener('click', () => {
-    if (isFirstPerson && !isMouseLocked) {
+    // Only lock the controls if no UI is currently visible
+    if (isFirstPerson && !isMouseLocked && !window.isUIVisible) {
       document.body.requestPointerLock();
     }
   });

@@ -51,8 +51,6 @@ export class DataStormPuzzle {
     
     // Make sprites larger and more visible
     sprite.scale.set(6, 0.8, 1);
-    sprite.userData.isInteractable = true;
-    sprite.userData.interactionId = 'data_storm_fragment';
     sprite.userData.phrase = text;
     sprite.userData.isCorrect = isCorrect;
     
@@ -71,8 +69,15 @@ export class DataStormPuzzle {
       const radius = 2.5; // Closer to the CPU core
       sprite.position.setFromSphericalCoords(radius, phi, theta);
       
-      // Add some height variation
-      sprite.position.y += (Math.random() - 0.5) * 1.5;
+      // Ensure sprites are well above the floor - minimum Y of 1.5
+      sprite.position.y = Math.max(sprite.position.y, 1.5);
+      // Add some height variation above the minimum
+      sprite.position.y += (Math.random() - 0.5) * 1.0;
+      
+      // Store original position and add random values for unique animation
+      sprite.userData.originalPos = sprite.position.clone();
+      sprite.userData.animSpeed = Math.random() * 0.5 + 0.3; // Random speed
+      sprite.userData.animOffset = Math.random() * Math.PI * 2; // Random starting phase
       
       this.group.add(sprite);
       this.sprites.push(sprite);
@@ -104,59 +109,47 @@ export class DataStormPuzzle {
   }
 
   update(deltaTime, isGlassesActive = false) {
-    // Animate the storm to swirl around CPU core
-    this.group.rotation.y += deltaTime * 0.1;
-    this.group.rotation.x += deltaTime * 0.05;
+    this._pulseTime += deltaTime; // Use a single timer for all animations
 
-    // Only update materials/scales if the glasses state has changed
+    // Individual Sprite Animation - Bob up and down for a "floating" effect
+    this.sprites.forEach(sprite => {
+      const { originalPos, animSpeed, animOffset } = sprite.userData;
+      // Bob up and down for a "floating" effect
+      sprite.position.y = originalPos.y + Math.sin(this._pulseTime * animSpeed + animOffset) * 0.3;
+    });
+
     if (isGlassesActive !== this._lastGlassesState) {
       this._lastGlassesState = isGlassesActive;
       this._updateTruthFilterEffect(isGlassesActive);
     }
     
-    // Apply pulsing animation every frame if glasses are active
     if (isGlassesActive) {
-      this._pulseTime += deltaTime;
       this.sprites.forEach((sprite) => {
         if (sprite.userData.isCorrect) {
-          // Efficient sine-wave pulse using accumulated time
-          const pulse = 0.8 + 0.2 * Math.sin(this._pulseTime * 3);
-          sprite.material.opacity = pulse;
+          const pulse = 1 + 0.2 * Math.sin(this._pulseTime * 5 + sprite.userData.animOffset);
+          sprite.scale.x = 5 * pulse;
+          sprite.scale.y = 0.7 * pulse;
         }
       });
     }
   }
 
-  handleInteraction(intersectedObject) {
-    if (this.isSolved) {
-      console.log("Data Storm puzzle already solved.");
-      return;
-    }
+  submitAttempt(phrases) {
+    if (this.isSolved) return true;
 
-    if (!intersectedObject.userData.isCorrect) {
-      console.log("Incorrect fragment selected. Look for the truth among the lies.");
-      // Flash red briefly to indicate wrong choice
-      intersectedObject.material.color.set(0xff4444);
-      setTimeout(() => {
-        intersectedObject.material.color.set(0xffffff);
-      }, 200);
-      return;
-    }
+    // Check if the submitted phrases match the correct phrases (order doesn't matter)
+    const submittedSet = new Set(phrases);
+    const correctSet = new Set(this.correctPhrases);
+    const isCorrect = submittedSet.size === correctSet.size && [...submittedSet].every(p => correctSet.has(p));
 
-    const phrase = intersectedObject.userData.phrase;
-    if (this.selectedPhrases.has(phrase)) {
-      console.log("Fragment already selected.");
-      return;
-    }
-
-    this.selectedPhrases.add(phrase);
-    intersectedObject.material.color.set(0x00ff7f);
-    console.log(`✓ Correct fragment selected: "${phrase}". Found ${this.selectedPhrases.size}/3.`);
-
-    if (this.selectedPhrases.size === this.correctPhrases.length) {
+    if (isCorrect) {
       this.isSolved = true;
       gameStore.setRoom3Flag('dataStormSolved', true);
       console.log("🎉 DATA STORM PUZZLE SOLVED! The truth has been revealed.");
+      return true;
+    } else {
+      console.log("Incorrect phrases submitted.");
+      return false;
     }
   }
 
