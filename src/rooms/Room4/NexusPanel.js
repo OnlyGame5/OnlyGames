@@ -483,6 +483,11 @@ export class NexusPanel {
     // Change panel color to green
     this._changePanelToGreen();
     
+    // Trigger password found dialogue
+    if (window.AI && window.AI.onRoom4PasswordFound) {
+      window.AI.onRoom4PasswordFound();
+    }
+    
     // Hide the keypad after a short delay
     setTimeout(() => {
       this.hide();

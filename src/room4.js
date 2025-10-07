@@ -20,7 +20,9 @@ export function createRoom4() {
 
   // Room state for interactions
   const state = {
-    lastTruthFilterState: false
+    lastTruthFilterState: false,
+    hasWelcomed: false,
+    hasShownDecoderDialogue: false
   };
 
   // Tiles136C texture files for Room 4 (same as Room 1)
@@ -195,11 +197,50 @@ export function createRoom4() {
 
   console.log('Room 4 created successfully with', group.children.length, 'children');
   console.log('Room 4 children:', group.children.map(child => child.name));
+
+  // Room entry dialogue function
+  function triggerRoom4Welcome() {
+    if (!state.hasWelcomed && window.AI) {
+      state.hasWelcomed = true;
+      window.AI.onRoom4Entry();
+    }
+  }
+
+  // Binary decoder dialogue function
+  function triggerBinaryDecoderDialogue() {
+    if (!state.hasShownDecoderDialogue && window.AI) {
+      state.hasShownDecoderDialogue = true;
+      window.AI.onRoom4BinaryDecoder();
+    }
+  }
+
+  // Update dialogue system
+  function updateRoom4Dialogue() {
+    // Check if player is in Room 4
+    if (window.leonardModel || window.player) {
+      const activePlayer = window.leonardModel || window.player;
+      const playerPos = activePlayer.position.clone();
+      const localToRoom4 = group.worldToLocal(playerPos.clone());
+      const half = 9;
+      const insideRoom4 = (
+        localToRoom4.x >= -half && localToRoom4.x <= half &&
+        localToRoom4.z >= -half && localToRoom4.z <= half
+      );
+      
+      if (insideRoom4) {
+        // Trigger welcome message when entering room
+        triggerRoom4Welcome();
+      }
+    }
+  }
   
   // Return object with group property like other rooms
   return {
     group,
     update: (delta) => {
+      // Update dialogue system
+      updateRoom4Dialogue();
+      
       // Check if player has truth filter glasses selected (glasses from Room 2)
       const inv = getPlayerInventory();
       const selected = inv.getSelectedItem ? inv.getSelectedItem() : inv.slots?.[inv.selectedSlot];
@@ -277,6 +318,8 @@ export function createRoom4() {
         if (panelDistance < 3) {
           console.log('Opening NEXUS panel...');
           nexusPanel.show();
+          // Trigger decoder dialogue when panel is opened
+          triggerBinaryDecoderDialogue();
           return true; // Interaction handled
         } else {
           console.log('Player too far from panel (distance:', panelDistance, ')');

@@ -41,7 +41,13 @@ export const NEXUS_DIALOGUE = {
       COMPLETE: "Perfect! Memory training complete. Cognitive functions are well within acceptable parameters."
     },
 
-    ROOM_1_COMPLETE: "The first stage is complete. You're performing above initial projections. I'm pleased. See? We make a great team. Together, nothing can stop us."
+    ROOM_1_COMPLETE: "The first stage is complete. You're performing above initial projections. I'm pleased. See? We make a great team. Together, nothing can stop us.",
+
+    ROOM_4_ENTRY: "This is the data processing chamber. You'll notice the binary streams floating throughout the room. The password you need is encoded within these streams - look for the blue binary sequences. They contain the key to accessing the decoder panel.",
+    
+    ROOM_4_BINARY_DECODER: "The binary decoder panel is now active. Enter the correct 8-bit binary sequences you found in the blue streams to reveal the password. Each correct sequence will reveal a letter. Complete the word to proceed.",
+    
+    ROOM_4_PASSWORD_FOUND: "Excellent work. You've successfully decoded the password. This information will be crucial for the final phase of your assessment."
   },
 
   // Act II - Doubt / Lies Exposed
