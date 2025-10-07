@@ -10,6 +10,7 @@ import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling } from './m
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { FloatingBinary } from './rooms/Room4/FloatingBinary.js';
+import { NexusPanel } from './rooms/Room4/NexusPanel.js';
 
 export function createRoom4() {
   const group = new THREE.Group();
@@ -123,6 +124,17 @@ export function createRoom4() {
   const floatingBinary = new FloatingBinary(false); // Initially false
   floatingBinary.mount(group);
 
+  // Add NEXUS interactive panel on the north wall
+  console.log('Creating NEXUS panel...');
+  const nexusPanel = new NexusPanel();
+  console.log('NEXUS panel created:', nexusPanel);
+  nexusPanel.group.position.set(0, 1, -8.8); // Position slightly in front of north wall
+  nexusPanel.group.rotation.y = 0; // Static - faces south (toward player)
+  nexusPanel.mount(group);
+  console.log('NEXUS panel mounted to group');
+  console.log('Panel final position:', nexusPanel.group.position);
+  console.log('Panel final rotation:', nexusPanel.group.rotation);
+
   // Remove any leftover lights
   removeExistingLights(group);
 
@@ -206,6 +218,11 @@ export function createRoom4() {
       if (floatingBinary) {
         floatingBinary.update(delta);
       }
+      
+      // Update nexus panel animation
+      if (nexusPanel) {
+        nexusPanel.update(delta);
+      }
     },
     checkWallCollisions: (player) => {
       // Basic collision detection
@@ -245,6 +262,29 @@ export function createRoom4() {
         const newWorld = group.localToWorld(playerLocal);
         player.position.copy(newWorld);
       }
+    },
+    handleEKeyInteraction: (player) => {
+      console.log('Room 4 E-key handler called with player:', player?.position);
+      
+      // Check if player is near the NEXUS panel
+      if (nexusPanel && player && player.position) {
+        const playerLocal = group.worldToLocal(player.position.clone());
+        const panelDistance = playerLocal.distanceTo(new THREE.Vector3(0, 1, -8.8));
+        
+        console.log('Player distance from panel:', panelDistance);
+        
+        // If player is within 3 units of the panel
+        if (panelDistance < 3) {
+          console.log('Opening NEXUS panel...');
+          nexusPanel.show();
+          return true; // Interaction handled
+        } else {
+          console.log('Player too far from panel (distance:', panelDistance, ')');
+        }
+      } else {
+        console.log('Missing nexusPanel or player position');
+      }
+      return false; // No interaction
     }
   };
 }

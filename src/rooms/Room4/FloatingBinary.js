@@ -13,8 +13,8 @@ export class FloatingBinary {
     // Truth filter state
     this.truthFilterEnabled = truthFilterEnabled;
     
-    // Generate binary strings (increased count for better effect)
-    this._binaryStrings = this._generateBinaryStrings(30); // Increased for better effect
+    // Generate binary strings (much increased count for better room coverage)
+    this._binaryStrings = this._generateBinaryStrings(80); // Much increased for better room coverage
     this._sprites = [];
     this._nexusSprites = []; // Special sprites for NEXUS letters
     this._t = 0;
@@ -87,8 +87,8 @@ export class FloatingBinary {
       
       if (sprite) {
         // Position NEXUS letters randomly with other binary streams
-        const roomHalf = 8;
-        const roomHeight = 3;
+        const roomHalf = 9; // Full room width (18m room)
+        const roomHeight = 4; // Full room height
         const x = (Math.random() - 0.5) * roomHalf;
         const y = 0.5 + Math.random() * roomHeight;
         const z = (Math.random() - 0.5) * roomHalf;
@@ -186,9 +186,9 @@ export class FloatingBinary {
       const sprite = this._createBinarySprite(text);
       
       if (sprite) {
-        // Position sprites in a more controlled way for debugging
-        const roomHalf = 8; // Slightly smaller area
-        const roomHeight = 3; // Slightly smaller height
+        // Position sprites to fill the entire room
+        const roomHalf = 9; // Full room width (18m room)
+        const roomHeight = 4; // Full room height
         
         // More controlled positioning
         const x = (Math.random() - 0.5) * roomHalf;
