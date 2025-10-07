@@ -70,8 +70,8 @@ const overlayScene = new THREE.Scene();
 const overlayCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 const vignetteUniforms = {
   uStrength: { value: 0.0 },
-  // Slightly more saturated cyan tint
-  uColor: { value: new THREE.Color(0x4db5ff) }
+  // Bright green to match the glasses
+  uColor: { value: new THREE.Color(0x00ff00) }
 };
 const vignetteMaterial = new THREE.ShaderMaterial({
   uniforms: vignetteUniforms,
@@ -90,12 +90,12 @@ const vignetteMaterial = new THREE.ShaderMaterial({
       // Radial vignette from center
       vec2 p = vUv - 0.5;
       float r = length(p);
-      float inner = 0.35; // start earlier for more coverage
-      float outer = 0.85; // reach strength sooner
+      float inner = 0.25; // start even earlier for more coverage
+      float outer = 0.75; // reach strength sooner
       float v = smoothstep(inner, outer, r);
-      // Slight ease to emphasize edges a bit more
-      v = pow(v, 0.9);
-      float alpha = v * 0.7 * uStrength; // stronger tint
+      // More dramatic falloff
+      v = pow(v, 0.7);
+      float alpha = v * 1.0 * uStrength; // full intensity
       gl_FragColor = vec4(uColor, alpha);
     }
   `,
@@ -107,6 +107,28 @@ const vignetteMaterial = new THREE.ShaderMaterial({
 const overlayQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), vignetteMaterial);
 overlayQuad.position.z = 0;
 overlayScene.add(overlayQuad);
+
+// Truth filter text indicator
+const truthFilterText = document.createElement('div');
+truthFilterText.id = 'truth-filter-indicator';
+truthFilterText.style.cssText = `
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 8px 12px;
+  border: 1px solid #00ff00;
+  border-radius: 4px;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+`;
+truthFilterText.innerHTML = 'TRUTH FILTER ACTIVE<br><span style="font-size: 11px; color: #88ff88;">Gamma Protocol Engaged</span>';
+document.body.appendChild(truthFilterText);
 
 // Stage 0: Game state management
 let gameState = {
@@ -912,6 +934,38 @@ function animate(currentTime) {
   const target = selected && selected.name === 'glasses' ? 1.0 : 0.0;
   const s = vignetteUniforms.uStrength.value;
   vignetteUniforms.uStrength.value = s + (target - s) * Math.min(1, deltaTime * 6);
+  
+  // Update truth filter text indicator
+  const truthFilterIndicator = document.getElementById('truth-filter-indicator');
+  if (truthFilterIndicator) {
+    truthFilterIndicator.style.opacity = target > 0.5 ? '1' : '0';
+  }
+  
+  // Track truth filter state changes
+  if (!window.lastTruthFilterState) {
+    window.lastTruthFilterState = target > 0.5;
+  }
+  
+  const currentTruthFilterState = target > 0.5;
+  const truthFilterJustDeactivated = window.lastTruthFilterState && !currentTruthFilterState;
+  
+  // Show AI error messages when truth filter is active
+  if (currentTruthFilterState) {
+    // Only show error messages occasionally to avoid spam
+    if (!window.lastTruthFilterError || currentTime - window.lastTruthFilterError > 3000) {
+      window.lastTruthFilterError = currentTime;
+      AI.showTruthFilterError();
+    }
+  }
+  
+  // Show recovery message when truth filter is deactivated
+  if (truthFilterJustDeactivated) {
+    AI.showTruthFilterRecovery();
+  }
+  
+  // Update the last state
+  window.lastTruthFilterState = currentTruthFilterState;
+  
   if (vignetteUniforms.uStrength.value > 0.01) {
     renderer.render(overlayScene, overlayCamera);
   }

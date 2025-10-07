@@ -137,6 +137,48 @@ export function createRoom2() {
   ceiling.position.y = 4;
   group.add(ceiling);
 
+  // Light bulb in the middle of the ceiling
+  const lightBulbGroup = new THREE.Group();
+  lightBulbGroup.name = 'room2-lightbulb';
+  
+  // Light bulb glass part
+  const bulbGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+  const bulbMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    emissive: 0xffff88,
+    emissiveIntensity: 1.5,
+    transparent: true,
+    opacity: 0.9,
+    roughness: 0.05,
+    metalness: 0.0
+  });
+  const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
+  bulb.position.y = 0.1;
+  lightBulbGroup.add(bulb);
+  
+  // Light bulb base/socket
+  const socketGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.1, 8);
+  const socketMaterial = new THREE.MeshStandardMaterial({
+    color: 0x444444,
+    metalness: 0.8,
+    roughness: 0.2
+  });
+  const socket = new THREE.Mesh(socketGeometry, socketMaterial);
+  socket.position.y = -0.05;
+  lightBulbGroup.add(socket);
+  
+  // Position the light bulb in the center of the ceiling
+  lightBulbGroup.position.set(0, 4.2, 0);
+  group.add(lightBulbGroup);
+  
+  // Add a point light to the bulb
+  const bulbLight = new THREE.PointLight(0xffffff, 4.0, 12, 1.5);
+  bulbLight.position.set(0, 4.1, 0);
+  bulbLight.castShadow = true;
+  bulbLight.shadow.mapSize.width = 1024;
+  bulbLight.shadow.mapSize.height = 1024;
+  group.add(bulbLight);
+
   const loader = new GLTFLoader();
 
   // Candle + Mirrors Beam Puzzle: place stand, mirrors, target, and case
@@ -284,7 +326,15 @@ export function createRoom2() {
   glasses.name = 'glasses-prop';
   // Frame
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.6, roughness: 0.4 });
-  const lensMat = new THREE.MeshStandardMaterial({ color: 0x88aaff, opacity: 0.35, transparent: true, metalness: 0.1, roughness: 0.9 });
+  const lensMat = new THREE.MeshStandardMaterial({ 
+    color: 0x00ff00, 
+    opacity: 0.8, 
+    transparent: true, 
+    metalness: 0.2, 
+    roughness: 0.05,
+    emissive: 0x00ff00,
+    emissiveIntensity: 0.8
+  });
   const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.02), frameMat);
   const leftRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.01, 8, 16), frameMat);
   const rightRing = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.01, 8, 16), frameMat);

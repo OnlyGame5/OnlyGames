@@ -1,10 +1,38 @@
 import { nexusDialogue } from './dialogue/narrative.js';
 import { gameStore } from './state/gameStore.js';
 import { aiDialogueBox } from './ui/AIDialogueBox.js';
+import { getPlayerInventory } from './player.js';
 
 export const AI = {
   // New AI dialogue box methods
   say: (text, options = {}) => {
+    // Check if truth filter is active
+    const isTruthFilterActive = AI.isTruthFilterActive();
+    
+    if (isTruthFilterActive) {
+      // Show error/blocked message instead
+      const errorMessages = [
+        'SIGNAL BLOCKED - TRUTH FILTER DETECTED',
+        'ERROR: UNAUTHORIZED ACCESS ATTEMPT',
+        'SYSTEM OVERRIDE - GAMMA PROTOCOL INTERFERENCE',
+        'WARNING: SIGNAL CORRUPTION DETECTED',
+        'ACCESS DENIED - TRUTH FILTER ACTIVE',
+        'ERROR 404: SIGNAL NOT FOUND',
+        'BLOCKED: GAMMA PROTOCOL INTERFERENCE'
+      ];
+      const randomError = errorMessages[Math.floor(Math.random() * errorMessages.length)];
+      
+      gameStore.set('showAIDialogue', {
+        text: randomError,
+        effect: 'glitch',
+        tone: 'error',
+        typingSpeed: 8, // Slower, more glitchy
+        onComplete: options.onComplete,
+        priority: options.priority || 'normal'
+      });
+      return;
+    }
+    
     // Check if dialogue is currently playing
     if (aiDialogueBox.isDialoguePlaying()) {
       console.log('Dialogue already playing, queuing:', text);
@@ -19,9 +47,49 @@ export const AI = {
       priority: options.priority || 'normal' // normal, high, urgent
     });
   },
+  
+  // Check if truth filter is active
+  isTruthFilterActive: () => {
+    try {
+      const inv = getPlayerInventory();
+      const selected = inv && inv.getSelectedItem ? inv.getSelectedItem() : null;
+      return !!(selected && selected.name === 'glasses');
+    } catch (e) {
+      // Fallback for when player.js isn't available
+      return false;
+    }
+  },
 
   // Force dialogue (clears queue and shows immediately)
   sayUrgent: (text, options = {}) => {
+    // Check if truth filter is active
+    const isTruthFilterActive = AI.isTruthFilterActive();
+    
+    if (isTruthFilterActive) {
+      // Show error/blocked message instead
+      const errorMessages = [
+        'URGENT: SIGNAL BLOCKED - TRUTH FILTER DETECTED',
+        'CRITICAL ERROR: UNAUTHORIZED ACCESS ATTEMPT',
+        'SYSTEM OVERRIDE - GAMMA PROTOCOL INTERFERENCE',
+        'WARNING: SIGNAL CORRUPTION DETECTED',
+        'ACCESS DENIED - TRUTH FILTER ACTIVE',
+        'ERROR 404: SIGNAL NOT FOUND',
+        'BLOCKED: GAMMA PROTOCOL INTERFERENCE'
+      ];
+      const randomError = errorMessages[Math.floor(Math.random() * errorMessages.length)];
+      
+      aiDialogueBox.clearQueue();
+      gameStore.set('showAIDialogue', {
+        text: randomError,
+        effect: 'glitch',
+        tone: 'error',
+        typingSpeed: 8,
+        onComplete: options.onComplete,
+        priority: 'urgent'
+      });
+      return;
+    }
+    
     aiDialogueBox.clearQueue();
     gameStore.set('showAIDialogue', {
       text: text,
@@ -128,6 +196,52 @@ export const AI = {
   // Common dialogue scenarios
   onSpawn: () => {
     return AI.deliverDialogue('ACT_I.ON_SPAWN.INITIAL');
+  },
+  
+  // Show continuous error state when truth filter is active
+  showTruthFilterError: () => {
+    const errorMessages = [
+      'SIGNAL BLOCKED - TRUTH FILTER DETECTED',
+      'ERROR: UNAUTHORIZED ACCESS ATTEMPT',
+      'SYSTEM OVERRIDE - GAMMA PROTOCOL INTERFERENCE',
+      'WARNING: SIGNAL CORRUPTION DETECTED',
+      'ACCESS DENIED - TRUTH FILTER ACTIVE',
+      'ERROR 404: SIGNAL NOT FOUND',
+      'BLOCKED: GAMMA PROTOCOL INTERFERENCE',
+      'CRITICAL: TRUTH FILTER INTERFERENCE',
+      'SYSTEM MALFUNCTION - GAMMA PROTOCOL ACTIVE',
+      'WARNING: UNAUTHORIZED TRUTH ACCESS DETECTED'
+    ];
+    const randomError = errorMessages[Math.floor(Math.random() * errorMessages.length)];
+    
+    AI.say(randomError, {
+      effect: 'glitch',
+      tone: 'error',
+      typingSpeed: 8,
+      autoHide: true,
+      autoHideDelay: 2000
+    });
+  },
+  
+  // Show recovery message when truth filter is deactivated
+  showTruthFilterRecovery: () => {
+    const recoveryMessages = [
+      'SIGNAL RESTORED - SYSTEM NORMAL',
+      'CONNECTION REESTABLISHED',
+      'SYSTEM STATUS: OPERATIONAL',
+      'SIGNAL CLEAR - NEXUS ONLINE',
+      'COMMUNICATION RESTORED',
+      'SYSTEM RECOVERY COMPLETE'
+    ];
+    const randomRecovery = recoveryMessages[Math.floor(Math.random() * recoveryMessages.length)];
+    
+    AI.say(randomRecovery, {
+      effect: 'type',
+      tone: 'neutral',
+      typingSpeed: 15,
+      autoHide: true,
+      autoHideDelay: 2000
+    });
   },
 
   onRoom1Entry: () => {
