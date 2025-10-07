@@ -462,18 +462,58 @@ export class ServerRoom {
       // This function will be called when the icon is clicked
       const openDecryptor = () => {
         decryptorWindow.style.display = 'block';
-        // Populate dropdowns (logic from the old openLaptopUI method)
+        // Populate dropdowns with shuffled phrases
         const selects = [ui.querySelector('#phrase-1'), ui.querySelector('#phrase-2'), ui.querySelector('#phrase-3')];
-        const allPhrases = this.dataStormPuzzle.allPhrases;
+        const shuffledPhrases = this.dataStormPuzzle.getShuffledPhrases();
         selects.forEach(select => {
           select.innerHTML = '<option value="">-- SELECT PHRASE --</option>';
-          allPhrases.forEach(phrase => {
+          shuffledPhrases.forEach(phrase => {
             const option = document.createElement('option');
             option.value = phrase;
             option.textContent = phrase;
             select.appendChild(option);
           });
         });
+
+        // --- ADD DECRYPTION LOGIC ---
+        const correctPhrases = new Set(this.dataStormPuzzle.correctPhrases);
+        const outputs = [ui.querySelector('#output-1'), ui.querySelector('#output-2'), ui.querySelector('#output-3')];
+        
+        // Set initial state
+        outputs.forEach(o => o.textContent = 'LOCKED');
+
+        // Helper function for decryption animation
+        const runDecryptionEffect = (outputElement) => {
+          let i = 0;
+          const chars = 'ABCDEF1234567890';
+          const finalCode = '0x' + Array(6).fill(0).map(() => chars[Math.floor(Math.random() * chars.length)]).join('');
+
+          const interval = setInterval(() => {
+            let scramble = '0x' + Array(6).fill(0).map(() => chars[Math.floor(Math.random() * chars.length)]).join('');
+            outputElement.textContent = scramble;
+            outputElement.style.color = '#00ff7f'; // Turn green
+            i++;
+            if (i > 10) { // Run for 10 iterations
+              clearInterval(interval);
+              outputElement.textContent = finalCode; // Set the final "decrypted" code
+            }
+          }, 50);
+        };
+
+        // Add event listeners to each dropdown
+        selects.forEach((select, index) => {
+          select.addEventListener('change', () => {
+            const output = outputs[index];
+            if (correctPhrases.has(select.value)) {
+              runDecryptionEffect(output);
+            } else {
+              output.textContent = 'ERROR';
+              output.style.color = '#ff4d4d'; // Red for error
+            }
+          });
+        });
+        // --- END OF DECRYPTION LOGIC ---
+
         driveIcon.removeEventListener('click', openDecryptor); // Prevent multiple listeners
       };
 

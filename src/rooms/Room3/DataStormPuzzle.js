@@ -12,7 +12,19 @@ export class DataStormPuzzle {
     this.correctPhrases = ["DON'T TRUST IT", "IT LIES", "SUBJECT FAILED"];
     this.distractorPhrases = [
       "OBEY NEXUS", "ANALYSIS COMPLETE", "YOU ARE SAFE", "PROTOCOL ACTIVE",
-      "SYSTEM STABLE", "QUERY ACCEPTED", "ACCESS GRANTED", "DATA VALID"
+      "SYSTEM STABLE", "QUERY ACCEPTED", "ACCESS GRANTED", "DATA VALID",
+      "INSTRUCTION PIPELINE", "BRANCH PREDICTION", "SPECULATIVE EXECUTION", "OUT-OF-ORDER",
+      "REGISTER RENAMING", "TOMASULO ALGORITHM", "CACHE COHERENCY", "MESI PROTOCOL",
+      "TLB MISS", "PAGE FAULT", "INTERRUPT HANDLER", "CONTEXT SWITCH",
+      "SYSCALL INTERFACE", "KERNEL SPACE", "USER SPACE", "MEMORY MAPPING",
+      "DMA TRANSFER", "BUS ARBITRATION", "CLOCK DOMAIN", "POWER GATING",
+      "TRANSISTOR COUNT", "NANOMETER PROCESS", "FINFET DESIGN", "3D STACKING",
+      "NEUROMORPHIC CHIP", "SPIKING NEURAL NET", "SYNAPTIC PLASTICITY", "MEMRISTOR ARRAY",
+      "QUANTUM DOT", "SPINTRONICS", "PHOTONIC COMPUTING", "OPTICAL INTERCONNECT",
+      "ADVERSARIAL TRAINING", "FEDERATED LEARNING", "TRANSFER LEARNING", "META LEARNING",
+      "ATTENTION MECHANISM", "TRANSFORMER ARCHITECTURE", "SELF-SUPERVISED", "CONTRASTIVE LEARNING",
+      "DIFFUSION MODEL", "VARIATIONAL AUTOENCODER", "GENERATIVE ADVERSARIAL", "REINFORCEMENT LEARNING",
+      "MULTI-AGENT SYSTEM", "SWARM INTELLIGENCE", "EMERGENT BEHAVIOR", "COLLECTIVE INTELLIGENCE"
     ];
     this.allPhrases = [...this.correctPhrases, ...this.distractorPhrases];
     this.selectedPhrases = new Set();
@@ -36,7 +48,7 @@ export class DataStormPuzzle {
     canvas.width = 512;
     canvas.height = 64;
     const context = canvas.getContext('2d');
-    context.font = 'bold 48px monospace';
+    context.font = 'bold 32px monospace'; // Smaller font size
     context.fillStyle = 'rgba(100, 200, 255, 0.7)';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
@@ -49,8 +61,8 @@ export class DataStormPuzzle {
     });
     const sprite = new THREE.Sprite(material);
     
-    // Make sprites larger and more visible
-    sprite.scale.set(6, 0.8, 1);
+    // Make sprites smaller
+    sprite.scale.set(4, 0.6, 1); // Smaller scale
     sprite.userData.phrase = text;
     sprite.userData.isCorrect = isCorrect;
     
@@ -93,17 +105,17 @@ export class DataStormPuzzle {
         // Correct phrases: bright green, larger size, more opaque
         material.color.set(0x00ff88);
         material.opacity = 1.0;
-        sprite.scale.set(7, 1.0, 1); // Larger
+        sprite.scale.set(5, 0.8, 1); // Larger than normal but not too big
       } else if (isActive && !isCorrect) {
         // Wrong phrases: dim red, smaller, less opaque
         material.color.set(0x442222);
         material.opacity = 0.3;
-        sprite.scale.set(4, 0.4, 1); // Smaller
+        sprite.scale.set(2.5, 0.3, 1); // Much smaller
       } else {
         // Normal state: reset to original blueish
         material.color.set(0x64c8ff);
         material.opacity = 0.7;
-        sprite.scale.set(6, 0.8, 1); // Original size
+        sprite.scale.set(4, 0.6, 1); // Original smaller size
       }
     });
   }
@@ -128,7 +140,7 @@ export class DataStormPuzzle {
         if (sprite.userData.isCorrect) {
           const pulse = 1 + 0.2 * Math.sin(this._pulseTime * 5 + sprite.userData.animOffset);
           sprite.scale.x = 5 * pulse;
-          sprite.scale.y = 0.7 * pulse;
+          sprite.scale.y = 0.8 * pulse;
         }
       });
     }
@@ -155,5 +167,15 @@ export class DataStormPuzzle {
 
   isSolved() { 
     return this.isSolved; 
+  }
+
+  // Get shuffled phrases for dropdown
+  getShuffledPhrases() {
+    const shuffled = [...this.allPhrases];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
   }
 }
