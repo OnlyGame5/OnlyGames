@@ -49,8 +49,10 @@ export class NexusPanel {
   _createPanel() {
     // Main panel frame - larger, more prominent display
     const frameGeometry = new THREE.PlaneGeometry(8, 5);
+    // Panel starts red, changes to green when complete
+    const isComplete = this._isComplete();
     const frameMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ff88,
+      color: isComplete ? 0x00ff88 : 0xff0000,
       transparent: true,
       opacity: 0.9,
       side: THREE.DoubleSide // Make it visible from both sides
@@ -73,8 +75,9 @@ export class NexusPanel {
     canvas.height = 320;
     const ctx = canvas.getContext('2d');
     
-    // Clear canvas with flat green background
-    ctx.fillStyle = '#00ff88';
+    // Clear canvas with background color (green when complete, red otherwise)
+    const isComplete = this._isComplete();
+    ctx.fillStyle = isComplete ? '#00ff88' : '#ff0000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Draw title in black
@@ -357,6 +360,9 @@ export class NexusPanel {
     // Mark as revealed
     this.revealedLetters[letter] = true;
     
+    // Trigger flicker effect
+    this._triggerFlickerEffect();
+    
     // Check if all letters are revealed
     if (this._isComplete()) {
       this._showCompletion();
@@ -375,8 +381,9 @@ export class NexusPanel {
     canvas.height = 320;
     const ctx = canvas.getContext('2d');
     
-    // Clear canvas with flat green background
-    ctx.fillStyle = '#00ff88';
+    // Clear canvas with background color (green when complete, red otherwise)
+    const isComplete = this._isComplete();
+    ctx.fillStyle = isComplete ? '#00ff88' : '#ff0000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Draw title in black
@@ -437,11 +444,146 @@ export class NexusPanel {
   }
 
   /**
-   * Show completion message
+   * Show completion message and trigger completion sequence
    */
   _showCompletion() {
     this.binaryDisplay.textContent = 'NEXUS REVEALED! AI identity discovered!';
     console.log('NEXUS puzzle completed!');
+    
+    // Trigger completion sequence
+    this._triggerCompletionSequence();
+  }
+
+  /**
+   * Trigger flicker effect when a letter is revealed
+   */
+  _triggerFlickerEffect() {
+    if (!this.panel || !this.panel.material) return;
+    
+    // Store original color
+    const originalColor = this.panel.material.color.getHex();
+    
+    // Flicker to green for a moment
+    this.panel.material.color.setHex(0x00ff88);
+    this.panel.material.needsUpdate = true;
+    
+    // Return to red after 200ms
+    setTimeout(() => {
+      if (this.panel && this.panel.material) {
+        this.panel.material.color.setHex(originalColor);
+        this.panel.material.needsUpdate = true;
+      }
+    }, 200);
+  }
+
+  /**
+   * Trigger the completion sequence: change panel to green, hide keypad, show message board
+   */
+  _triggerCompletionSequence() {
+    // Change panel color to green
+    this._changePanelToGreen();
+    
+    // Hide the keypad after a short delay
+    setTimeout(() => {
+      this.hide();
+      this._showCompletionMessageBoard();
+    }, 2000);
+  }
+
+  /**
+   * Change the panel color to green (completion)
+   */
+  _changePanelToGreen() {
+    if (this.panel && this.panel.material) {
+      this.panel.material.color.setHex(0x00ff88); // Change to green
+      this.panel.material.needsUpdate = true;
+    }
+  }
+
+  /**
+   * Show the completion message board
+   */
+  _showCompletionMessageBoard() {
+    // Create message board overlay
+    const messageBoard = document.createElement('div');
+    messageBoard.id = 'nexus-completion-board';
+    messageBoard.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+      border: 3px solid #00ff88;
+      border-radius: 15px;
+      padding: 40px;
+      box-shadow: 0 0 50px rgba(0, 255, 136, 0.5);
+      z-index: 10001;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      max-width: 600px;
+      width: 90%;
+    `;
+
+    // Title
+    const title = document.createElement('h2');
+    title.textContent = 'ACCESS GRANTED';
+    title.style.cssText = `
+      color: #00ff88;
+      font-size: 32px;
+      margin: 0 0 20px 0;
+      text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+      font-weight: bold;
+    `;
+    messageBoard.appendChild(title);
+
+    // Message
+    const message = document.createElement('div');
+    message.innerHTML = `
+      <p style="color: #ffffff; font-size: 18px; margin: 20px 0; line-height: 1.5;">
+        You have successfully decoded the hidden message: <strong style="color: #00ff88;">NEXUS</strong>
+      </p>
+      <p style="color: #cccccc; font-size: 16px; margin: 20px 0;">
+        The panel has turned green - access granted. This password will be required for future system access.
+      </p>
+      <p style="color: #ffaa00; font-size: 14px; margin: 20px 0; font-style: italic;">
+        The AI's true identity has been discovered. Proceed with caution.
+      </p>
+    `;
+    messageBoard.appendChild(message);
+
+    // Close button
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'ACKNOWLEDGE';
+    closeButton.style.cssText = `
+      background: linear-gradient(135deg, #00ff88, #00cc6a);
+      color: #000000;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      font-family: 'Courier New', monospace;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 20px;
+      transition: all 0.3s ease;
+    `;
+    closeButton.addEventListener('mouseenter', () => {
+      closeButton.style.background = 'linear-gradient(135deg, #00cc6a, #00aa55)';
+    });
+    closeButton.addEventListener('mouseleave', () => {
+      closeButton.style.background = 'linear-gradient(135deg, #00ff88, #00cc6a)';
+    });
+    closeButton.addEventListener('click', () => {
+      document.body.removeChild(messageBoard);
+      // Re-enable player movement
+      window.disablePlayerControls = false;
+    });
+    messageBoard.appendChild(closeButton);
+
+    document.body.appendChild(messageBoard);
+    
+    // Disable player movement during message display
+    window.disablePlayerControls = true;
   }
 
   /**
@@ -451,6 +593,13 @@ export class NexusPanel {
     console.log('NexusPanel.show() called');
     console.log('binaryUI exists:', !!this.binaryUI);
     console.log('binaryInput exists:', !!this.binaryInput);
+    
+    // Check if puzzle is already completed
+    if (this._isComplete()) {
+      console.log('NEXUS puzzle already completed - showing completion message');
+      this._showCompletionMessageBoard();
+      return;
+    }
     
     if (this.binaryUI) {
       this.binaryUI.style.display = 'block';
@@ -515,6 +664,12 @@ export class NexusPanel {
     
     // Reset attempts
     this.incorrectAttempts = 0;
+    
+    // Reset panel color to red (initial state)
+    if (this.panel && this.panel.material) {
+      this.panel.material.color.setHex(0xff0000);
+      this.panel.material.needsUpdate = true;
+    }
     
     // Reset UI
     this.binaryInput.disabled = false;
