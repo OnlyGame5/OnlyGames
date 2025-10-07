@@ -175,4 +175,20 @@ export class DataStormPuzzle {
     }
     return shuffled;
   }
+  
+  // Get phrases for dropdown (excludes memory addresses)
+  getDropdownPhrases() {
+    // Filter out memory addresses (hex values starting with 0x)
+    const dropdownPhrases = this.distractorPhrases.filter(phrase => !phrase.startsWith('0x'));
+    const allDropdownPhrases = [...this.correctPhrases, ...dropdownPhrases];
+    
+    
+    // Shuffle the dropdown phrases
+    const shuffled = [...allDropdownPhrases];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
 }

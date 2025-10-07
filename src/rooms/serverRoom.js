@@ -464,7 +464,7 @@ export class ServerRoom {
         decryptorWindow.style.display = 'block';
         // Populate dropdowns with shuffled phrases
         const selects = [ui.querySelector('#phrase-1'), ui.querySelector('#phrase-2'), ui.querySelector('#phrase-3')];
-        const shuffledPhrases = this.dataStormPuzzle.getShuffledPhrases();
+        const shuffledPhrases = this.dataStormPuzzle.getDropdownPhrases();
         selects.forEach(select => {
           select.innerHTML = '<option value="">-- SELECT PHRASE --</option>';
           shuffledPhrases.forEach(phrase => {

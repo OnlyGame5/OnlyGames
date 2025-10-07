@@ -130,6 +130,167 @@ truthFilterText.style.cssText = `
 truthFilterText.innerHTML = 'TRUTH FILTER ACTIVE<br><span style="font-size: 11px; color: #88ff88;">Gamma Protocol Engaged</span>';
 document.body.appendChild(truthFilterText);
 
+// Truth filter timer system
+let truthFilterTimer = null;
+let truthFilterStartTime = null;
+const TRUTH_FILTER_DURATION = 6; // 6 seconds
+
+// Decrypting message UI
+const decryptingMessage = document.createElement('div');
+decryptingMessage.id = 'decrypting-message';
+decryptingMessage.style.cssText = `
+  position: fixed;
+  top: calc(50% + 320px);
+  left: 40px;
+  width: 400px;
+  max-width: 210px;
+  background: rgba(10, 15, 25, 0.85);
+  backdrop-filter: blur(10px);
+  border: 2px solid #ff0000;
+  border-radius: 8px;
+  padding: 16px;
+  color: #ff0000;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  text-align: center;
+  z-index: 10001;
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+  box-shadow: 
+    0 0 20px rgba(255, 0, 0, 0.4),
+    inset 0 0 30px rgba(0, 0, 0, 0.3);
+`;
+decryptingMessage.innerHTML = `
+  <div style="margin-bottom: 15px; font-weight: bold; text-shadow: 0 0 10px #ff0000;">AI DECRYPTING...</div>
+  <div style="margin-bottom: 10px; font-size: 12px; color: #ff6666;">Signal interference detected - attempting to regain control</div>
+  <div style="background: rgba(255, 0, 0, 0.2); border: 1px solid #ff0000; border-radius: 4px; height: 20px; overflow: hidden; box-shadow: inset 0 0 10px rgba(255, 0, 0, 0.3);">
+    <div id="decrypting-progress" style="background: linear-gradient(90deg, #ff0000, #ff6666, #ff0000); background-size: 200% 100%; height: 100%; width: 0%; transition: width 0.1s ease; animation: decrypting-shimmer 2s linear infinite;"></div>
+  </div>
+  <div id="decrypting-countdown" style="margin-top: 10px; font-size: 14px; color: #ffaaaa; text-shadow: 0 0 5px #ff0000;"></div>
+`;
+
+// Add CSS animation for the progress bar
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes decrypting-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+`;
+document.head.appendChild(style);
+document.body.appendChild(decryptingMessage);
+
+// Truth filter timer functions
+function startTruthFilterTimer() {
+  if (truthFilterTimer) {
+    clearInterval(truthFilterTimer);
+  }
+  
+  truthFilterStartTime = Date.now();
+  
+  // Show decrypting message
+  const decryptingEl = document.getElementById('decrypting-message');
+  if (decryptingEl) {
+    decryptingEl.style.opacity = '1';
+    decryptingEl.style.transform = 'translateX(0)';
+  }
+  
+  // Start timer
+  truthFilterTimer = setInterval(() => {
+    const elapsed = (Date.now() - truthFilterStartTime) / 1000;
+    const remaining = Math.max(0, TRUTH_FILTER_DURATION - elapsed);
+    const progress = (elapsed / TRUTH_FILTER_DURATION) * 100;
+    
+    // Update progress bar
+    const progressBar = document.getElementById('decrypting-progress');
+    const countdown = document.getElementById('decrypting-countdown');
+    if (progressBar) {
+      progressBar.style.width = `${Math.min(100, progress)}%`;
+    }
+    if (countdown) {
+      countdown.textContent = `Time remaining: ${remaining.toFixed(1)}s`;
+    }
+    
+    // Update truth filter indicator with countdown
+    const truthFilterIndicator = document.getElementById('truth-filter-indicator');
+    if (truthFilterIndicator) {
+      truthFilterIndicator.innerHTML = `TRUTH FILTER ACTIVE<br><span style="font-size: 11px; color: #88ff88;">Gamma Protocol Engaged - ${remaining.toFixed(1)}s</span>`;
+    }
+    
+    // Timer expired
+    if (remaining <= 0) {
+      clearInterval(truthFilterTimer);
+      truthFilterTimer = null;
+      
+      // Hide decrypting message
+      if (decryptingEl) {
+        decryptingEl.style.opacity = '0';
+        decryptingEl.style.transform = 'translateX(-20px)';
+      }
+      
+      // Switch to a different inventory slot
+      switchToNonTruthFilterSlot();
+      
+      // Show AI regaining control message after a brief delay to ensure inventory switch is complete
+      setTimeout(() => {
+        AI.sayUrgent('Unknown interference neutralized. Signal restored.', {
+          effect: 'glitch',
+          tone: 'neutral'
+        });
+      }, 100);
+    }
+  }, 100); // Update every 100ms for smooth progress
+}
+
+function stopTruthFilterTimer() {
+  if (truthFilterTimer) {
+    clearInterval(truthFilterTimer);
+    truthFilterTimer = null;
+  }
+  
+  // Hide decrypting message
+  const decryptingEl = document.getElementById('decrypting-message');
+  if (decryptingEl) {
+    decryptingEl.style.opacity = '0';
+    decryptingEl.style.transform = 'translateX(-20px)';
+  }
+  
+  // Reset progress bar
+  const progressBar = document.getElementById('decrypting-progress');
+  if (progressBar) {
+    progressBar.style.width = '0%';
+  }
+}
+
+function switchToNonTruthFilterSlot() {
+  // Get player inventory - use the global function that should be available
+  if (typeof getPlayerInventory === 'function') {
+    const inventory = getPlayerInventory();
+    
+    if (!inventory) return;
+    
+    // Find a slot that doesn't contain the truth filter (glasses)
+    for (let i = 0; i < inventory.slots.length; i++) {
+      const item = inventory.slots[i];
+      if (!item || item.name !== 'glasses') {
+        inventory.selectedSlot = i;
+        // Update UI
+        const inventoryElement = document.getElementById('inventory');
+        if (inventoryElement) {
+          const slots = inventoryElement.querySelectorAll('.inventory-slot');
+          slots.forEach((slot, index) => {
+            slot.classList.toggle('selected', index === inventory.selectedSlot);
+          });
+        }
+        console.log(`Switched to inventory slot ${i + 1}`);
+        break;
+      }
+    }
+  }
+}
+
 // Stage 0: Game state management
 let gameState = {
   stage: 0,
@@ -935,10 +1096,20 @@ function animate(currentTime) {
   const s = vignetteUniforms.uStrength.value;
   vignetteUniforms.uStrength.value = s + (target - s) * Math.min(1, deltaTime * 6);
   
-  // Update truth filter text indicator
+  // Update truth filter text indicator and timer
   const truthFilterIndicator = document.getElementById('truth-filter-indicator');
   if (truthFilterIndicator) {
-    truthFilterIndicator.style.opacity = target > 0.5 ? '1' : '0';
+    const isActive = target > 0.5;
+    truthFilterIndicator.style.opacity = isActive ? '1' : '0';
+    
+    // Check if truth filter just became active
+    if (isActive && !truthFilterTimer) {
+      startTruthFilterTimer();
+    } else if (!isActive && truthFilterTimer) {
+      stopTruthFilterTimer();
+      // Reset truth filter indicator text when manually deactivated
+      truthFilterIndicator.innerHTML = 'TRUTH FILTER ACTIVE<br><span style="font-size: 11px; color: #88ff88;">Gamma Protocol Engaged</span>';
+    }
   }
   
   // Track truth filter state changes
