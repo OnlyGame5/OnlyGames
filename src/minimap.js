@@ -29,11 +29,11 @@ export class Minimap {
     
     // Room data for accurate drawing based on actual world positions (Hub removed)
     this.roomData = {
-      room0: { width: 20, depth: 15, position: { x: 0, z: 0 } }, // Awakening chamber at origin
-      room1: { width: 18, depth: 18, position: { x: 28, z: 0 } }, // East of origin (9 + 10 + 9 = 28)
-      room2: { width: 12, depth: 12, position: { x: 0, z: 22 } }, // South of origin (6 + 10 + 6 = 22)
-      room4: { width: 18, depth: 18, position: { x: 0, z: -26.5 } }, // North of origin (7.5 + 10 + 9 = 26.5)
-      room3: { width: 20, depth: 20, position: { x: -30, z: 0 }, label: 'SERVER ROOM' } // West of origin (10 + 10 + 10 = 30, circular)
+      room0: { width: 20, depth: 15, position: { x: 0, z: 0 }, label: 'Hub' }, // Awakening chamber at origin
+      room1: { width: 18, depth: 18, position: { x: 28, z: 0 }, label: 'EAST SECTOR' }, // East of origin (9 + 10 + 9 = 28)
+      room2: { width: 12, depth: 12, position: { x: 0, z: 22 }, label: 'SOUTH SECTOR' }, // South of origin (6 + 10 + 6 = 22)
+      room4: { width: 18, depth: 18, position: { x: 0, z: -26.5 }, label: 'NORTH SECTOR' }, // North of origin (7.5 + 10 + 9 = 26.5)
+      room3: { width: 20, depth: 20, position: { x: -30, z: 0 }, label: 'CLASSIFIED' } // West of origin (10 + 10 + 10 = 30, circular)
     };
     
     // Hallway data for connecting corridors (matching main.js positions)
@@ -399,8 +399,21 @@ export class Minimap {
       
       // Only draw if room is large enough to be visible
       if (roomWidth > 1 && roomHeight > 1) {
+        // Determine room color based on accessibility
+        const isRoomAccessible = this.getRoomAccessibility(roomName);
         
-        // Regular rectangular rooms
+        if (isRoomAccessible) {
+          // Green for accessible rooms
+          this.ctx.strokeStyle = '#00ff41';
+          this.ctx.fillStyle = 'rgba(0, 255, 65, 0.1)';
+          this.ctx.shadowColor = '#00ff41';
+        } else {
+          // Red for locked rooms
+          this.ctx.strokeStyle = '#ff0000';
+          this.ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+          this.ctx.shadowColor = '#ff0000';
+        }
+        
         // Draw room fill
         this.ctx.fillRect(topLeft.x, topLeft.z, roomWidth, roomHeight);
         
@@ -409,12 +422,20 @@ export class Minimap {
         
         // Add room labels (only if room is large enough)
         if (roomWidth > 20 && roomHeight > 15) {
-          this.ctx.fillStyle = '#00ff41';
+          this.ctx.fillStyle = isRoomAccessible ? '#00ff41' : '#ff0000';
           this.ctx.font = '8px monospace';
           this.ctx.textAlign = 'center';
-          this.ctx.shadowColor = '#00ff41';
+          this.ctx.shadowColor = isRoomAccessible ? '#00ff41' : '#ff0000';
           this.ctx.shadowBlur = 2;
-          const displayName = room.label ? room.label : roomName.toUpperCase().replace('ROOM', 'R');
+          
+          // Special handling for room3 label based on room2 completion
+          let displayName;
+          if (roomName === 'room3') {
+            displayName = this.getRoom3DisplayName();
+          } else {
+            displayName = room.label ? room.label : roomName.toUpperCase().replace('ROOM', 'R');
+          }
+          
           this.ctx.fillText(
             displayName,
             topLeft.x + roomWidth / 2,
@@ -476,10 +497,25 @@ export class Minimap {
       
       // Only draw if hallway is large enough to be visible
       if (hallwayWidth > 0.5 && hallwayHeight > 0.5) {
-        // Draw hallway fill (lighter than rooms)
+        // Determine hallway color based on door state
+        const isHallwayAccessible = this.getHallwayAccessibility(hallwayName);
+        
+        if (isHallwayAccessible) {
+          // Green for accessible hallways
+          this.ctx.strokeStyle = '#00ff41';
+          this.ctx.fillStyle = 'rgba(0, 255, 65, 0.1)';
+          this.ctx.shadowColor = '#00ff41';
+        } else {
+          // Red for locked hallways
+          this.ctx.strokeStyle = '#ff0000';
+          this.ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+          this.ctx.shadowColor = '#ff0000';
+        }
+        
+        // Draw hallway fill
         this.ctx.fillRect(topLeft.x, topLeft.z, hallwayWidth, hallwayHeight);
         
-        // Draw hallway outline (thinner than rooms)
+        // Draw hallway outline
         this.ctx.strokeRect(topLeft.x, topLeft.z, hallwayWidth, hallwayHeight);
       }
     });
@@ -510,7 +546,7 @@ export class Minimap {
       this.minimapContainer.style.top = '50%';
       this.minimapContainer.style.right = 'auto';
       this.minimapContainer.style.left = '50%';
-      this.minimapContainer.style.transform = 'translate(-50%, -50%)';
+      this.minimapContainer.style.transform = 'translate(-50%, 50%)';
       this.minimapContainer.style.zIndex = '2000';
       this.minimapContainer.style.position = 'fixed';
       
@@ -569,6 +605,106 @@ export class Minimap {
     console.log('Room markers - feature not yet implemented');
   }
   
+  // Helper method to determine if a hallway is accessible based on door states
+  getHallwayAccessibility(hallwayName) {
+    // Check if gameStore is available
+    if (!window.gameStore) {
+      return false; // Default to locked if no game state
+    }
+    
+    const gameStore = window.gameStore;
+    
+    switch (hallwayName) {
+      case 'hubToRoom1':
+        // East hallway - always accessible (east door is always unlocked)
+        return true;
+        
+      case 'hubToRoom2':
+        // South hallway - accessible when room1 is completed
+        return gameStore.rooms.room1.isComplete || 
+               (gameStore.rooms.room1.puzzles.wirePuzzleComplete && 
+                gameStore.rooms.room1.puzzles.memoryPuzzleComplete && 
+                gameStore.rooms.room1.puzzles.pageTakenFromSafe);
+        
+      case 'hubToRoom3':
+        // West hallway - accessible when room2 is completed
+        return gameStore.rooms.room2.isComplete;
+        
+      case 'hubToRoom4':
+        // North hallway - accessible when main door is unlocked (key used)
+        return gameStore.stage >= 1 || this.isMainDoorUnlocked();
+        
+      default:
+        return false; // Unknown hallway, default to locked
+    }
+  }
+  
+  // Helper method to determine if a room is accessible based on door states
+  getRoomAccessibility(roomName) {
+    // Check if gameStore is available
+    if (!window.gameStore) {
+      return false; // Default to locked if no game state
+    }
+    
+    const gameStore = window.gameStore;
+    
+    switch (roomName) {
+      case 'room0':
+        // Hub room - always accessible
+        return true;
+        
+      case 'room1':
+        // Room 1 - accessible when main door is unlocked (key used)
+        return gameStore.stage >= 1 || this.isMainDoorUnlocked();
+        
+      case 'room2':
+        // Room 2 - accessible when room1 is completed
+        return gameStore.rooms.room1.isComplete || 
+               (gameStore.rooms.room1.puzzles.wirePuzzleComplete && 
+                gameStore.rooms.room1.puzzles.memoryPuzzleComplete && 
+                gameStore.rooms.room1.puzzles.pageTakenFromSafe);
+        
+      case 'room3':
+        // Room 3 - accessible when room2 is completed
+        return gameStore.rooms.room2.isComplete;
+        
+      case 'room4':
+        // Room 4 - accessible when main door is unlocked (key used)
+        return gameStore.stage >= 1 || this.isMainDoorUnlocked();
+        
+      default:
+        return false; // Unknown room, default to locked
+    }
+  }
+  
+  // Helper method to check if the main door in room0 is unlocked
+  isMainDoorUnlocked() {
+    // Check if the stage0-key has been used to unlock the main door
+    // This can be determined by checking if the player has progressed past stage 0
+    // or if the main door in room0 is unlocked
+    if (window.gameState && window.gameState.room0 && window.gameState.room0.door) {
+      return !window.gameState.room0.door.userData.locked;
+    }
+    return false;
+  }
+  
+  // Helper method to get the display name for room3 based on room2 completion
+  getRoom3DisplayName() {
+    // Check if gameStore is available
+    if (!window.gameStore) {
+      return 'CLASSIFIED'; // Default to classified if no game state
+    }
+    
+    const gameStore = window.gameStore;
+    
+    // Show "SERVER ROOM" only when room2 is completed
+    if (gameStore.rooms.room2.isComplete) {
+      return 'SERVER ROOM';
+    } else {
+      return 'CLASSIFIED';
+    }
+  }
+
   destroy() {
     if (this.minimapContainer && this.minimapContainer.parentNode) {
       this.minimapContainer.parentNode.removeChild(this.minimapContainer);
