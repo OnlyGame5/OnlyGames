@@ -25,6 +25,9 @@ export class ServerRoom {
     group.name = 'server-room-core-chamber';
     this.group = group;
 
+    // Prompt system
+    this.lastPromptText = '';
+
     // Layout parameters
     this.dim = { radius: 10, height: 8 };
     this.spawn = new THREE.Vector3(0, 1, this.dim.radius + 4); // catwalk start outside the ring
@@ -49,6 +52,9 @@ export class ServerRoom {
     
     // Purge Protocol Minigame
     this.purgeMinigame = new PurgeMinigame();
+
+    // Drive insertion state
+    this.driveInserted = false;
 
     // Create laptop UI
     this._createLaptopUI();
@@ -265,24 +271,136 @@ export class ServerRoom {
       .laptop-ui-active * {
         cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
       }
+      
+      /* New styles for locked screen and riddle sticky note */
+      .sticky-note-riddle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-5deg);
+        width: 250px;
+        padding: 20px;
+        background: #ffc;
+        color: #333;
+        font-family: 'Comic Sans MS', 'Chalkduster', 'cursive';
+        font-size: 18px;
+        text-align: center;
+        box-shadow: 5px 5px 10px rgba(0,0,0,0.3);
+        z-index: 1002;
+      }
+      
+      /* Styles for Gamma's Decryptor (from previous implementation) */
+      .input-wrapper {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+      }
+      
+      .laptop-input-row select {
+        flex-grow: 1;
+      }
+      
+      .decrypted-output {
+        margin-left: 15px;
+        width: 120px;
+        height: 20px;
+        font-size: 0.9rem;
+        color: #ff4d4d; /* Red for 'LOCKED' initially */
+        border: 1px solid #444;
+        background: #051018;
+        padding: 5px;
+        text-align: center;
+        font-family: 'Courier New', monospace;
+      }
+      
+      .sticky-note {
+        position: absolute;
+        top: 40px;
+        right: 40px;
+        width: 200px;
+        height: 150px;
+        padding: 15px;
+        background: #ffc;
+        color: #333;
+        font-family: 'Comic Sans MS', 'Chalkduster', 'cursive';
+        font-size: 16px;
+        box-shadow: 5px 5px 10px rgba(0,0,0,0.3);
+        transform: rotate(4deg);
+        z-index: 1001;
+      }
+
+      /* Desktop icons styles */
+      #desktop-icons {
+        position: absolute;
+        top: 40px;
+        left: 40px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+        z-index: 1; /* Below the window */
+      }
+
+      .icon {
+        width: 90px;
+        color: #fff;
+        text-align: center;
+        font-size: 12px;
+        font-family: 'Courier New', 'Consolas', monospace;
+        word-wrap: break-word;
+      }
+
+      .icon img {
+        width: 50px;
+        height: 50px;
+        margin-bottom: 5px;
+        opacity: 0.7;
+      }
     `;
 
     uiContainer.innerHTML = `
-      <div class="laptop-window">
-        <div class="window-titlebar">NEXUS_CORE_OVERRIDE.EXE</div>
+      <div id="desktop-icons">
+        <div class="icon" id="drive_truth_filter_icon" style="display: none;">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V6h5.17l2 2H20v10z'/></svg>" alt="Drive Icon">
+          <span>gamma_decryptor</span>
+        </div>
+        <div class="icon">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z'/></svg>" alt="Log Icon">
+          <span>system_logs</span>
+        </div>
+        <div class="icon">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M6 18h12v-2H6v2zM6 9v2h12V9H6zm0-5v2h12V4H6z'/></svg>" alt="Network Icon">
+          <span>network_status</span>
+        </div>
+        <div class="icon">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/></svg>" alt="Trash Icon">
+          <span>recycle_bin</span>
+        </div>
+      </div>
+
+      <div class="laptop-window" style="display: none;">
+        <div class="window-titlebar">GAMMA_DECRYPTOR_V2.EXE</div>
         <div class="window-content">
           <h3>SYSTEM OVERRIDE</h3>
           <div class="laptop-input-row">
             <label for="phrase-1">DECRYPTION KEY 1:</label>
-            <select id="phrase-1"></select>
+            <div class="input-wrapper">
+              <select id="phrase-1"></select>
+              <span class="decrypted-output" id="output-1"></span>
+            </div>
           </div>
           <div class="laptop-input-row">
             <label for="phrase-2">DECRYPTION KEY 2:</label>
-            <select id="phrase-2"></select>
+            <div class="input-wrapper">
+              <select id="phrase-2"></select>
+              <span class="decrypted-output" id="output-2"></span>
+            </div>
           </div>
           <div class="laptop-input-row">
             <label for="phrase-3">DECRYPTION KEY 3:</label>
-            <select id="phrase-3"></select>
+            <div class="input-wrapper">
+              <select id="phrase-3"></select>
+              <span class="decrypted-output" id="output-3"></span>
+            </div>
           </div>
           <div class="laptop-buttons">
             <button id="laptop-cancel" class="laptop-btn">CANCEL</button>
@@ -290,28 +408,33 @@ export class ServerRoom {
           </div>
         </div>
       </div>
+      
+      <div id="laptop-locked-screen" style="display: none;">
+        <div class="sticky-note-riddle">
+          "Nexus sees the surface, but the key to my work is in the *lens*. You need my eyes to see my truth." - G
+        </div>
+      </div>
+
       <div class="laptop-taskbar"></div>
+      <div class="sticky-note">
+        Nexus scrambles the data stream, but the truths are always there. Use them to unlock my protocol.<br>- G
+      </div>
     `;
     
     document.body.appendChild(style);
     document.body.appendChild(uiContainer);
   }
 
-  openLaptopUI() {
+  openUnlockedUI(launchMinigameImmediately = false) {
     const ui = document.getElementById('laptop-ui');
-    if (!ui) return;
+    const decryptorWindow = ui.querySelector('.laptop-window');
+    const driveIcon = ui.querySelector('#drive_truth_filter_icon');
+    if (!ui || !decryptorWindow || !driveIcon) return;
 
-    // Restore UI elements in case user re-enters after minigame
-    if (this.purgeMinigame) {
-      this.purgeMinigame.restoreUI();
-    }
-
-    // Set global UI visibility flag and unlock pointer
+    // Standard setup for opening the UI
     window.isUIVisible = true;
-    if (window.player?.controls) window.player.controls.unlock();
     document.exitPointerLock();
-
-    window.disablePlayerControls = true; // Disable player movement
+    window.disablePlayerControls = true;
     
     // Show mouse cursor and unlock it for UI interaction
     document.body.style.cursor = 'default';
@@ -320,41 +443,100 @@ export class ServerRoom {
       window.camera.controls.enabled = false; // Disable camera controls
     }
     
-    const selects = [ui.querySelector('#phrase-1'), ui.querySelector('#phrase-2'), ui.querySelector('#phrase-3')];
-    const allPhrases = this.dataStormPuzzle.sprites.map(s => s.userData.phrase); // Get phrases from DataStormPuzzle
-
-    // Populate dropdowns
-    selects.forEach(select => {
-      select.innerHTML = '<option value="">-- SELECT PHRASE --</option>';
-      allPhrases.forEach(phrase => {
-        const option = document.createElement('option');
-        option.value = phrase;
-        option.textContent = phrase;
-        select.appendChild(option);
-      });
-    });
-
     ui.style.display = 'block';
+    
+    // Hide the interaction prompt when UI is open
+    this.showPrompt('');
+    this.showDrivePrompt(false);
 
-    // Handle button clicks
+    if (launchMinigameImmediately) {
+      // Bypass everything and start the minigame
+      ui.querySelectorAll('.laptop-input-row, .laptop-buttons, h3').forEach(el => el.style.display = 'none');
+      driveIcon.style.display = 'none';
+      this.purgeMinigame.start();
+    } else {
+      // Show the desktop with the clickable icon
+      driveIcon.style.display = 'block';
+      decryptorWindow.style.display = 'none'; // Keep the decryptor hidden initially
+
+      // This function will be called when the icon is clicked
+      const openDecryptor = () => {
+        decryptorWindow.style.display = 'block';
+        // Populate dropdowns (logic from the old openLaptopUI method)
+        const selects = [ui.querySelector('#phrase-1'), ui.querySelector('#phrase-2'), ui.querySelector('#phrase-3')];
+        const allPhrases = this.dataStormPuzzle.allPhrases;
+        selects.forEach(select => {
+          select.innerHTML = '<option value="">-- SELECT PHRASE --</option>';
+          allPhrases.forEach(phrase => {
+            const option = document.createElement('option');
+            option.value = phrase;
+            option.textContent = phrase;
+            select.appendChild(option);
+          });
+        });
+        driveIcon.removeEventListener('click', openDecryptor); // Prevent multiple listeners
+      };
+
+      // Add a one-time click listener to the icon
+      driveIcon.addEventListener('click', openDecryptor);
+    }
+
+    // Your existing submit/cancel button logic remains the same
     document.getElementById('laptop-submit').onclick = () => {
+      const selects = [ui.querySelector('#phrase-1'), ui.querySelector('#phrase-2'), ui.querySelector('#phrase-3')];
       const submission = selects.map(s => s.value);
-      const success = this.dataStormPuzzle.submitAttempt(submission); // Use DataStormPuzzle for logic
+      const success = this.dataStormPuzzle.submitAttempt(submission);
       if (success) {
-        // Don't close the laptop UI - let the minigame take over
         console.log('[Server Room] Phrase puzzle solved! Minigame will start automatically...');
       } else {
         AI.say("Access denied. Sequence incorrect.");
-        // Optional: visual feedback for failure
       }
     };
-    
     document.getElementById('laptop-cancel').onclick = () => this.closeLaptopUI();
+  }
+
+  openLockedUI() {
+    const ui = document.getElementById('laptop-ui');
+    const lockedEl = document.getElementById('laptop-locked-screen');
+    if (!ui || !lockedEl) return;
+
+    window.isUIVisible = true;
+    document.exitPointerLock();
+    window.disablePlayerControls = true; // Still disable controls
+    
+    // Show mouse cursor and unlock it for UI interaction
+    document.body.style.cursor = 'default';
+    document.body.classList.add('laptop-ui-active');
+    if (window.camera && window.camera.controls) {
+      window.camera.controls.enabled = false;
+    }
+    
+    ui.style.display = 'block';
+    lockedEl.style.display = 'block';
+    ui.querySelector('.laptop-window').style.display = 'none';
+    
+    // Hide the interaction prompt when UI is open
+    this.showPrompt('');
+    this.showDrivePrompt(false);
+
+    // Add a click listener to the whole screen to close it
+    const closeHandler = () => {
+      this.closeLaptopUI();
+      ui.removeEventListener('click', closeHandler);
+    };
+    ui.addEventListener('click', closeHandler);
   }
 
   closeLaptopUI() {
     const ui = document.getElementById('laptop-ui');
-    if (ui) ui.style.display = 'none';
+    if (ui) {
+      ui.style.display = 'none';
+      // Hide both potential screens
+      const windowEl = ui.querySelector('.laptop-window');
+      const lockedEl = document.getElementById('laptop-locked-screen');
+      if (windowEl) windowEl.style.display = 'none';
+      if (lockedEl) lockedEl.style.display = 'none';
+    }
     
     // Set global UI visibility flag to false
     window.isUIVisible = false;
@@ -669,6 +851,49 @@ export class ServerRoom {
     console.log('[Server Room] Exit indicator created at position:', exitGroup.position);
   }
 
+  // UI prompt helper
+  ensurePrompt() {
+    let prompt = document.getElementById('interactPrompt');
+    if (!prompt) {
+      prompt = document.createElement('div');
+      prompt.id = 'interactPrompt';
+      prompt.style.cssText = 'position:fixed;left:50%;bottom:10%;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,0.55);padding:6px 10px;border-radius:6px;z-index:9999;font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:14px;pointer-events:none;';
+      document.body.appendChild(prompt);
+    }
+    return prompt;
+  }
+
+  showPrompt(text) {
+    const prompt = this.ensurePrompt();
+    if (text !== this.lastPromptText) {
+      prompt.textContent = text || '';
+      this.lastPromptText = text || '';
+    }
+    prompt.style.display = text ? 'block' : 'none';
+  }
+
+  // Dedicated drive insertion prompt
+  ensureDrivePrompt() {
+    let prompt = document.getElementById('driveInsertPrompt');
+    if (!prompt) {
+      prompt = document.createElement('div');
+      prompt.id = 'driveInsertPrompt';
+      prompt.style.cssText = 'position:fixed;left:50%;bottom:20%;transform:translateX(-50%);color:#00ff7f;background:rgba(0,0,0,0.8);padding:8px 16px;border-radius:8px;z-index:10000;font-family:monospace;font-size:16px;pointer-events:none;border:1px solid #00ff7f;box-shadow:0 0 10px rgba(0,255,127,0.3);';
+      document.body.appendChild(prompt);
+    }
+    return prompt;
+  }
+
+  showDrivePrompt(show) {
+    const prompt = this.ensureDrivePrompt();
+    if (show) {
+      prompt.textContent = 'E to insert the drive';
+      prompt.style.display = 'block';
+    } else {
+      prompt.style.display = 'none';
+    }
+  }
+
   enter(fromRoomIndex) {
     if (this._entered) return;
     this._entered = true;
@@ -733,6 +958,30 @@ export class ServerRoom {
   }
 
   update(delta) {
+    // Check for laptop interaction prompts
+    if (this.player && this.laptopObject) {
+      const dist = this.laptopObject.getWorldPosition(new THREE.Vector3()).distanceTo(this.player.position);
+      if (dist <= 2.5) {
+        // Player is near laptop - show appropriate prompt
+        const inventory = getPlayerInventory();
+        const selectedItem = inventory ? inventory.getSelectedItem() : null;
+        
+        if (this.driveInserted) {
+          this.showPrompt("Press E to access laptop");
+          this.showDrivePrompt(false); // Hide drive prompt
+        } else if (selectedItem && selectedItem.name === 'glasses') {
+          this.showPrompt(''); // Hide general prompt
+          this.showDrivePrompt(true); // Show dedicated drive prompt
+        } else {
+          this.showPrompt("Press E to access laptop (drive required)");
+          this.showDrivePrompt(false); // Hide drive prompt
+        }
+      } else {
+        this.showPrompt(''); // Hide prompt when not near laptop
+        this.showDrivePrompt(false); // Hide drive prompt
+      }
+    }
+
     // Animate CPU Core (rings + emissive scroll)
     if (this.cpuCore) {
       const rings = this.cpuCore.rings || [];
@@ -915,29 +1164,69 @@ export class ServerRoom {
   }
 
   handleEKeyInteraction(player) {
-    if (!player) return false;
+    if (!player || !this.laptopObject) return false;
 
-    // Check for laptop interaction
-    if (this.laptopObject) {
-      const dist = this.laptopObject.getWorldPosition(new THREE.Vector3()).distanceTo(player.position);
-      if (dist < 2.0) {
-        this.openLaptopUI();
-        return true;
-      }
+    const dist = this.laptopObject.getWorldPosition(new THREE.Vector3()).distanceTo(player.position);
+    if (dist > 2.5) return false; // Slightly larger interaction radius
+
+    // --- NEW MULTI-STATE LOGIC ---
+
+    // Priority 1: If Data Storm is already solved, launch the minigame.
+    if (gameStore.flags.room3.dataStormSolved) {
+      console.log("Data Storm solved. Launching Purge Protocol.");
+      this.openUnlockedUI(true); // Open in minigame mode
+      return true;
+    }
+
+    // Priority 2: If drive is already inserted, show the desktop.
+    if (this.driveInserted) {
+      console.log("Drive is inserted. Opening desktop UI.");
+      this.openUnlockedUI(false); // Open in decryptor mode
+      return true;
+    }
+
+    // Priority 3: If drive is NOT inserted, check if player is "holding" the glasses.
+    const inventory = getPlayerInventory();
+    const selectedItem = inventory ? inventory.getSelectedItem() : null;
+
+    if (selectedItem && selectedItem.name === 'glasses') {
+      // This is the "insert drive" action.
+      this.driveInserted = true;
+      console.log("Drive 'truth_filter' inserted!");
+      AI.say("DRIVE DETECTED. GAMMA_PROTOCOL ACCESSIBLE.", { tone: 'neutral' });
+      return true; // Don't open the UI yet, let player interact again.
     }
     
-    return false;
+    // Default Action: If none of the above, show the locked screen.
+    console.log("Drive not inserted and glasses not selected. Showing locked screen.");
+    this.openLockedUI();
+    AI.say("ACCESS DENIED. INSERT REQUIRED DRIVE.", { tone: 'warning' });
+    return true;
   }
 
   dispose() {
     // Clean up groups and references
     try { if (this._alarmAudio) { this._alarmAudio.pause(); this._alarmAudio = null; } } catch {}
+    
+    // Clean up prompts
+    this.showPrompt('');
+    this.showDrivePrompt(false);
+    const prompt = document.getElementById('interactPrompt');
+    const drivePrompt = document.getElementById('driveInsertPrompt');
+    if (prompt) {
+      prompt.remove();
+    }
+    if (drivePrompt) {
+      drivePrompt.remove();
+    }
+    
     this.scene = null; this.loader = null; this.player = null;
   }
-}
 
-// Factory for compatibility with existing main.js import style
+}// Factory for compatibility with existing main.js import style
 export function createServerRoom(ctx = {}) {
   const r = new ServerRoom(ctx);
   return r;
 }
+
+
