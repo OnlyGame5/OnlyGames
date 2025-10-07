@@ -567,7 +567,15 @@ window.addEventListener('keydown', (e) => {
       }
     }
 
-    // Room 3 access door interaction is handled by room0.js westDoor
+    // Try Room 4 for NEXUS panel
+    if (gameState.room4 && gameState.room4.handleEKeyInteraction) {
+      console.log('Trying Room 4 E-key handler');
+      const handled = gameState.room4.handleEKeyInteraction(activePlayer);
+      if (handled) {
+        console.log('Room 4 E-key handler succeeded');
+        return;
+      }
+    }
 
     // Check if player is in Room 0 (hub room)
     const isInRoom0 = activePlayer.position.x >= -10 && activePlayer.position.x <= 10 && 
@@ -640,6 +648,11 @@ window.addEventListener('keydown', (e) => {
           console.log('Trying Room 3 fallback handler');
           gameState.room3.handleEKeyInteraction(activePlayer);
         }
+        
+        if (gameState.room4 && gameState.room4.handleEKeyInteraction) {
+          console.log('Trying Room 4 fallback handler');
+          gameState.room4.handleEKeyInteraction(activePlayer);
+        }
       }
       
       // FORCE Room 1 interactions for debugging - try Room 1 handler regardless
@@ -647,6 +660,14 @@ window.addEventListener('keydown', (e) => {
         console.log('FORCE: Trying Room 1 handler regardless of room detection');
         const handled = gameState.room1.handleEKeyInteraction(activePlayer);
         console.log('FORCE: Room 1 handler result:', handled);
+        if (handled) return;
+      }
+      
+      // FORCE Room 4 interactions for debugging
+      if (gameState.room4 && gameState.room4.handleEKeyInteraction) {
+        console.log('FORCE: Trying Room 4 handler regardless of room detection');
+        const handled = gameState.room4.handleEKeyInteraction(activePlayer);
+        console.log('FORCE: Room 4 handler result:', handled);
         if (handled) return;
       }
     }
