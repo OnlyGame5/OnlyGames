@@ -632,16 +632,16 @@ export function createRoom0() {
   southDoor.castShadow = true;
   group.add(southDoor);
 
-  // Stage 0: West door (to Room 3)
+  // Stage 0: West door (to Room 3) - controlled by Room 2 completion
   const westDoor = createFuturisticDoor({
-    keyId: 'west-key',
+    keyId: null, // No key needed, controlled by Room 2 completion
     locked: true,
     position: { x: -9, y: 1.75, z: 0 },
     rotationY: Math.PI / 2, // Rotate 90 degrees to face east (toward room0)
     width: 3.0,
     height: 3.5,
     openOffset: 4.0,
-    labelText: "WEST SECTOR",
+    labelText: "ROOM 3 ACCESS\nREQUIRES ROOM 2 COMPLETION",
     id: 'west-door'
   });
 
@@ -659,7 +659,7 @@ export function createRoom0() {
 
   westDoor.userData.onDenied = () => {
     if (window.AI) {
-      window.AI.say("West sector requires proper authorization.");
+      window.AI.say("Access denied. Complete all puzzles in Room 2 first.");
     }
   };
 
@@ -880,6 +880,22 @@ export function createRoom0() {
               currentDoor.userData.onDenied();
             }
             return true;
+          } else if (currentDoor.userData.id === 'west-door') {
+            // Special case for west door - check Room 2 completion
+            if (window.gameStore && window.gameStore.rooms.room2.isComplete) {
+              currentDoor.userData.setLocked(false);
+              currentDoor.userData.openDoor();
+              if (window.AI) {
+                window.AI.say("Access granted. Room 3 is now accessible.");
+              }
+              return true;
+            } else {
+              // Room 2 not completed, show denial message
+              if (currentDoor.userData.onDenied) {
+                currentDoor.userData.onDenied();
+              }
+              return true;
+            }
           } else {
             // Regular key-based doors
             const hasKey = hasInInventory(currentDoor.userData.keyId);

@@ -256,6 +256,33 @@ class GameStore {
       this.notify('hubShutdown', true);
     }
   }
+
+  // Room 2 puzzle completion methods
+  setRoom2PuzzleComplete(puzzleName, value) {
+    if (this.rooms.room2.puzzles[puzzleName] !== undefined) {
+      this.rooms.room2.puzzles[puzzleName] = value;
+      this.notify(`room2Puzzle.${puzzleName}`, value);
+      this.checkRoom2Completion();
+    }
+  }
+
+  checkRoom2Completion() {
+    const puzzles = this.rooms.room2.puzzles;
+    const allComplete = puzzles.scalePuzzleComplete && 
+                       puzzles.candleBeamPuzzleComplete && 
+                       puzzles.seventhObjectRevealed;
+    
+    if (allComplete && !this.rooms.room2.isComplete) {
+      this.rooms.room2.isComplete = true;
+      this.notify('room2Complete', true);
+      this.notify('room3AccessGranted', true);
+    }
+  }
+
+  // Room 3 access control
+  isRoom3Accessible() {
+    return this.rooms.room2.isComplete;
+  }
 }
 
 // Create global instance
