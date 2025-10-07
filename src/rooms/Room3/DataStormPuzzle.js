@@ -17,6 +17,8 @@ export class DataStormPuzzle {
     this.allPhrases = [...this.correctPhrases, ...this.distractorPhrases];
     this.selectedPhrases = new Set();
     this.sprites = [];
+    this._lastGlassesState = false;
+    this._pulseTime = 0;
 
     this._buildStorm();
   }
@@ -35,13 +37,16 @@ export class DataStormPuzzle {
     canvas.height = 64;
     const context = canvas.getContext('2d');
     context.font = 'bold 48px monospace';
-    context.fillStyle = isCorrect ? 'rgba(100, 255, 100, 0.8)' : 'rgba(100, 200, 255, 0.7)';
+    context.fillStyle = 'rgba(100, 200, 255, 0.7)';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillText(text, 256, 32);
 
     const texture = new THREE.CanvasTexture(canvas);
-    const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const material = new THREE.SpriteMaterial({ 
+      map: texture, 
+      transparent: true
+    });
     const sprite = new THREE.Sprite(material);
     
     // Make sprites larger and more visible
@@ -74,10 +79,52 @@ export class DataStormPuzzle {
     });
   }
 
-  update(deltaTime) {
+  _updateTruthFilterEffect(isActive) {
+    this.sprites.forEach((sprite) => {
+      const isCorrect = sprite.userData.isCorrect;
+      const material = sprite.material;
+      
+      if (isActive && isCorrect) {
+        // Correct phrases: bright green, larger size, more opaque
+        material.color.set(0x00ff88);
+        material.opacity = 1.0;
+        sprite.scale.set(7, 1.0, 1); // Larger
+      } else if (isActive && !isCorrect) {
+        // Wrong phrases: dim red, smaller, less opaque
+        material.color.set(0x442222);
+        material.opacity = 0.3;
+        sprite.scale.set(4, 0.4, 1); // Smaller
+      } else {
+        // Normal state: reset to original blueish
+        material.color.set(0x64c8ff);
+        material.opacity = 0.7;
+        sprite.scale.set(6, 0.8, 1); // Original size
+      }
+    });
+  }
+
+  update(deltaTime, isGlassesActive = false) {
     // Animate the storm to swirl around CPU core
     this.group.rotation.y += deltaTime * 0.1;
     this.group.rotation.x += deltaTime * 0.05;
+
+    // Only update materials/scales if the glasses state has changed
+    if (isGlassesActive !== this._lastGlassesState) {
+      this._lastGlassesState = isGlassesActive;
+      this._updateTruthFilterEffect(isGlassesActive);
+    }
+    
+    // Apply pulsing animation every frame if glasses are active
+    if (isGlassesActive) {
+      this._pulseTime += deltaTime;
+      this.sprites.forEach((sprite) => {
+        if (sprite.userData.isCorrect) {
+          // Efficient sine-wave pulse using accumulated time
+          const pulse = 0.8 + 0.2 * Math.sin(this._pulseTime * 3);
+          sprite.material.opacity = pulse;
+        }
+      });
+    }
   }
 
   handleInteraction(intersectedObject) {

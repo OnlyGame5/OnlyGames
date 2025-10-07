@@ -187,6 +187,7 @@ async function initGame() {
     window.player = player; // Also make player globally accessible
     window.camera = camera; // Make camera globally accessible for minimap
     window.isInFirstPerson = isInFirstPerson; // Make view mode function globally accessible
+    window.levelManager = levelManager; // Make LevelManager globally accessible for room transitions
     
     // Create all rooms (Room 0 serves as the hub)
     gameState.room0 = createRoom0();
@@ -195,7 +196,7 @@ async function initGame() {
     updateProgress(1); // Room 1
     gameState.room2 = createRoom2();
     updateProgress(1); // Room 2
-    gameState.room3 = createServerRoom();
+    gameState.room3 = createServerRoom({ renderer });
     updateProgress(1); // Room 3
     gameState.room4 = createRoom4();
     console.log('Room 4 created and added to gameState');
@@ -352,7 +353,7 @@ async function initGame() {
     gameState.room0 = createRoom0();
     gameState.room1 = createRoom1();
     gameState.room2 = createRoom2();
-    gameState.room3 = createServerRoom();
+    gameState.room3 = createServerRoom({ renderer });
     gameState.room4 = createRoom4();
     console.log('Fallback: Room 4 created and added to gameState');
     
@@ -513,6 +514,12 @@ window.addEventListener('keydown', (e) => {
   // E key interaction handler
   if (e.code === getBindings().interact) {
     console.log('E-key pressed! Key code:', e.code, 'getBindings().interact:', getBindings().interact);
+    
+    // Check if minigame is active - if so, don't process E-key interactions
+    if (window.disablePlayerControls) {
+      console.log('Minigame is active, skipping E-key handling');
+      return;
+    }
     
     // Check if paper examination is open first
     const paperExamination = document.getElementById('paperExamination');
@@ -705,9 +712,12 @@ function animate(currentTime) {
   const activePlayer = leonardModel || player;
   
   // Stage 0: Update player movement with deltaTime for animations
-  // Check if movement is restricted during awakening
+  // Check if movement is restricted during awakening or minigame
   if (gameState.room0 && gameState.room0.state && gameState.room0.state.awakening && gameState.room0.state.awakening.movementRestricted) {
     // Only allow camera rotation during awakening, no movement
+    // Player can look around but not move
+  } else if (window.disablePlayerControls) {
+    // Player controls disabled for minigame
     // Player can look around but not move
   } else {
     updatePlayer(activePlayer, camera, deltaTime);

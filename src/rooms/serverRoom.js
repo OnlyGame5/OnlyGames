@@ -5,17 +5,20 @@ import { AI } from '../ai.js';
 import { gameStore } from '../state/gameStore.js';
 import { buildStandardLightRig, removeExistingLights } from '../lighting/standardLighting.js';
 import { DataStormPuzzle } from './Room3/DataStormPuzzle.js';
+import { PurgeMinigame } from './Room3/PurgeMinigame.js';
+import { getPlayerInventory } from '../player.js';
 import { room3Audio } from '../audio/room3Audio.js';
 
 // Server Room – The Core
 // Controller responsible for assembling the chamber, mounting puzzles, and handling per-frame updates.
 export class ServerRoom {
-  constructor({ scene, loader, player, materials, assets } = {}) {
+  constructor({ scene, loader, player, materials, assets, renderer } = {}) {
     this.scene = scene;
     this.loader = loader;
     this.player = player;
     this.materials = materials;
     this.assets = assets;
+    this.renderer = renderer;
 
     // Root group
     const group = new THREE.Group();
@@ -42,6 +45,12 @@ export class ServerRoom {
     // Puzzles
     this.dataStormPuzzle = new DataStormPuzzle();
     this.dataStormPuzzle.mount(this.centerPlatform);
+    
+    // Purge Protocol Minigame
+    this.purgeMinigame = null;
+    if (this.renderer) {
+      this.purgeMinigame = new PurgeMinigame(this.renderer);
+    }
 
     // Entry/Exit anchors
     this.anchors = {
@@ -51,6 +60,9 @@ export class ServerRoom {
     this.anchors.entry.position.copy(new THREE.Vector3(0, 0, this.dim.radius + 6));
     this.anchors.exit.position.copy(new THREE.Vector3(0, 0, -this.dim.radius - 6));
     group.add(this.anchors.entry, this.anchors.exit);
+    
+    // Add visual exit indicator
+    this._buildExitIndicator();
 
     // State
     this._entered = false;
@@ -213,6 +225,9 @@ export class ServerRoom {
 
     this.centerPlatform.add(coreGroup);
 
+    // Terminal Screen for Purge Protocol Minigame
+    this._buildTerminalScreen();
+
     // Keep references for animation
     this.cpuCore = {
       group: coreGroup,
@@ -220,6 +235,75 @@ export class ServerRoom {
       rings,
       heatsinks,
       circuitTex
+    };
+  }
+
+  _buildTerminalScreen() {
+    // Create terminal screen that will display the minigame
+    const terminalGroup = new THREE.Group();
+    terminalGroup.name = 'terminal-screen';
+    terminalGroup.position.set(0, 1.5, 2.5); // Position in front of the CPU core
+    
+    // Terminal frame
+    const frameGeo = new THREE.BoxGeometry(2.0, 1.5, 0.1);
+    const frameMat = new THREE.MeshStandardMaterial({ 
+      color: 0x333333, 
+      metalness: 0.8, 
+      roughness: 0.2 
+    });
+    const frame = new THREE.Mesh(frameGeo, frameMat);
+    frame.position.set(0, 0, -0.05);
+    terminalGroup.add(frame);
+    
+    // Screen (where the minigame texture will be applied)
+    const screenGeo = new THREE.PlaneGeometry(1.8, 1.3);
+    const screenMat = new THREE.MeshBasicMaterial({ 
+      color: 0x051018, // Dark terminal background
+      transparent: true,
+      opacity: 1.0 // Make it fully opaque
+    });
+    
+    // If minigame is available, use its texture
+    if (this.purgeMinigame) {
+      screenMat.map = this.purgeMinigame.texture;
+      console.log('[Server Room] Terminal screen created with minigame texture');
+    } else {
+      console.log('[Server Room] Terminal screen created without minigame texture');
+      // Create a simple test pattern
+      const canvas = document.createElement('canvas');
+      canvas.width = 320;
+      canvas.height = 400;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#051018';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = '#00ff7f';
+      context.font = '24px monospace';
+      context.textAlign = 'center';
+      context.fillText('TERMINAL READY', 160, 200);
+      const testTexture = new THREE.CanvasTexture(canvas);
+      screenMat.map = testTexture;
+    }
+    
+    const screen = new THREE.Mesh(screenGeo, screenMat);
+    screen.position.set(0, 0, 0.01);
+    terminalGroup.add(screen);
+    
+    // Terminal bezel/rim
+    const bezelGeo = new THREE.BoxGeometry(1.9, 1.4, 0.02);
+    const bezelMat = new THREE.MeshStandardMaterial({ 
+      color: 0x111111, 
+      metalness: 0.9, 
+      roughness: 0.1 
+    });
+    const bezel = new THREE.Mesh(bezelGeo, bezelMat);
+    bezel.position.set(0, 0, 0.02);
+    terminalGroup.add(bezel);
+    
+    this.centerPlatform.add(terminalGroup);
+    this.terminalScreen = {
+      group: terminalGroup,
+      screen: screen,
+      material: screenMat
     };
   }
 
@@ -302,6 +386,58 @@ export class ServerRoom {
     this.alarmLightW = mk('alarmLightW', -r, 0);
   }
 
+  _buildExitIndicator() {
+    // Create a glowing exit sign
+    const exitGroup = new THREE.Group();
+    exitGroup.name = 'exit-indicator';
+    
+    // Exit sign geometry (larger and more visible)
+    const signGeo = new THREE.PlaneGeometry(4, 2);
+    const signMat = new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00, 
+      transparent: true, 
+      opacity: 0.9,
+      side: THREE.DoubleSide
+    });
+    const sign = new THREE.Mesh(signGeo, signMat);
+    sign.position.set(0, 3, 0);
+    exitGroup.add(sign);
+    
+    // Add text to the sign
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 256;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#000000';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#00ff00';
+    context.font = 'bold 64px monospace';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText('EXIT', 256, 128);
+    context.fillText('TO HUB', 256, 180);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const textMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+    const textMesh = new THREE.Mesh(signGeo, textMat);
+    textMesh.position.set(0, 3, 0.01);
+    exitGroup.add(textMesh);
+    
+    // Add a glowing light at the exit
+    const exitLight = new THREE.PointLight(0x00ff00, 2, 10);
+    exitLight.position.set(0, 2, 0);
+    exitGroup.add(exitLight);
+    
+    // Position at exit anchor
+    exitGroup.position.copy(this.anchors.exit.position);
+    exitGroup.position.y += 1;
+    
+    this.group.add(exitGroup);
+    this.exitIndicator = exitGroup;
+    
+    console.log('[Server Room] Exit indicator created at position:', exitGroup.position);
+  }
+
   enter(fromRoomIndex) {
     if (this._entered) return;
     this._entered = true;
@@ -310,28 +446,28 @@ export class ServerRoom {
       window.gameState.stage = 3;
     }
 
-    // --- HIDE EXTERNAL LIGHTS ---
+    // --- DIM EXTERNAL LIGHTS (instead of hiding completely) ---
     const scene = this.group.parent;
     if (scene) {
       scene.traverse((object) => {
         // If the object is a light AND it's not a child of this room's group...
-        if (object.isLight && !object.parent.name.includes('room3')) {
+        if (object.isLight && !object.parent.name.includes('server-room')) {
           this._hiddenExternalLights.push(object); // Store it
-          object.visible = false; // Hide it
+          object.intensity *= 0.1; // Dim instead of hide
         }
       });
     }
-    console.log(`[Server Room] Entered. Hid ${this._hiddenExternalLights.length} external lights.`);
+    console.log(`[Server Room] Entered. Dimmed ${this._hiddenExternalLights.length} external lights.`);
     // --- END OF BLOCK ---
 
-    // --- DISABLE THE ENVIRONMENT MAP ---
+    // --- KEEP ENVIRONMENT MAP (but dim it) ---
     if (scene) {
       // Save the current environment map before changing it
       this._previousEnvironment = scene.environment;
-      // Disable it to achieve true darkness
-      scene.environment = null;
+      // Keep environment but make it darker
+      // scene.environment = null; // REMOVED - keep environment visible
     }
-    console.log(`[Server Room] Disabled scene.environment.`);
+    console.log(`[Server Room] Kept scene.environment for visibility.`);
     // --- END OF BLOCK ---
 
     // Place the player at catwalk start if available
@@ -350,7 +486,7 @@ export class ServerRoom {
     // --- RESTORE EXTERNAL LIGHTS ---
     console.log(`[Server Room] Exiting. Restoring ${this._hiddenExternalLights.length} external lights.`);
     this._hiddenExternalLights.forEach(light => {
-      light.visible = true; // Restore visibility
+      light.intensity *= 10; // Restore original intensity
     });
     this._hiddenExternalLights = []; // Clear the list
     // --- END OF BLOCK ---
@@ -404,7 +540,54 @@ export class ServerRoom {
     }
 
     // Subsystems
-    if (this.dataStormPuzzle) this.dataStormPuzzle.update(delta);
+    // Check if glasses are active (with fallback)
+    let isGlassesActive = false;
+    try {
+      const inv = getPlayerInventory ? getPlayerInventory() : null;
+      const selected = inv && inv.getSelectedItem ? inv.getSelectedItem() : null;
+      isGlassesActive = !!(selected && selected.name === 'glasses');
+    } catch (e) {
+      console.warn('Could not check glasses state:', e);
+    }
+    
+    // Update data storm puzzle with glasses state
+    if (this.dataStormPuzzle) {
+      this.dataStormPuzzle.update(delta, isGlassesActive);
+      
+      // Check if Data Storm puzzle is solved and start minigame
+      if (this.dataStormPuzzle.isSolved && this.purgeMinigame && !this.purgeMinigame.isActive) {
+        console.log('[Server Room] Data Storm solved! Starting Purge Protocol minigame...');
+        this.purgeMinigame.start();
+      }
+    }
+    
+    // Update Purge Protocol minigame
+    if (this.purgeMinigame && this.purgeMinigame.isActive) {
+      this.purgeMinigame.update(delta);
+      
+      // Add glowing effect to terminal screen when minigame is active
+      if (this.terminalScreen && this.terminalScreen.material) {
+        const pulse = 0.8 + 0.2 * Math.sin(this._alarm.t * 4);
+        this.terminalScreen.material.opacity = pulse;
+      }
+      
+      // Check if minigame is completed
+      if (this.purgeMinigame.isSolved) {
+        console.log('[Server Room] Purge Protocol completed!');
+        // Could trigger additional game events here
+      }
+    }
+    
+    // Animate exit indicator
+    if (this.exitIndicator) {
+      this.exitIndicator.rotation.y += delta * 0.5;
+      const pulse = 0.8 + 0.2 * Math.sin(this._alarm.t * 4);
+      this.exitIndicator.children.forEach(child => {
+        if (child.material && child.material.opacity !== undefined) {
+          child.material.opacity = pulse;
+        }
+      });
+    }
   }
 
   _enableAlarmState() {
@@ -419,14 +602,27 @@ export class ServerRoom {
   checkWallCollisions(player) {
     // Constrain within catwalk and platforms; allow gaps to fall. If fallen, respawn via bridge logic.
     if (!player || !player.position) return;
+    
+    // Check for exit collision first
+    this._checkExitCollisions(player);
+    
+    // Debug: Log player position occasionally
+    if (Math.random() < 0.01) { // 1% chance per frame
+      console.log('[Server Room] Player position:', player.position);
+    }
+    
     // Compute local position
     const local = this.group.worldToLocal(this._tmpVec.copy(player.position));
     const radius = this.dim.radius;
 
-    // If inside ring radius+small, allow. Outside, clamp lightly.
+    // Allow player to reach exit area - disable collision clamping entirely
+    // The exit collision detection will handle the transition
     const dist = Math.hypot(local.x, local.z);
-    if (dist > radius + 6) {
-      const k = (radius + 6 - 0.01) / dist;
+    const maxDistance = radius + 20; // Very large boundary to allow free movement
+    
+    // Only clamp if player is trying to go extremely far (safety net)
+    if (dist > maxDistance) {
+      const k = (maxDistance - 0.01) / dist;
       local.x *= k; local.z *= k;
     }
 
@@ -438,6 +634,46 @@ export class ServerRoom {
 
     const newWorld = this.group.localToWorld(local);
     player.position.copy(newWorld);
+  }
+
+  _checkExitCollisions(player) {
+    if (!player || !player.position) return;
+    
+    // Check exit anchor collision (back to hub)
+    const exitWorld = this.anchors.exit.getWorldPosition(new THREE.Vector3());
+    const distanceToExit = player.position.distanceTo(exitWorld);
+    
+    // Debug logging - show exit position and distance
+    if (distanceToExit < 10.0) {
+      console.log(`[Server Room] Player at (${player.position.x.toFixed(2)}, ${player.position.y.toFixed(2)}, ${player.position.z.toFixed(2)})`);
+      console.log(`[Server Room] Exit at (${exitWorld.x.toFixed(2)}, ${exitWorld.y.toFixed(2)}, ${exitWorld.z.toFixed(2)})`);
+      console.log(`[Server Room] Distance to exit: ${distanceToExit.toFixed(2)}`);
+    }
+    
+    if (distanceToExit < 3.0) {
+      // Player is near exit - transition back to hub
+      console.log('[Server Room] Player reached exit, transitioning to hub');
+      
+      // Direct transition to Room 0 (hub) - bypass LevelManager for now
+      const hubEntry = new THREE.Vector3(-9, 1, 0); // Room 0 entry_from_room3 position
+      player.position.copy(hubEntry);
+      
+      // Update game state
+      if (window.gameStore && window.gameStore.setCurrentRoom) {
+        window.gameStore.setCurrentRoom('hub');
+        console.log('[Server Room] Updated currentRoom to hub');
+      }
+      if (window.gameStore && window.gameStore.setStage) {
+        window.gameStore.setStage(0);
+        console.log('[Server Room] Updated stage to 0');
+      }
+      
+      // Also update window.gameState for compatibility
+      if (window.gameState) {
+        window.gameState.stage = 0;
+        console.log('[Server Room] Updated window.gameState.stage to 0');
+      }
+    }
   }
 
   handleEKeyInteraction(player) {
