@@ -128,6 +128,19 @@ export class NexusPanel {
    * Create the UI elements (simple keypad like Room 1)
    */
   _createUI() {
+    // Add custom cursor styling for binary UI (same as laptop UI)
+    const style = document.createElement('style');
+    style.textContent = `
+      /* Custom cursor styling for binary UI */
+      .binary-ui-active {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff00" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff00"/></svg>'), auto !important;
+      }
+      .binary-ui-active * {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff00" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff00"/></svg>'), auto !important;
+      }
+    `;
+    document.head.appendChild(style);
+
     // Create the binary input UI (similar to Room 1 keypad)
     const binaryUI = document.createElement('div');
     binaryUI.id = 'binaryUI';
@@ -442,14 +455,28 @@ export class NexusPanel {
     if (this.binaryUI) {
       this.binaryUI.style.display = 'block';
       this.panelOpen = true;
+      
+      // Set global UI visibility flag and unlock pointer (same as laptop UI)
+      window.isUIVisible = true;
+      if (window.player?.controls) window.player.controls.unlock();
+      document.exitPointerLock();
+
+      // Disable player movement
+      window.disablePlayerControls = true;
+      
+      // Show mouse cursor and unlock it for UI interaction (same as laptop UI)
+      document.body.style.cursor = 'default';
+      document.body.classList.add('binary-ui-active'); // Add custom cursor styling
+      if (window.camera && window.camera.controls) {
+        window.camera.controls.enabled = false; // Disable camera controls
+      }
+      
       if (this.binaryInput) {
         this.binaryInput.focus();
       }
       if (this.binaryDisplay) {
         this.binaryDisplay.textContent = 'Enter 8-bit binary:';
       }
-      // Disable player movement
-      window.disablePlayerControls = true;
       console.log('NEXUS panel UI should now be visible');
     } else {
       console.error('binaryUI not found!');
@@ -462,8 +489,18 @@ export class NexusPanel {
   hide() {
     this.binaryUI.style.display = 'none';
     this.panelOpen = false;
-    // Enable movement again
-    window.disablePlayerControls = false;
+    
+    // Set global UI visibility flag to false (same as laptop UI)
+    window.isUIVisible = false;
+    window.disablePlayerControls = false; // Re-enable player movement
+    
+    // Hide mouse cursor and restore camera controls (same as laptop UI)
+    document.body.style.cursor = 'none';
+    document.body.classList.remove('binary-ui-active'); // Remove custom cursor styling
+    if (window.camera && window.camera.controls) {
+      window.camera.controls.enabled = true; // Re-enable camera controls
+    }
+    
     console.log('NEXUS panel closed');
   }
 
