@@ -603,12 +603,42 @@ export function createRoom2() {
     showPrompt('');
   }
 
+  // Dispose method for cleanup
+  function dispose() {
+    // Import dispose helper
+    import('./utils/DisposeHelper.js').then(({ disposeGroup, removeElement }) => {
+      disposeGroup(group);
+      
+      // Remove prompt element if it exists
+      removeElement('interactPrompt');
+    });
+    
+    // Dispose of puzzles
+    if (scalePuzzle && typeof scalePuzzle.dispose === 'function') {
+      scalePuzzle.dispose();
+    }
+    
+    if (candleBeamPuzzle && typeof candleBeamPuzzle.dispose === 'function') {
+      candleBeamPuzzle.dispose();
+    }
+    
+    // Clear arrays
+    pickableObjects.length = 0;
+    hiddenClues.length = 0;
+    
+    // Clear room2Puzzles
+    Object.keys(room2Puzzles).forEach(key => {
+      room2Puzzles[key] = null;
+    });
+  }
+
   return {
     group,
     roomObjects,
     handleEKeyInteraction,
     handleFKeyInteraction,
     update,
+    dispose,
     checkWallCollisions: (player) => {
       // Add collision detection similar to Room 1
       if (!player || !player.position) return;

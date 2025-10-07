@@ -22,6 +22,11 @@ export class Minimap {
     this.lastRedrawTime = 0;
     this.redrawInterval = 50; // Minimum 50ms between redraws (reduced for smoother updates)
     
+    // Track room accessibility state to detect changes
+    this.lastAccessibilityState = {};
+    this.accessibilityCheckInterval = 500; // Check accessibility every 500ms
+    this.lastAccessibilityCheck = 0;
+    
     // Zoom settings
     this.zoomLevel = 1; // 1 = normal, 2 = zoomed in, 0.5 = zoomed out
     this.zoomLevels = [0.5, 1, 2, 4]; // Available zoom levels
@@ -277,6 +282,7 @@ export class Minimap {
   
   shouldRedraw() {
     const activePlayer = window.leonardModel || this.player;
+    const currentTime = Date.now();
     
     // Check if player position changed significantly
     const positionChanged = this.lastPlayerPosition.distanceTo(activePlayer.position) > this.redrawThreshold;
@@ -290,13 +296,57 @@ export class Minimap {
     }
     const rotationChanged = Math.abs(currentRotation - this.lastPlayerRotation) > this.rotationThreshold;
     
-    if (positionChanged || rotationChanged) {
+    // Check if room accessibility has changed (throttled check)
+    let accessibilityChanged = false;
+    if (currentTime - this.lastAccessibilityCheck > this.accessibilityCheckInterval) {
+      accessibilityChanged = this.checkAccessibilityChanged();
+      this.lastAccessibilityCheck = currentTime;
+    }
+    
+    if (positionChanged || rotationChanged || accessibilityChanged) {
       this.lastPlayerPosition.copy(activePlayer.position);
       this.lastPlayerRotation = currentRotation;
       return true;
     }
     
     return false;
+  }
+  
+  /**
+   * Check if room accessibility has changed since last check
+   * @returns {boolean} True if accessibility changed
+   */
+  checkAccessibilityChanged() {
+    const rooms = ['room0', 'room1', 'room2', 'room3', 'room4'];
+    const hallways = ['hubToRoom1', 'hubToRoom2', 'hubToRoom3', 'hubToRoom4'];
+    
+    let changed = false;
+    
+    // Check room accessibility
+    rooms.forEach(roomName => {
+      const currentState = this.getRoomAccessibility(roomName);
+      const lastState = this.lastAccessibilityState[roomName];
+      
+      if (currentState !== lastState) {
+        console.log(`Room accessibility changed: ${roomName} = ${currentState}`);
+        this.lastAccessibilityState[roomName] = currentState;
+        changed = true;
+      }
+    });
+    
+    // Check hallway accessibility
+    hallways.forEach(hallwayName => {
+      const currentState = this.getHallwayAccessibility(hallwayName);
+      const lastState = this.lastAccessibilityState[hallwayName];
+      
+      if (currentState !== lastState) {
+        console.log(`Hallway accessibility changed: ${hallwayName} = ${currentState}`);
+        this.lastAccessibilityState[hallwayName] = currentState;
+        changed = true;
+      }
+    });
+    
+    return changed;
   }
   
   drawMinimapToCanvas() {
@@ -527,6 +577,14 @@ export class Minimap {
     this.ctx.shadowBlur = 0;
   }
   
+  /**
+   * Force a redraw on the next update cycle
+   */
+  forceRedraw() {
+    this.needsRedraw = true;
+    console.log('Minimap: Forced redraw requested');
+  }
+  
   toggle() {
     if (this.minimapContainer.style.display === 'none') {
       this.minimapContainer.style.display = 'block';
@@ -654,8 +712,8 @@ export class Minimap {
         return true;
         
       case 'room1':
-        // Room 1 - accessible when main door is unlocked (key used)
-        return gameStore.stage >= 1 || this.isMainDoorUnlocked();
+        // Room 1 - always accessible (east door is always open)
+        return true;
         
       case 'room2':
         // Room 2 - accessible when room1 is completed

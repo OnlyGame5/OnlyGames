@@ -1099,6 +1099,19 @@ export function createRoom0() {
 
   Object.values(anchors).forEach(anchor => group.add(anchor));
 
+  // Dispose method for cleanup
+  function dispose() {
+    // Import dispose helper
+    import('./utils/DisposeHelper.js').then(({ disposeGroup }) => {
+      disposeGroup(group);
+    });
+    
+    // Clear all references
+    Object.keys(state).forEach(key => {
+      state[key] = null;
+    });
+  }
+
   // Stage 0: Return room object with all necessary properties
   return {
     group,
@@ -1122,7 +1135,8 @@ export function createRoom0() {
     checkDoorwayTrigger,
     checkDoorCollision,
     checkWallCollisions,
-    unlockSouthDoor
+    unlockSouthDoor,
+    dispose
   };
 }
 

@@ -1,5 +1,6 @@
 // src/materials/room4Materials.js
 import * as THREE from 'three';
+import { textureCache } from '../utils/TextureCache.js';
 
 /**
  * Create a Tiles136c floor material for Room 4
@@ -12,22 +13,26 @@ import * as THREE from 'three';
 export function makeTiles136cFloor(width, depth, files, options = {}) {
   const {
     tileSizeMeters = 1.0,
-    anisotropy = 16,
+    anisotropy = 4, // Reduced from 16 to 4 for performance
     metalness = 0.0,
     roughness = 0.9,
     normalScale = new THREE.Vector2(0.5, 0.5)
   } = options;
 
-  // Load textures
-  const textureLoader = new THREE.TextureLoader();
-  
-  const colorMap = textureLoader.load(files.color);
-  const normalMap = textureLoader.load(files.normal);
-  const roughnessMap = textureLoader.load(files.rough);
-  const aoMap = files.ao ? textureLoader.load(files.ao) : null;
+  // Load textures from cache
+  const colorMap = textureCache.load(files.color);
+  const normalMap = textureCache.load(files.normal);
+  const roughnessMap = textureCache.load(files.rough);
+  const aoMap = files.ao ? textureCache.load(files.ao) : null;
+
+  // Clone textures for independent repeat configuration
+  const colorMapClone = colorMap.clone();
+  const normalMapClone = normalMap.clone();
+  const roughnessMapClone = roughnessMap.clone();
+  const aoMapClone = aoMap ? aoMap.clone() : null;
 
   // Configure texture properties
-  [colorMap, normalMap, roughnessMap, aoMap].forEach(texture => {
+  [colorMapClone, normalMapClone, roughnessMapClone, aoMapClone].forEach(texture => {
     if (texture) {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
@@ -39,17 +44,17 @@ export function makeTiles136cFloor(width, depth, files, options = {}) {
   const repeatX = (width / tileSizeMeters);
   const repeatY = (depth / tileSizeMeters);
   
-  colorMap.repeat.set(repeatX, repeatY);
-  normalMap.repeat.set(repeatX, repeatY);
-  roughnessMap.repeat.set(repeatX, repeatY);
-  if (aoMap) aoMap.repeat.set(repeatX, repeatY);
+  colorMapClone.repeat.set(repeatX, repeatY);
+  normalMapClone.repeat.set(repeatX, repeatY);
+  roughnessMapClone.repeat.set(repeatX, repeatY);
+  if (aoMapClone) aoMapClone.repeat.set(repeatX, repeatY);
 
   // Create material
   const material = new THREE.MeshStandardMaterial({
-    map: colorMap,
-    normalMap: normalMap,
-    roughnessMap: roughnessMap,
-    aoMap: aoMap,
+    map: colorMapClone,
+    normalMap: normalMapClone,
+    roughnessMap: roughnessMapClone,
+    aoMap: aoMapClone,
     metalness: metalness,
     roughness: roughness,
     normalScale: normalScale
@@ -69,22 +74,26 @@ export function makeTiles136cFloor(width, depth, files, options = {}) {
 export function makeTiles136cWall(width, height, files, options = {}) {
   const {
     tileSizeMeters = 1.0,
-    anisotropy = 16,
+    anisotropy = 4, // Reduced from 16 to 4 for performance
     metalness = 0.0,
     roughness = 0.8,
     normalScale = new THREE.Vector2(0.3, 0.3)
   } = options;
 
-  // Load textures
-  const textureLoader = new THREE.TextureLoader();
-  
-  const colorMap = textureLoader.load(files.color);
-  const normalMap = textureLoader.load(files.normal);
-  const roughnessMap = textureLoader.load(files.rough);
-  const aoMap = files.ao ? textureLoader.load(files.ao) : null;
+  // Load textures from cache
+  const colorMap = textureCache.load(files.color);
+  const normalMap = textureCache.load(files.normal);
+  const roughnessMap = textureCache.load(files.rough);
+  const aoMap = files.ao ? textureCache.load(files.ao) : null;
+
+  // Clone textures for independent repeat configuration
+  const colorMapClone = colorMap.clone();
+  const normalMapClone = normalMap.clone();
+  const roughnessMapClone = roughnessMap.clone();
+  const aoMapClone = aoMap ? aoMap.clone() : null;
 
   // Configure texture properties
-  [colorMap, normalMap, roughnessMap, aoMap].forEach(texture => {
+  [colorMapClone, normalMapClone, roughnessMapClone, aoMapClone].forEach(texture => {
     if (texture) {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
@@ -96,17 +105,17 @@ export function makeTiles136cWall(width, height, files, options = {}) {
   const repeatX = (width / tileSizeMeters);
   const repeatY = (height / tileSizeMeters);
   
-  colorMap.repeat.set(repeatX, repeatY);
-  normalMap.repeat.set(repeatX, repeatY);
-  roughnessMap.repeat.set(repeatX, repeatY);
-  if (aoMap) aoMap.repeat.set(repeatX, repeatY);
+  colorMapClone.repeat.set(repeatX, repeatY);
+  normalMapClone.repeat.set(repeatX, repeatY);
+  roughnessMapClone.repeat.set(repeatX, repeatY);
+  if (aoMapClone) aoMapClone.repeat.set(repeatX, repeatY);
 
   // Create material
   const material = new THREE.MeshStandardMaterial({
-    map: colorMap,
-    normalMap: normalMap,
-    roughnessMap: roughnessMap,
-    aoMap: aoMap,
+    map: colorMapClone,
+    normalMap: normalMapClone,
+    roughnessMap: roughnessMapClone,
+    aoMap: aoMapClone,
     metalness: metalness,
     roughness: roughness,
     normalScale: normalScale
@@ -126,22 +135,26 @@ export function makeTiles136cWall(width, height, files, options = {}) {
 export function makeTiles136cCeiling(width, depth, files, options = {}) {
   const {
     tileSizeMeters = 1.0,
-    anisotropy = 16,
+    anisotropy = 4, // Reduced from 16 to 4 for performance
     metalness = 0.1,
     roughness = 0.7,
     normalScale = new THREE.Vector2(0.4, 0.4)
   } = options;
 
-  // Load textures
-  const textureLoader = new THREE.TextureLoader();
-  
-  const colorMap = textureLoader.load(files.color);
-  const normalMap = textureLoader.load(files.normal);
-  const roughnessMap = textureLoader.load(files.rough);
-  const aoMap = files.ao ? textureLoader.load(files.ao) : null;
+  // Load textures from cache
+  const colorMap = textureCache.load(files.color);
+  const normalMap = textureCache.load(files.normal);
+  const roughnessMap = textureCache.load(files.rough);
+  const aoMap = files.ao ? textureCache.load(files.ao) : null;
+
+  // Clone textures for independent repeat configuration
+  const colorMapClone = colorMap.clone();
+  const normalMapClone = normalMap.clone();
+  const roughnessMapClone = roughnessMap.clone();
+  const aoMapClone = aoMap ? aoMap.clone() : null;
 
   // Configure texture properties
-  [colorMap, normalMap, roughnessMap, aoMap].forEach(texture => {
+  [colorMapClone, normalMapClone, roughnessMapClone, aoMapClone].forEach(texture => {
     if (texture) {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
@@ -153,17 +166,17 @@ export function makeTiles136cCeiling(width, depth, files, options = {}) {
   const repeatX = (width / tileSizeMeters);
   const repeatY = (depth / tileSizeMeters);
   
-  colorMap.repeat.set(repeatX, repeatY);
-  normalMap.repeat.set(repeatX, repeatY);
-  roughnessMap.repeat.set(repeatX, repeatY);
-  if (aoMap) aoMap.repeat.set(repeatX, repeatY);
+  colorMapClone.repeat.set(repeatX, repeatY);
+  normalMapClone.repeat.set(repeatX, repeatY);
+  roughnessMapClone.repeat.set(repeatX, repeatY);
+  if (aoMapClone) aoMapClone.repeat.set(repeatX, repeatY);
 
   // Create material
   const material = new THREE.MeshStandardMaterial({
-    map: colorMap,
-    normalMap: normalMap,
-    roughnessMap: roughnessMap,
-    aoMap: aoMap,
+    map: colorMapClone,
+    normalMap: normalMapClone,
+    roughnessMap: roughnessMapClone,
+    aoMap: aoMapClone,
     metalness: metalness,
     roughness: roughness,
     normalScale: normalScale

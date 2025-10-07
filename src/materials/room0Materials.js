@@ -1,20 +1,26 @@
 // src/materials/room0Materials.js
 import * as THREE from "three";
-
-/** One TextureLoader shared by all materials */
-const texLoader = new THREE.TextureLoader();
+import { textureCache } from '../utils/TextureCache.js';
 
 /* =========================
    Bricks058 (walls)
    ========================= */
-const bricks058 = {
-  color: texLoader.load("/textures/bricks058/Bricks058_2K-JPG_Color.jpg"),
-  normal: texLoader.load("/textures/bricks058/Bricks058_2K-JPG_NormalDX.jpg"),
-  rough:  texLoader.load("/textures/bricks058/Bricks058_2K-JPG_Roughness.jpg"),
-  // NOTE: AO on BoxGeometry needs uv2; we skip it for walls built from boxes.
-  // ao:  texLoader.load("/textures/bricks058/Bricks058_2K-JPG_AmbientOcclusion.jpg"),
-};
-if (bricks058.color) bricks058.color.colorSpace = THREE.SRGBColorSpace;
+// Lazy-loaded texture cache for Bricks058
+let bricks058 = null;
+
+function getBricks058Textures() {
+  if (!bricks058) {
+    bricks058 = {
+      color: textureCache.load("/textures/bricks058/Bricks058_2K-JPG_Color.jpg", { 
+        colorSpace: THREE.SRGBColorSpace 
+      }),
+      normal: textureCache.load("/textures/bricks058/Bricks058_2K-JPG_NormalDX.jpg"),
+      rough: textureCache.load("/textures/bricks058/Bricks058_2K-JPG_Roughness.jpg"),
+      // NOTE: AO on BoxGeometry needs uv2; we skip it for walls built from boxes.
+    };
+  }
+  return bricks058;
+}
 
 /**
  * Create a MeshStandardMaterial for a wall panel with Bricks058,
@@ -36,10 +42,11 @@ export function makeBrickMaterialForPanel(
     anisotropy = 8,
   } = opts;
 
-  // clone textures so each panel can have its own tiling
-  const map        = bricks058.color.clone();
-  const normalMap  = bricks058.normal.clone();
-  const roughnessMap = bricks058.rough.clone();
+  // Get cached textures and clone for individual tiling
+  const textures = getBricks058Textures();
+  const map        = textures.color.clone();
+  const normalMap  = textures.normal.clone();
+  const roughnessMap = textures.rough.clone();
 
   [map, normalMap, roughnessMap].forEach(t => {
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -63,13 +70,22 @@ export function makeBrickMaterialForPanel(
 /* =========================
    Tiles108 (floor)
    ========================= */
-const tiles108 = {
-  color: texLoader.load("/textures/tiles108/Tiles108_2K-JPG_Color.jpg"),
-  normal: texLoader.load("/textures/tiles108/Tiles108_2K-JPG_NormalDX.jpg"),
-  rough:  texLoader.load("/textures/tiles108/Tiles108_2K-JPG_Roughness.jpg"),
-  ao:     texLoader.load("/textures/tiles108/Tiles108_2K-JPG_AmbientOcclusion.jpg"),
-};
-if (tiles108.color) tiles108.color.colorSpace = THREE.SRGBColorSpace;
+// Lazy-loaded texture cache for Tiles108
+let tiles108 = null;
+
+function getTiles108Textures() {
+  if (!tiles108) {
+    tiles108 = {
+      color: textureCache.load("/textures/tiles108/Tiles108_2K-JPG_Color.jpg", {
+        colorSpace: THREE.SRGBColorSpace
+      }),
+      normal: textureCache.load("/textures/tiles108/Tiles108_2K-JPG_NormalDX.jpg"),
+      rough: textureCache.load("/textures/tiles108/Tiles108_2K-JPG_Roughness.jpg"),
+      ao: textureCache.load("/textures/tiles108/Tiles108_2K-JPG_AmbientOcclusion.jpg"),
+    };
+  }
+  return tiles108;
+}
 
 function setRepeats(t, repX, repZ, anisotropy = 8) {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -100,16 +116,19 @@ export function makeTiles108Floor(
   // AO requires uv2; duplicate uv into uv2
   geo.setAttribute("uv2", new THREE.BufferAttribute(geo.attributes.uv.array, 2));
 
+  // Get cached textures
+  const textures = getTiles108Textures();
+
   // repeats
-  setRepeats(tiles108.color,  repeatX, repeatZ, anisotropy);
-  setRepeats(tiles108.normal, repeatX, repeatZ, anisotropy);
-  // setRepeats(tiles108.rough,  repeatX, repeatZ, anisotropy); // Removed to eliminate reflections
-  setRepeats(tiles108.ao,     repeatX, repeatZ, anisotropy);
+  setRepeats(textures.color,  repeatX, repeatZ, anisotropy);
+  setRepeats(textures.normal, repeatX, repeatZ, anisotropy);
+  // setRepeats(textures.rough,  repeatX, repeatZ, anisotropy); // Removed to eliminate reflections
+  setRepeats(textures.ao,     repeatX, repeatZ, anisotropy);
 
   const mat = new THREE.MeshBasicMaterial({
-    map: tiles108.color,
+    map: textures.color,
     color: 0x888888, // Override texture color to fix reflective/grey tile issue
-    // aoMap: tiles108.ao, // AO map doesn't work with MeshBasicMaterial
+    // aoMap: textures.ao, // AO map doesn't work with MeshBasicMaterial
   });
 
   const floor = new THREE.Mesh(geo, mat);
@@ -125,7 +144,7 @@ export function makeTiles108Floor(
 function _tryLoad(path) {
   if (!path) return null;
   try {
-    const t = texLoader.load(path);
+    const t = textureCache.load(path);
     return t;
   } catch {
     console.warn("[Metal030] Missing texture:", path);
