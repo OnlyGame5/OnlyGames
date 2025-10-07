@@ -48,10 +48,7 @@ export class ServerRoom {
     this.dataStormPuzzle.mount(this.centerPlatform);
     
     // Purge Protocol Minigame
-    this.purgeMinigame = null;
-    if (this.renderer) {
-      this.purgeMinigame = new PurgeMinigame(this.renderer);
-    }
+    this.purgeMinigame = new PurgeMinigame();
 
     // Create laptop UI
     this._createLaptopUI();
@@ -304,6 +301,11 @@ export class ServerRoom {
     const ui = document.getElementById('laptop-ui');
     if (!ui) return;
 
+    // Restore UI elements in case user re-enters after minigame
+    if (this.purgeMinigame) {
+      this.purgeMinigame.restoreUI();
+    }
+
     // Set global UI visibility flag and unlock pointer
     window.isUIVisible = true;
     if (window.player?.controls) window.player.controls.unlock();
@@ -339,7 +341,8 @@ export class ServerRoom {
       const submission = selects.map(s => s.value);
       const success = this.dataStormPuzzle.submitAttempt(submission); // Use DataStormPuzzle for logic
       if (success) {
-        this.closeLaptopUI();
+        // Don't close the laptop UI - let the minigame take over
+        console.log('[Server Room] Phrase puzzle solved! Minigame will start automatically...');
       } else {
         AI.say("Access denied. Sequence incorrect.");
         // Optional: visual feedback for failure
@@ -455,8 +458,6 @@ export class ServerRoom {
 
     this.centerPlatform.add(coreGroup);
 
-    // Terminal Screen for Purge Protocol Minigame
-    this._buildTerminalScreen();
 
     // Keep references for animation
     this.cpuCore = {
@@ -536,74 +537,6 @@ export class ServerRoom {
     this.group.add(workstation);
   }
 
-  _buildTerminalScreen() {
-    // Create terminal screen that will display the minigame
-    const terminalGroup = new THREE.Group();
-    terminalGroup.name = 'terminal-screen';
-    terminalGroup.position.set(0, 1.5, 2.5); // Position in front of the CPU core
-    
-    // Terminal frame
-    const frameGeo = new THREE.BoxGeometry(2.0, 1.5, 0.1);
-    const frameMat = new THREE.MeshStandardMaterial({ 
-      color: 0x333333, 
-      metalness: 0.8, 
-      roughness: 0.2 
-    });
-    const frame = new THREE.Mesh(frameGeo, frameMat);
-    frame.position.set(0, 0, -0.05);
-    terminalGroup.add(frame);
-    
-    // Screen (where the minigame texture will be applied)
-    const screenGeo = new THREE.PlaneGeometry(1.8, 1.3);
-    const screenMat = new THREE.MeshBasicMaterial({ 
-      color: 0x051018, // Dark terminal background
-      transparent: true,
-      opacity: 1.0 // Make it fully opaque
-    });
-    
-    // If minigame is available, use its texture
-    if (this.purgeMinigame) {
-      screenMat.map = this.purgeMinigame.texture;
-      console.log('[Server Room] Terminal screen created with minigame texture');
-    } else {
-      console.log('[Server Room] Terminal screen created without minigame texture');
-      // Create a simple test pattern
-      const canvas = document.createElement('canvas');
-      canvas.width = 320;
-      canvas.height = 400;
-      const context = canvas.getContext('2d');
-      context.fillStyle = '#051018';
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.fillStyle = '#00ff7f';
-      context.font = '24px monospace';
-      context.textAlign = 'center';
-      context.fillText('TERMINAL READY', 160, 200);
-      const testTexture = new THREE.CanvasTexture(canvas);
-      screenMat.map = testTexture;
-    }
-    
-    const screen = new THREE.Mesh(screenGeo, screenMat);
-    screen.position.set(0, 0, 0.01);
-    terminalGroup.add(screen);
-    
-    // Terminal bezel/rim
-    const bezelGeo = new THREE.BoxGeometry(1.9, 1.4, 0.02);
-    const bezelMat = new THREE.MeshStandardMaterial({ 
-      color: 0x111111, 
-      metalness: 0.9, 
-      roughness: 0.1 
-    });
-    const bezel = new THREE.Mesh(bezelGeo, bezelMat);
-    bezel.position.set(0, 0, 0.02);
-    terminalGroup.add(bezel);
-    
-    this.centerPlatform.add(terminalGroup);
-    this.terminalScreen = {
-      group: terminalGroup,
-      screen: screen,
-      material: screenMat
-    };
-  }
 
   _makeCircuitTexture() {
     const size = 256;
@@ -852,10 +785,17 @@ export class ServerRoom {
     if (this.dataStormPuzzle) {
       this.dataStormPuzzle.update(delta, isGlassesActive);
       
-      // Check if Data Storm puzzle is solved and start minigame
+      // Check if Data Storm puzzle is solved and start the minigame
       if (this.dataStormPuzzle.isSolved && this.purgeMinigame && !this.purgeMinigame.isActive) {
-        console.log('[Server Room] Data Storm solved! Starting Purge Protocol minigame...');
-        this.purgeMinigame.start();
+        // Use a flag to ensure this block only runs once
+        if (!this.purgeMinigame.isStarting) { 
+          this.purgeMinigame.isStarting = true; 
+          
+          console.log('[Server Room] Data Storm solved! Starting Purge Protocol minigame...');
+          
+          // Simply start the minigame - it will handle UI switching internally
+          this.purgeMinigame.start();
+        }
       }
     }
     
