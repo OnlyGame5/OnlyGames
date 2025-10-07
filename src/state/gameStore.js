@@ -39,6 +39,7 @@ class GameStore {
         puzzles: {
           bridgeSolved: false,
           overrideSolved: false,
+          dataStormSolved: false,
           finalChoice: null,
           coreUnlocked: false
         }
@@ -132,7 +133,9 @@ class GameStore {
 
   // Convenience getters/setters for commonly observed properties
   setStage(n) {
-    this.stage = n;
+    // Map stage number back to room ID
+    const stageMap = { 0: 'hub', 1: 'room1', 2: 'room2', 3: 'room3', 4: 'room4' };
+    this.currentRoomId = stageMap[n] || 'hub';
     this.notify('stage', n);
   }
 

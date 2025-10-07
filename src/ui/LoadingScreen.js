@@ -81,6 +81,8 @@ Whose truth will you believe?`;
   // Keyboard listener for Enter key
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && isLoaded && !hasContinued) {
+      e.preventDefault(); // Prevent page refresh
+      e.stopPropagation(); // Stop event bubbling
       continueToGame();
     }
   };
@@ -100,10 +102,15 @@ Whose truth will you believe?`;
     }
   };
   
-  // Add event listeners
-  document.addEventListener('keydown', handleKeyPress);
+  // Add event listeners with capture to prevent conflicts
+  document.addEventListener('keydown', handleKeyPress, true);
   startGate.addEventListener('click', handleStartGateClick);
   startGate.addEventListener('keydown', handleStartGateKeyPress);
+  
+  // Prevent default form submission behavior
+  document.addEventListener('submit', (e) => {
+    e.preventDefault();
+  });
   
   // Listen for loading progress events
   const handleProgress = (e) => {
@@ -139,7 +146,7 @@ Whose truth will you believe?`;
       }
       
       // Remove event listeners
-      document.removeEventListener('keydown', handleKeyPress);
+      document.removeEventListener('keydown', handleKeyPress, true);
       window.removeEventListener('game:assetsProgress', handleProgress);
       window.removeEventListener('game:assetsLoaded', handleLoaded);
       
@@ -169,15 +176,22 @@ Whose truth will you believe?`;
   function showStartGate() {
     loaderMeter.classList.add('loaded');
     startGate.classList.add('visible');
-    // Focus the start gate for accessibility
-    startGate.focus();
+    
+    // Add additional validation before showing start gate
+    setTimeout(() => {
+      // Double-check that everything is ready
+      if (isLoaded && crawlCompleted) {
+        startGate.focus();
+        console.log('Start gate is now active - game ready to begin');
+      }
+    }, 500); // Small delay to ensure everything is settled
   }
   
   // Mark crawl as completed after animation duration
   function startCrawlTimer() {
     // Check if user prefers reduced motion
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const crawlDuration = prefersReducedMotion ? 90000 : 45000; // 90s for reduced motion, 45s normal
+    const crawlDuration = prefersReducedMotion ? 120000 : 60000; // 2min for reduced motion, 1min normal
     
     setTimeout(() => {
       crawlCompleted = true;
@@ -192,7 +206,7 @@ Whose truth will you believe?`;
         matrixAnimation.stop();
       }
       loadingScreen.remove();
-      document.removeEventListener('keydown', handleKeyPress);
+      document.removeEventListener('keydown', handleKeyPress, true);
       window.removeEventListener('game:assetsProgress', handleProgress);
       window.removeEventListener('game:assetsLoaded', handleLoaded);
     }
@@ -242,8 +256,8 @@ function createMatrixRain(canvas) {
       // Draw the character
       ctx.fillText(text, i * fontSize, drops[i] * fontSize);
       
-      // Reset drops to top randomly
-      if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+      // Reset drops to top randomly - MODIFIED: Stop at 80% of screen height
+      if (drops[i] * fontSize > canvas.height * 0.8 && Math.random() > 0.975) {
         drops[i] = 0;
       }
       

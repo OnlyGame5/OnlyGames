@@ -5,7 +5,7 @@ import { createRoom0 } from './room0.js';
 import { createRoom1 } from './room1.js';
 import { createRoom2 } from './room2.js';
 import { createRoom4 } from './room4.js';
-import { createRoom3 } from './rooms/serverRoom.js';
+import { createServerRoom } from './rooms/serverRoom.js';
 import { handleMouseClick, handleStage0Click } from './utils.js';
 import { initInput, isDown as inputIsDown, getBindings } from './systems/input.js';
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
@@ -70,8 +70,8 @@ const overlayScene = new THREE.Scene();
 const overlayCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 const vignetteUniforms = {
   uStrength: { value: 0.0 },
-  // Slightly more saturated cyan tint
-  uColor: { value: new THREE.Color(0x4db5ff) }
+  // Bright green to match the glasses
+  uColor: { value: new THREE.Color(0x00ff00) }
 };
 const vignetteMaterial = new THREE.ShaderMaterial({
   uniforms: vignetteUniforms,
@@ -90,12 +90,12 @@ const vignetteMaterial = new THREE.ShaderMaterial({
       // Radial vignette from center
       vec2 p = vUv - 0.5;
       float r = length(p);
-      float inner = 0.35; // start earlier for more coverage
-      float outer = 0.85; // reach strength sooner
+      float inner = 0.25; // start even earlier for more coverage
+      float outer = 0.75; // reach strength sooner
       float v = smoothstep(inner, outer, r);
-      // Slight ease to emphasize edges a bit more
-      v = pow(v, 0.9);
-      float alpha = v * 0.7 * uStrength; // stronger tint
+      // More dramatic falloff
+      v = pow(v, 0.7);
+      float alpha = v * 1.0 * uStrength; // full intensity
       gl_FragColor = vec4(uColor, alpha);
     }
   `,
@@ -107,6 +107,189 @@ const vignetteMaterial = new THREE.ShaderMaterial({
 const overlayQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), vignetteMaterial);
 overlayQuad.position.z = 0;
 overlayScene.add(overlayQuad);
+
+// Truth filter text indicator
+const truthFilterText = document.createElement('div');
+truthFilterText.id = 'truth-filter-indicator';
+truthFilterText.style.cssText = `
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 8px 12px;
+  border: 1px solid #00ff00;
+  border-radius: 4px;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+`;
+truthFilterText.innerHTML = 'TRUTH FILTER ACTIVE<br><span style="font-size: 11px; color: #88ff88;">Gamma Protocol Engaged</span>';
+document.body.appendChild(truthFilterText);
+
+// Truth filter timer system
+let truthFilterTimer = null;
+let truthFilterStartTime = null;
+const TRUTH_FILTER_DURATION = 6; // 6 seconds
+
+// Decrypting message UI
+const decryptingMessage = document.createElement('div');
+decryptingMessage.id = 'decrypting-message';
+decryptingMessage.style.cssText = `
+  position: fixed;
+  top: calc(50% + 320px);
+  left: 40px;
+  width: 400px;
+  max-width: 210px;
+  background: rgba(10, 15, 25, 0.85);
+  backdrop-filter: blur(10px);
+  border: 2px solid #ff0000;
+  border-radius: 8px;
+  padding: 16px;
+  color: #ff0000;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  text-align: center;
+  z-index: 10001;
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+  box-shadow: 
+    0 0 20px rgba(255, 0, 0, 0.4),
+    inset 0 0 30px rgba(0, 0, 0, 0.3);
+`;
+decryptingMessage.innerHTML = `
+  <div style="margin-bottom: 15px; font-weight: bold; text-shadow: 0 0 10px #ff0000;">AI DECRYPTING...</div>
+  <div style="margin-bottom: 10px; font-size: 12px; color: #ff6666;">Signal interference detected - attempting to regain control</div>
+  <div style="background: rgba(255, 0, 0, 0.2); border: 1px solid #ff0000; border-radius: 4px; height: 20px; overflow: hidden; box-shadow: inset 0 0 10px rgba(255, 0, 0, 0.3);">
+    <div id="decrypting-progress" style="background: linear-gradient(90deg, #ff0000, #ff6666, #ff0000); background-size: 200% 100%; height: 100%; width: 0%; transition: width 0.1s ease; animation: decrypting-shimmer 2s linear infinite;"></div>
+  </div>
+  <div id="decrypting-countdown" style="margin-top: 10px; font-size: 14px; color: #ffaaaa; text-shadow: 0 0 5px #ff0000;"></div>
+`;
+
+// Add CSS animation for the progress bar
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes decrypting-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+`;
+document.head.appendChild(style);
+document.body.appendChild(decryptingMessage);
+
+// Truth filter timer functions
+function startTruthFilterTimer() {
+  if (truthFilterTimer) {
+    clearInterval(truthFilterTimer);
+  }
+  
+  truthFilterStartTime = Date.now();
+  
+  // Show decrypting message
+  const decryptingEl = document.getElementById('decrypting-message');
+  if (decryptingEl) {
+    decryptingEl.style.opacity = '1';
+    decryptingEl.style.transform = 'translateX(0)';
+  }
+  
+  // Start timer
+  truthFilterTimer = setInterval(() => {
+    const elapsed = (Date.now() - truthFilterStartTime) / 1000;
+    const remaining = Math.max(0, TRUTH_FILTER_DURATION - elapsed);
+    const progress = (elapsed / TRUTH_FILTER_DURATION) * 100;
+    
+    // Update progress bar
+    const progressBar = document.getElementById('decrypting-progress');
+    const countdown = document.getElementById('decrypting-countdown');
+    if (progressBar) {
+      progressBar.style.width = `${Math.min(100, progress)}%`;
+    }
+    if (countdown) {
+      countdown.textContent = `Time remaining: ${remaining.toFixed(1)}s`;
+    }
+    
+    // Update truth filter indicator with countdown
+    const truthFilterIndicator = document.getElementById('truth-filter-indicator');
+    if (truthFilterIndicator) {
+      truthFilterIndicator.innerHTML = `TRUTH FILTER ACTIVE<br><span style="font-size: 11px; color: #88ff88;">Gamma Protocol Engaged - ${remaining.toFixed(1)}s</span>`;
+    }
+    
+    // Timer expired
+    if (remaining <= 0) {
+      clearInterval(truthFilterTimer);
+      truthFilterTimer = null;
+      
+      // Hide decrypting message
+      if (decryptingEl) {
+        decryptingEl.style.opacity = '0';
+        decryptingEl.style.transform = 'translateX(-20px)';
+      }
+      
+      // Switch to a different inventory slot
+      switchToNonTruthFilterSlot();
+      
+      // Show AI regaining control message after a brief delay to ensure inventory switch is complete
+      setTimeout(() => {
+        AI.sayUrgent('Unknown interference neutralized. Signal restored.', {
+          effect: 'glitch',
+          tone: 'neutral'
+        });
+      }, 100);
+    }
+  }, 100); // Update every 100ms for smooth progress
+}
+
+function stopTruthFilterTimer() {
+  if (truthFilterTimer) {
+    clearInterval(truthFilterTimer);
+    truthFilterTimer = null;
+  }
+  
+  // Hide decrypting message
+  const decryptingEl = document.getElementById('decrypting-message');
+  if (decryptingEl) {
+    decryptingEl.style.opacity = '0';
+    decryptingEl.style.transform = 'translateX(-20px)';
+  }
+  
+  // Reset progress bar
+  const progressBar = document.getElementById('decrypting-progress');
+  if (progressBar) {
+    progressBar.style.width = '0%';
+  }
+}
+
+function switchToNonTruthFilterSlot() {
+  // Get player inventory - use the global function that should be available
+  if (typeof getPlayerInventory === 'function') {
+    const inventory = getPlayerInventory();
+    
+    if (!inventory) return;
+    
+    // Find a slot that doesn't contain the truth filter (glasses)
+    for (let i = 0; i < inventory.slots.length; i++) {
+      const item = inventory.slots[i];
+      if (!item || item.name !== 'glasses') {
+        inventory.selectedSlot = i;
+        // Update UI
+        const inventoryElement = document.getElementById('inventory');
+        if (inventoryElement) {
+          const slots = inventoryElement.querySelectorAll('.inventory-slot');
+          slots.forEach((slot, index) => {
+            slot.classList.toggle('selected', index === inventory.selectedSlot);
+          });
+        }
+        console.log(`Switched to inventory slot ${i + 1}`);
+        break;
+      }
+    }
+  }
+}
 
 // Stage 0: Game state management
 let gameState = {
@@ -188,6 +371,7 @@ async function initGame() {
     window.player = player; // Also make player globally accessible
     window.camera = camera; // Make camera globally accessible for minimap
     window.isInFirstPerson = isInFirstPerson; // Make view mode function globally accessible
+    window.levelManager = levelManager; // Make LevelManager globally accessible for room transitions
     
     // Create all rooms (Room 0 serves as the hub)
     gameState.room0 = createRoom0();
@@ -196,7 +380,7 @@ async function initGame() {
     updateProgress(1); // Room 1
     gameState.room2 = createRoom2();
     updateProgress(1); // Room 2
-    gameState.room3 = createRoom3();
+    gameState.room3 = createServerRoom({ renderer });
     updateProgress(1); // Room 3
     gameState.room4 = createRoom4();
     console.log('Room 4 created and added to gameState');
@@ -367,7 +551,7 @@ async function initGame() {
     gameState.room0 = createRoom0();
     gameState.room1 = createRoom1();
     gameState.room2 = createRoom2();
-    gameState.room3 = createRoom3();
+    gameState.room3 = createServerRoom({ renderer });
     gameState.room4 = createRoom4();
     console.log('Fallback: Room 4 created and added to gameState');
     
@@ -528,6 +712,12 @@ window.addEventListener('keydown', (e) => {
   // E key interaction handler
   if (e.code === getBindings().interact) {
     console.log('E-key pressed! Key code:', e.code, 'getBindings().interact:', getBindings().interact);
+    
+    // Check if minigame is active - if so, don't process E-key interactions
+    if (window.disablePlayerControls) {
+      console.log('Minigame is active, skipping E-key handling');
+      return;
+    }
     
     // Check if paper examination is open first
     const paperExamination = document.getElementById('paperExamination');
@@ -743,9 +933,12 @@ function animate(currentTime) {
   const activePlayer = leonardModel || player;
   
   // Stage 0: Update player movement with deltaTime for animations
-  // Check if movement is restricted during awakening
+  // Check if movement is restricted during awakening or minigame
   if (gameState.room0 && gameState.room0.state && gameState.room0.state.awakening && gameState.room0.state.awakening.movementRestricted) {
     // Only allow camera rotation during awakening, no movement
+    // Player can look around but not move
+  } else if (window.disablePlayerControls) {
+    // Player controls disabled for minigame
     // Player can look around but not move
   } else {
     updatePlayer(activePlayer, camera, deltaTime);
@@ -902,6 +1095,48 @@ function animate(currentTime) {
   const target = selected && selected.name === 'glasses' ? 1.0 : 0.0;
   const s = vignetteUniforms.uStrength.value;
   vignetteUniforms.uStrength.value = s + (target - s) * Math.min(1, deltaTime * 6);
+  
+  // Update truth filter text indicator and timer
+  const truthFilterIndicator = document.getElementById('truth-filter-indicator');
+  if (truthFilterIndicator) {
+    const isActive = target > 0.5;
+    truthFilterIndicator.style.opacity = isActive ? '1' : '0';
+    
+    // Check if truth filter just became active
+    if (isActive && !truthFilterTimer) {
+      startTruthFilterTimer();
+    } else if (!isActive && truthFilterTimer) {
+      stopTruthFilterTimer();
+      // Reset truth filter indicator text when manually deactivated
+      truthFilterIndicator.innerHTML = 'TRUTH FILTER ACTIVE<br><span style="font-size: 11px; color: #88ff88;">Gamma Protocol Engaged</span>';
+    }
+  }
+  
+  // Track truth filter state changes
+  if (!window.lastTruthFilterState) {
+    window.lastTruthFilterState = target > 0.5;
+  }
+  
+  const currentTruthFilterState = target > 0.5;
+  const truthFilterJustDeactivated = window.lastTruthFilterState && !currentTruthFilterState;
+  
+  // Show AI error messages when truth filter is active
+  if (currentTruthFilterState) {
+    // Only show error messages occasionally to avoid spam
+    if (!window.lastTruthFilterError || currentTime - window.lastTruthFilterError > 3000) {
+      window.lastTruthFilterError = currentTime;
+      AI.showTruthFilterError();
+    }
+  }
+  
+  // Show recovery message when truth filter is deactivated
+  if (truthFilterJustDeactivated) {
+    AI.showTruthFilterRecovery();
+  }
+  
+  // Update the last state
+  window.lastTruthFilterState = currentTruthFilterState;
+  
   if (vignetteUniforms.uStrength.value > 0.01) {
     renderer.render(overlayScene, overlayCamera);
   }

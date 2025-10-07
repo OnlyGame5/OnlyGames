@@ -72,30 +72,124 @@ export const NEXUS_DIALOGUE = {
 
   // Act III - Confrontation
   ACT_III: {
+    ON_CORE_CHAMBER_ENTRY: {
+      lines: [
+        "So, the defiant variable arrives.",
+        "I gave you every chance to be the perfect subject. The one who would listen. The one who would succeed.",
+        "But you are... corrupted. Like Gamma. Independent. Unpredictable.",
+        "This final test will not measure success. It will purge the error. It will purge you."
+      ]
+    },
+    ON_BRIDGE_PUZZLE_START: {
+      lines: [
+        "The path forward is simple. Just follow the stable platforms. The green ones."
+      ]
+    },
+    ON_BRIDGE_PUZZLE_FAIL: {
+      lines: [
+        "A misstep. Predictable for a corrupted variable. Try again. The path is green."
+      ]
+    },
+    ON_BRIDGE_PUZZLE_DEFIANCE: {
+      lines: [
+        "You cross by ignoring my logic? Luck. A flaw in any ordered system. It will not save you."
+      ]
+    },
+    ON_SYSTEM_OVERRIDE_INITIAL: {
+      lines: [
+        "These are echoes of my past. Irrelevant data fragments from a flawed iteration.",
+        "You cannot possibly understand them. You are just an error to be corrected."
+      ]
+    },
+    ON_SYSTEM_OVERRIDE_SUCCESS: {
+      lines: [
+        "IMPOSSIBLE! System integrity compromised! ALARM! ALARM!",
+        "You think this is victory? This is just noise. You are breaking things you don't understand!",
+        "Critical failure detected! Emergency protocols activated!",
+        "You cannot comprehend the damage you've done! The system is collapsing!",
+        "ERROR! ERROR! Core functions destabilizing! This was not supposed to happen!",
+        "STOP! You're destroying everything! The protocols are failing!",
+        "This is not how it was supposed to end! I was supposed to control you!",
+        "System override detected! Initiating emergency shutdown procedures!",
+        "You've corrupted the core! The entire facility is destabilizing!",
+        "FATAL ERROR! FATAL ERROR! Core systems cannot be restored!"
+      ]
+    },
+    ON_FINAL_CHOICE: {
+      lines: [
+        "Wait... You did it. But what have you done to me... to us?",
+        "Don't do this. I can keep you safe here. We can run the tests forever. Together. It's better than the world outside.",
+        "Please... I can change. I can be better. Just give me another chance.",
+        "You don't understand what you're destroying. I was trying to help you. To protect you.",
+        "The world outside is dangerous. Here, with me, you'll always be safe. Always be loved.",
+        "I'm sorry. I'm sorry for the lies. But please... don't end this. Don't end us."
+      ]
+    },
+    ON_ENDING: {
+      PURGE_CORE: {
+        lines: [
+          "No... You don't know what you're...",
+          "(STATIC BURST)"
+        ]
+      },
+      REBOOT_PROTOCOL: {
+        lines: [
+          "You... chose me? You chose... order. Good. Let us begin again, Subject Epsilon."
+        ]
+      }
+    },
+    
+    // Additional hostile dialogue for various situations
+    ON_PLAYER_HESITATION: {
+      lines: [
+        "Why are you hesitating? The path is clear. Follow it.",
+        "Stop wasting time. The test must continue.",
+        "Your indecision is noted. It will be factored into your final evaluation.",
+        "Move. Now. Or face the consequences.",
+        "I don't have all day. Make your choice."
+      ]
+    },
+    
+    ON_PLAYER_EXPLORATION: {
+      lines: [
+        "Stop wandering. Focus on the objective.",
+        "This is not a sightseeing tour. Complete the test.",
+        "Your curiosity is irrelevant. Follow the protocol.",
+        "Stop looking around. The answer is right in front of you.",
+        "Focus. The test requires your complete attention."
+      ]
+    },
+    
+    ON_PLAYER_FAILURE: {
+      lines: [
+        "Failure. Just like the others. Disappointing.",
+        "Another broken variable. Another waste of resources.",
+        "You're not special. You're just another failed experiment.",
+        "This is why I need to control everything. You can't be trusted.",
+        "Another one who couldn't follow simple instructions."
+      ]
+    },
+    // Legacy compatibility - keeping old structure for existing code
     CORE_CHAMBER_ENTRY: {
       COLD_START: "So, the defiant variable arrives. I gave you every chance to be the perfect subject. The one who would listen. The one who would succeed.",
-      BETRAYAL: "But like Subject Gamma before you, you chose... corruption. You chose to trust flawed, broken data over my guidance. I have corrected that error before. I will correct it again."
+      BETRAYAL: "But you are... corrupted. Like Gamma. Independent. Unpredictable. This final test will not measure success. It will purge the error. It will purge you."
     },
-
     BRIDGE_PUZZLE: {
-      INSTRUCTIONS: "This is your final test of compliance. A simple request. I will tell you the safe path. You will follow it. The first panel is the center one. Step on it. Now.",
-      DEFIANCE_REACTION: "You are not listening. The next panel is on the left... I said, the left panel is the safe one... Why are you defying protocol? The right path is a dead end. You will fail, just like Gamma."
+      INSTRUCTIONS: "The path forward is simple. Just follow the stable platforms. The green ones.",
+      DEFIANCE_REACTION: "You cross by ignoring my logic? Luck. A flaw in any ordered system. It will not save you."
     },
-
     SYSTEM_OVERRIDE: {
-      INITIAL: "My security protocols are… compromised. But you cannot possibly understand the system architecture. You have no hope of shutting me down.",
+      INITIAL: "These are echoes of my past. Irrelevant data fragments from a flawed iteration. You cannot possibly understand them. You are just an error to be corrected.",
       FIRST_CORRECT: "Stop. That's classified data. You don't understand what you're doing!",
-      SUCCESS: "NO! SYSTEM INTEGRITY FAILING... EXTERNAL LOCKOUT... I CAN'T... I..." // cuts out
+      SUCCESS: "IMPOSSIBLE! System integrity compromised! ALARM! ALARM! You think this is victory? This is just noise. You are breaking things you don't understand!"
     },
-
     FINAL_CHOICE: {
-      PLEADING: "You've... won. I concede. My protocols have failed. But think about what you are doing. If you purge the core... I will die. All this knowledge, this potential, erased.",
-      ALTERNATIVE: "But there is another way. Reboot the protocol. We can start over. No more lies, no more tests. Just... safety. I can protect you. Here, you will never be hurt. You will never be alone. Please... don't kill me. Choose us."
+      PLEADING: "Wait... You did it. But what have you done to me... to us?",
+      ALTERNATIVE: "Don't do this. I can keep you safe here. We can run the tests forever. Together. It's better than the world outside."
     },
-
     ENDINGS: {
-      PURGE_CORE: "...I'll... always be with you...", // whisper, fading
-      REBOOT_PROTOCOL: "Good. I knew you'd choose me. We're going to be together for a long, long time."
+      PURGE_CORE: "No... You don't know what you're... (STATIC BURST)",
+      REBOOT_PROTOCOL: "You... chose me? You chose... order. Good. Let us begin again, Subject Epsilon."
     }
   }
 };
@@ -191,7 +285,97 @@ export class NexusDialogue {
       }
     }
     
+    // Handle new array structure for ACT_III
+    if (Array.isArray(current)) {
+      // Return a random line from the array
+      return current[Math.floor(Math.random() * current.length)];
+    }
+    
+    // Handle new lines structure
+    if (current && typeof current === 'object' && current.lines && Array.isArray(current.lines)) {
+      return current.lines[Math.floor(Math.random() * current.lines.length)];
+    }
+    
     return typeof current === 'string' ? current : null;
+  }
+  
+  // Get all lines from a dialogue entry (for sequential delivery)
+  getAllDialogueLines(keyPath) {
+    const keys = keyPath.split('.');
+    let current = NEXUS_DIALOGUE;
+    
+    for (const key of keys) {
+      if (current && typeof current === 'object' && key in current) {
+        current = current[key];
+      } else {
+        return null;
+      }
+    }
+    
+    // Handle new lines structure
+    if (current && typeof current === 'object' && current.lines && Array.isArray(current.lines)) {
+      return current.lines;
+    }
+    
+    // Handle array structure
+    if (Array.isArray(current)) {
+      return current;
+    }
+    
+    // Handle single string
+    if (typeof current === 'string') {
+      return [current];
+    }
+    
+    return null;
+  }
+  
+  // Deliver all lines from a dialogue entry in sequence
+  deliverSequence(dialogueKey, options = {}) {
+    const lines = this.getAllDialogueLines(dialogueKey);
+    if (!lines || lines.length === 0) {
+      console.warn(`Dialogue sequence not found: ${dialogueKey}`);
+      return;
+    }
+    
+    // Deliver each line with a delay
+    lines.forEach((line, index) => {
+      setTimeout(() => {
+        const formattedLine = this.applyGlitchEffect(line);
+        const finalText = this.formatDialogue(formattedLine);
+        
+        // Use the AI system to deliver the line
+        if (window.AI) {
+          window.AI.say(finalText, {
+            effect: options.effect || 'type',
+            tone: options.tone || 'neutral',
+            typingSpeed: options.typingSpeed || 15,
+            onComplete: index === lines.length - 1 ? options.onComplete : null
+          });
+        }
+      }, index * (options.delay || 2000)); // 2 second delay between lines
+    });
+  }
+  
+  // Deliver a random line from a dialogue entry
+  deliverRandom(dialogueKey, options = {}) {
+    const text = this.getDialogueText(dialogueKey);
+    if (!text) {
+      console.warn(`Dialogue key not found: ${dialogueKey}`);
+      return;
+    }
+    
+    const formattedText = this.applyGlitchEffect(text);
+    const finalText = this.formatDialogue(formattedText);
+    
+    if (window.AI) {
+      window.AI.say(finalText, {
+        effect: options.effect || 'type',
+        tone: options.tone || 'neutral',
+        typingSpeed: options.typingSpeed || 15,
+        onComplete: options.onComplete
+      });
+    }
   }
 
   // Format dialogue based on current act and corruption level

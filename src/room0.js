@@ -387,16 +387,16 @@ export function createRoom0() {
     // Remove any leftover lights under this room group (if any slipped through)
     removeExistingLights(group);
 
-    // Add our standard rig to the room group - positioned directly above Room 0
-    const rig = buildStandardLightRig({
-      keyPosition: new THREE.Vector3(0, 18, 0), // Directly above Room 0 center
-      keyIntensity: 1.15,
-      hemiIntensity: 0.35,
-      shadowMap: 1024,
-      shadowBounds: 14,
-      enableAccents: false,
-    });
-    group.add(rig);
+    // Standard lighting removed - no lighting in Room 0
+    // const rig = buildStandardLightRig({
+    //   keyPosition: new THREE.Vector3(0, 18, 0), // Directly above Room 0 center
+    //   keyIntensity: 1.15,
+    //   hemiIntensity: 0.35,
+    //   shadowMap: 1024,
+    //   shadowBounds: 14,
+    //   enableAccents: false,
+    // });
+    // group.add(rig);
   }
 
   // Emergency lights removed for performance optimization (like Room 1)
