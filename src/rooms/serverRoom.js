@@ -469,80 +469,70 @@ export class ServerRoom {
   }
 
   _buildLaptopWorkstation() {
-    // Create a workstation group on the side of the room
     const workstation = new THREE.Group();
     workstation.name = 'laptop-workstation';
-    
-    // Position the workstation on the opposite side of the room
-    const sidePosition = this.dim.radius * 0.7; // 70% of room radius
-    workstation.position.set(-sidePosition, 0, 0); // Negative X for opposite side
-    
-    // Small square table/platform
-    const tableMat = new THREE.MeshStandardMaterial({ 
-      color: 0x2a2a2a, 
-      metalness: 0.3, 
-      roughness: 0.7 
-    });
-    const table = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 0.8, 1.2), 
-      tableMat
-    );
-    table.position.set(0, 0.4, 0);
+    const sidePosition = this.dim.radius * 0.7;
+    workstation.position.set(-sidePosition, 0, 0);
+
+    const tableMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.3, roughness: 0.7 });
+    const table = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.2), tableMat);
+    table.position.y = 0.4;
     table.castShadow = true;
     table.receiveShadow = true;
     workstation.add(table);
-    
-    // Create open laptop
+
     const laptopGroup = new THREE.Group();
-    laptopGroup.position.set(0, 0.85, 0);
-    
-    // Laptop base (keyboard part)
-    const baseMat = new THREE.MeshStandardMaterial({ 
-      color: 0x1a1a1a, 
-      metalness: 0.8, 
-      roughness: 0.4 
-    });
-    const base = new THREE.Mesh(
-      new THREE.BoxGeometry(0.6, 0.05, 0.4), 
-      baseMat
-    );
-    base.position.set(0, 0, 0);
+    laptopGroup.position.y = 0.8; // Set base height of the laptop on the table
+    workstation.add(laptopGroup);
+
+    // --- LAPTOP BASE (KEYBOARD) ---
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.4 });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), baseMat);
     laptopGroup.add(base);
+
+    // --- NEW HINGE MECHANISM ---
+    // 1. Create an invisible Hinge group and position it at the back of the base
+    const hingeGroup = new THREE.Group();
+    hingeGroup.position.z = -0.2; // Position at the back edge of the base
+    laptopGroup.add(hingeGroup);
     
-    // Laptop screen (open at ~120 degree angle)
-    const screenMat = new THREE.MeshStandardMaterial({ 
-      color: 0x0a0a0a, 
-      metalness: 0.9, 
-      roughness: 0.3 
+    // 2. Create the Screen with correct dimensions
+    const screenMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.9, roughness: 0.3 });
+    const screenHeight = 0.4;
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.6, screenHeight, 0.05), screenMat);
+    
+    // 3. Position the screen *locally* inside the hinge.
+    // Move it up by half its height so its bottom edge is at the hinge's pivot point.
+    screen.position.y = screenHeight / 2;
+    
+    // 4. Create and attach the display texture to the screen
+    const textureLoader = new THREE.TextureLoader();
+    const previewTexture = textureLoader.load('/textures/laptop_preview.png');
+    previewTexture.colorSpace = THREE.SRGBColorSpace;
+    const displayMat = new THREE.MeshStandardMaterial({
+      map: previewTexture,
+      emissive: 0xffffff,
+      emissiveMap: previewTexture,
+      emissiveIntensity: 0.8,
+      toneMapped: false
     });
-    const screen = new THREE.Mesh(
-      new THREE.BoxGeometry(0.6, 0.05, 0.4), 
-      screenMat
-    );
-    screen.position.set(0, 0.2, -0.15);
-    screen.rotation.x = Math.PI * 0.33; // ~60 degrees from vertical
-    laptopGroup.add(screen);
+    const display = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.35), displayMat);
+    display.position.z = 0.026; // Tiny offset forward from the screen's front face
+    screen.add(display);
+
+    // 5. Add the screen to the HINGE, not the main laptop group
+    hingeGroup.add(screen);
     
-    // Screen display (glowing blue)
-    const displayMat = new THREE.MeshBasicMaterial({ 
-      color: 0x0066ff, 
-      transparent: true,
-      opacity: 0.8
-    });
-    const display = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.5, 0.3), 
-      displayMat
-    );
-    display.position.set(0, 0.21, -0.15);
-    display.rotation.x = Math.PI * 0.33;
-    laptopGroup.add(display);
-    
-    // Make laptop interactable
+    // 6. HINGE ROTATION
+    hingeGroup.rotation.x = Math.PI * -0.15;
+
+    // --- END OF HINGE MECHANISM ---
+
+    // Make the entire laptop (which is inside the workstation group) interactable
     laptopGroup.userData.isInteractable = true;
     laptopGroup.userData.interactionId = 'room3_laptop_terminal';
-    this.laptopObject = laptopGroup; // Store reference for interaction
+    this.laptopObject = laptopGroup;
     
-    workstation.add(laptopGroup);
     this.group.add(workstation);
   }
 
