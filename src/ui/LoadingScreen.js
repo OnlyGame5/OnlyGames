@@ -73,6 +73,9 @@ Whose truth will you believe?`;
   // Matrix Rain Animation
   const matrixAnimation = createMatrixRain(matrixCanvas);
   
+  // Audio setup
+  const audioManager = createAudioManager();
+  
   // Event listeners
   let isLoaded = false;
   let hasContinued = false;
@@ -107,6 +110,23 @@ Whose truth will you believe?`;
   startGate.addEventListener('click', handleStartGateClick);
   startGate.addEventListener('keydown', handleStartGateKeyPress);
   
+  // Add user interaction listener to start audio (required by browsers)
+  const startAudioOnInteraction = () => {
+    console.log('User interaction detected - attempting to start audio');
+    audioManager.startMusic();
+    document.removeEventListener('click', startAudioOnInteraction);
+    document.removeEventListener('keydown', startAudioOnInteraction);
+  };
+  
+  document.addEventListener('click', startAudioOnInteraction);
+  document.addEventListener('keydown', startAudioOnInteraction);
+  
+  // Also try to start audio immediately (in case user has already interacted)
+  console.log('Attempting immediate audio start...');
+  setTimeout(() => {
+    audioManager.startMusic();
+  }, 100);
+  
   // Prevent default form submission behavior
   document.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -134,6 +154,9 @@ Whose truth will you believe?`;
   function continueToGame() {
     if (hasContinued) return;
     hasContinued = true;
+    
+    // Stop the music before fading out
+    audioManager.stopMusic();
     
     // Add fade out class
     loadingScreen.classList.add('fade-out');
@@ -205,11 +228,80 @@ Whose truth will you believe?`;
       if (matrixAnimation.stop) {
         matrixAnimation.stop();
       }
+      audioManager.stopMusic();
       loadingScreen.remove();
       document.removeEventListener('keydown', handleKeyPress, true);
       window.removeEventListener('game:assetsProgress', handleProgress);
       window.removeEventListener('game:assetsLoaded', handleLoaded);
     }
+  };
+}
+
+/**
+ * Simplified Audio Manager for Loading Screen Music
+ */
+function createAudioManager() {
+  let backgroundMusic = null;
+  let isPlaying = false;
+  
+  // Initialize simple HTML5 Audio
+  function initAudio() {
+    console.log('Initializing simple HTML5 Audio');
+    backgroundMusic = new Audio('./audio/l_theme_death_note.mp3');
+    backgroundMusic.loop = true;
+    backgroundMusic.volume = 0.5; // Volume level
+    backgroundMusic.preload = 'auto';
+    
+    console.log('Audio source set to:', backgroundMusic.src);
+    
+    backgroundMusic.addEventListener('error', (e) => {
+      console.error('Loading screen music could not be loaded:', e);
+    });
+    
+    backgroundMusic.addEventListener('canplaythrough', () => {
+      console.log('Loading screen music ready');
+    });
+  }
+  
+  
+  // Start playing music
+  function startMusic() {
+    console.log('Attempting to start music...');
+    console.log('Background music:', backgroundMusic ? 'exists' : 'null');
+    console.log('Is playing:', isPlaying);
+    
+    if (backgroundMusic && !isPlaying) {
+      backgroundMusic.play()
+        .then(() => {
+          isPlaying = true;
+          console.log('Loading screen music started successfully');
+        })
+        .catch((error) => {
+          console.error('Could not start loading screen music:', error);
+        });
+    } else {
+      console.warn('Cannot start music - missing background music or already playing');
+    }
+  }
+  
+  // Stop playing music
+  function stopMusic() {
+    if (backgroundMusic) {
+      backgroundMusic.pause();
+      backgroundMusic.currentTime = 0;
+    }
+    
+    isPlaying = false;
+    console.log('Loading screen music stopped');
+  }
+  
+  // Initialize audio when manager is created
+  initAudio();
+  
+  return {
+    startMusic,
+    stopMusic,
+    isPlaying: () => isPlaying
   };
 }
 
