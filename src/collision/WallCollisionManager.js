@@ -5,6 +5,8 @@ export class WallCollisionManager {
   constructor() {
     this.walls = [];
     this.hallways = [];
+    this.hallwayWalls = [];
+    this.objects = [];
     this.debugMode = false;
     this.debugMeshes = [];
   }
@@ -58,6 +60,56 @@ export class WallCollisionManager {
   }
 
   /**
+   * Add hallway wall collision box (thick walls around hallways)
+   * @param {THREE.Vector3} position - Center position
+   * @param {THREE.Vector3} size - Width, height, depth
+   * @param {string} id - Unique identifier
+   */
+  addHallwayWall(position, size, id) {
+    this.hallwayWalls.push({
+      id,
+      position: position.clone(),
+      size: size.clone(),
+      min: new THREE.Vector3(
+        position.x - size.x / 2,
+        position.y - size.y / 2,
+        position.z - size.z / 2
+      ),
+      max: new THREE.Vector3(
+        position.x + size.x / 2,
+        position.y + size.y / 2,
+        position.z + size.z / 2
+      )
+    });
+  }
+
+  /**
+   * Add object collision box (chair, pedestal, etc.)
+   * @param {THREE.Vector3} position - Center position
+   * @param {THREE.Vector3} size - Width, height, depth
+   * @param {string} id - Unique identifier
+   * @param {string} type - Object type (chair, pedestal, etc.)
+   */
+  addObject(position, size, id, type = 'object') {
+    this.objects.push({
+      id,
+      type,
+      position: position.clone(),
+      size: size.clone(),
+      min: new THREE.Vector3(
+        position.x - size.x / 2,
+        position.y - size.y / 2,
+        position.z - size.z / 2
+      ),
+      max: new THREE.Vector3(
+        position.x + size.x / 2,
+        position.y + size.y / 2,
+        position.z + size.z / 2
+      )
+    });
+  }
+
+  /**
    * Check collision and prevent wall walking
    * @param {THREE.Vector3} playerPosition - Current player position
    * @param {number} playerRadius - Player collision radius
@@ -79,6 +131,20 @@ export class WallCollisionManager {
     for (const hallway of this.hallways) {
       if (this.isAABBOverlap(playerMin, playerMax, hallway.min, hallway.max)) {
         return false; // In hallway, no collision
+      }
+    }
+
+    // Check object collision (chairs, pedestals, etc.)
+    for (const obj of this.objects) {
+      if (this.isAABBOverlap(playerMin, playerMax, obj.min, obj.max)) {
+        return true; // Collision with object
+      }
+    }
+
+    // Check hallway wall collision (thick walls around hallways)
+    for (const hallwayWall of this.hallwayWalls) {
+      if (this.isAABBOverlap(playerMin, playerMax, hallwayWall.min, hallwayWall.max)) {
+        return true; // Collision with hallway wall
       }
     }
 
@@ -104,11 +170,13 @@ export class WallCollisionManager {
   }
 
   /**
-   * Clear all walls and hallways
+   * Clear all walls, hallways, hallway walls, and objects
    */
   clear() {
     this.walls = [];
     this.hallways = [];
+    this.hallwayWalls = [];
+    this.objects = [];
     this.clearDebug();
   }
 
@@ -147,6 +215,38 @@ export class WallCollisionManager {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.copy(hallway.position);
       mesh.userData = { type: 'hallway', id: hallway.id };
+      scene.add(mesh);
+      this.debugMeshes.push(mesh);
+    }
+
+    // Create debug meshes for hallway walls (yellow)
+    for (const hallwayWall of this.hallwayWalls) {
+      const geometry = new THREE.BoxGeometry(hallwayWall.size.x, hallwayWall.size.y, hallwayWall.size.z);
+      const material = new THREE.MeshBasicMaterial({ 
+        color: 0xffff00, 
+        transparent: true, 
+        opacity: 0.3,
+        wireframe: true 
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.copy(hallwayWall.position);
+      mesh.userData = { type: 'hallwayWall', id: hallwayWall.id };
+      scene.add(mesh);
+      this.debugMeshes.push(mesh);
+    }
+
+    // Create debug meshes for objects (blue)
+    for (const obj of this.objects) {
+      const geometry = new THREE.BoxGeometry(obj.size.x, obj.size.y, obj.size.z);
+      const material = new THREE.MeshBasicMaterial({ 
+        color: 0x0000ff, 
+        transparent: true, 
+        opacity: 0.3,
+        wireframe: true 
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.copy(obj.position);
+      mesh.userData = { type: 'object', id: obj.id, objectType: obj.type };
       scene.add(mesh);
       this.debugMeshes.push(mesh);
     }
