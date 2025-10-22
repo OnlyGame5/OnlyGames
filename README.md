@@ -13,6 +13,7 @@ Built from the ground up with **Three.js**, this game challenges you to escape a
 - [Our Tech Stack](#-our-tech-stack)
 - [Get It Running!](#-get-it-running)
 - [How To Play](#-how-to-play)
+- [Matrix Sky Shader](#-matrix-sky-shader)
 - [The Dev Team](#-the-dev-team)
 - [License](#-license)
 - [Special Thanks](#-special-thanks)
@@ -118,6 +119,44 @@ Meet the brilliant minds bringing this betrayal to life!
 ## ⚖️ License
 
 Distributed under the MIT License. See `LICENSE.txt` for the boring legal stuff.
+
+---
+
+## 🌌 Matrix Sky Shader
+
+The game features a dynamic Matrix-rain skybox that creates an immersive simulation atmosphere. This animated skybox uses custom GLSL shaders to render falling green code columns in real-time.
+
+### **Features:**
+- **Animated Matrix Rain**: Falling green code columns with moving highlights
+- **Performance Optimized**: Pure math-based shaders, no textures or video
+- **Configurable**: Speed, intensity, and enable/disable controls
+- **Atmospheric**: Dark green base (#020B05) with neon highlights (#10FF40)
+
+### **Usage:**
+The Matrix Sky is automatically enabled and runs in the background. You can control it through the game settings:
+
+```javascript
+// Enable/disable Matrix Sky
+gameStore.settings.enableMatrixSky = true;
+
+// Adjust animation speed
+gameStore.settings.matrixSkySpeed = 0.002;
+
+// Control intensity
+gameStore.settings.matrixSkyIntensity = 1.0;
+```
+
+### **Performance Tips:**
+- The shader is lightweight and designed for 60fps performance
+- Disable if experiencing performance issues: `gameStore.settings.enableMatrixSky = false`
+- Adjust speed for different visual effects
+- The skybox uses a large inverted sphere (scale ≈ 100) for proper camera positioning
+
+### **Technical Details:**
+- **File**: `src/scene/MatrixSky.js`
+- **Shader**: Custom GLSL with time-based animation
+- **Integration**: Automatically added to main scene
+- **Renderer**: Uses SRGB color space and ACES filmic tone mapping
 
 ---
 

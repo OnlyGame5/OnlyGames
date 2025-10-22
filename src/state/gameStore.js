@@ -3,6 +3,13 @@ class GameStore {
   constructor() {
     // --- NEW NON-LINEAR STRUCTURE ---
     this.currentRoomId = 'hub'; // 'hub', 'room1', 'room2', etc.
+    
+    // Matrix Sky settings
+    this.settings = {
+      enableMatrixSky: true,
+      matrixSkySpeed: 0.002,
+      matrixSkyIntensity: 1.0
+    };
     this.hub = {
       tokensPlaced: {
         room1: false,

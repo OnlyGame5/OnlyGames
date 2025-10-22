@@ -20,28 +20,58 @@ import { FPSCounter } from './ui/FPSCounter.js';
 import { LevelManager } from './game/levels/LevelManager.js';
 import { gameStore } from './state/gameStore.js';
 import { createFuturisticDoor } from './game/props/FuturisticDoor.js';
+import { MatrixSky } from './scene/MatrixSky.js';
 
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b0b12);
+scene.background = new THREE.Color(0x001100); // Very dark green to make Matrix effect pop
 // Disable scene environment map to prevent reflections
 scene.environment = null;
 
-// --- Subtle Global Lighting (performance-friendly) ---
+// --- Matrix Sky ---
+let matrixSky = null;
+try {
+  matrixSky = new MatrixSky(scene);
+  console.log('Matrix Sky initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize Matrix Sky:', error);
+}
+
+// --- Enhanced Global Lighting for Matrix Sky ---
 // HemisphereLight provides soft ambient fill without shadows (very cheap)
 const globalHemi = new THREE.HemisphereLight(
-  0x2a3a5a, // Sky color - soft blue-grey
-  0x0f0f18, // Ground color - very dark blue
-  0.70      // Subtle intensity
+  0x6a8a7a, // Sky color - brighter green-grey to match Matrix sky
+  0x3f5f4f, // Ground color - brighter green
+  1.2       // Much higher intensity for proper room illumination
 );
 globalHemi.name = 'global-hemisphere';
 scene.add(globalHemi);
 
-// Very subtle ambient light to ensure nothing is completely black
-const globalAmbient = new THREE.AmbientLight(0x1a1a2a, 0.35); // Brighter ambient light
+// Strong ambient light for proper room illumination
+const globalAmbient = new THREE.AmbientLight(0x4a6a5a, 0.8); // Much brighter greenish ambient light
 globalAmbient.name = 'global-ambient';
 scene.add(globalAmbient);
+
+// Add a strong directional light for realistic outdoor lighting
+const globalDirectional = new THREE.DirectionalLight(0xccffcc, 0.6); // Brighter green tint
+globalDirectional.position.set(10, 20, 5);
+globalDirectional.castShadow = false; // No shadows for performance
+globalDirectional.name = 'global-directional';
+scene.add(globalDirectional);
+
+// Add additional point lights for better room illumination
+const globalPoint1 = new THREE.PointLight(0x88ff88, 0.4, 50); // Green point light
+globalPoint1.position.set(0, 15, 0);
+globalPoint1.castShadow = false;
+globalPoint1.name = 'global-point-1';
+scene.add(globalPoint1);
+
+const globalPoint2 = new THREE.PointLight(0x88ff88, 0.3, 40); // Another green point light
+globalPoint2.position.set(20, 10, 20);
+globalPoint2.castShadow = false;
+globalPoint2.name = 'global-point-2';
+scene.add(globalPoint2);
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 4, 10);
@@ -60,6 +90,12 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap; // Changed from PCFSoftShadowMap for better performance
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Reduced from 2 to 1.5 for better performance
+
+// Matrix Sky renderer settings
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.9;
+
 document.body.appendChild(renderer.domElement);
 // We'll render an overlay after the main scene; disable automatic clearing between renders
 renderer.autoClear = false;
@@ -76,10 +112,10 @@ const player = setupPlayer(scene);
 // --- Player Personal Light (follows player) ---
 // Performance-friendly: No shadows, limited range
 const playerLight = new THREE.PointLight(
-  0xffeedd, // Warm white color
-  0.8,      // Moderate intensity
-  8,        // Limited range (8 units radius)
-  2         // Decay (light falloff rate)
+  0xccffcc, // Green tint to match Matrix theme
+  1.2,      // Higher intensity for better illumination
+  12,       // Larger range (12 units radius)
+  1.5       // Decay (light falloff rate)
 );
 playerLight.name = 'player-light';
 playerLight.castShadow = false; // CRITICAL: No shadows for performance
@@ -94,6 +130,53 @@ console.log('[Main] Wall collision system initialized');
 
 // Make collision manager globally accessible for debugging
 window.wallCollisionManager = wallCollisionManager;
+
+// Simple interaction UI system
+function createInteractionUI() {
+  const interactionDiv = document.createElement('div');
+  interactionDiv.id = 'interaction-ui';
+  interactionDiv.style.cssText = `
+    position: fixed;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: #00ff00;
+    padding: 10px 20px;
+    border: 2px solid #00ff00;
+    border-radius: 5px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    z-index: 1000;
+    display: none;
+    text-align: center;
+    max-width: 400px;
+  `;
+  document.body.appendChild(interactionDiv);
+  return interactionDiv;
+}
+
+// Initialize interaction UI
+const interactionUI = createInteractionUI();
+
+// Global function for updating interaction UI
+window.updateInteractionUI = function(text, type = '') {
+  if (text && text.trim()) {
+    interactionUI.textContent = text;
+    interactionUI.style.display = 'block';
+    
+    // Add type-specific styling
+    if (type === 'door') {
+      interactionUI.style.borderColor = '#ff6600';
+      interactionUI.style.color = '#ff6600';
+    } else {
+      interactionUI.style.borderColor = '#00ff00';
+      interactionUI.style.color = '#00ff00';
+    }
+  } else {
+    interactionUI.style.display = 'none';
+  }
+};
 
 /**
  * Setup wall collisions for current room
@@ -127,12 +210,17 @@ function setupRoomCollisions(roomId = null) {
     
     // Add objects (chairs, pedestals, doors, etc.)
     if (roomData.objects) {
+      console.log(`[Collision] Adding ${roomData.objects.length} objects for room ${currentRoomId}`);
       for (let i = 0; i < roomData.objects.length; i++) {
         const obj = roomData.objects[i];
         const dynamic = obj.dynamic || false;
         // Use the object's own ID if it has one, otherwise use generic ID
         const objectId = obj.id || `${currentRoomId}-object-${i}`;
         wallCollisionManager.addObject(obj.position, obj.size, objectId, obj.type, dynamic);
+        
+        if (obj.type === 'door') {
+          console.log(`[Collision] Added DOOR: ${objectId}, type: ${obj.type}, dynamic: ${dynamic}, position:`, obj.position);
+        }
       }
     }
     
@@ -542,20 +630,10 @@ async function initGame() {
     hallwayToRoom4.group.position.set(0, 0, -12.5);
     scene.add(hallwayToRoom4.group);
     
-    // Hallway behind the door (North/Back)
-    const hallwayBehindDoor = createReusableHallway({
-      ...hallwayConfig,
-      name: 'hallway-behind-door'
-    });
-    // Position hallway behind the door (negative Z direction)
-    hallwayBehindDoor.group.position.set(0, 0, -12.5); // Back of room + hallway length/2
-    scene.add(hallwayBehindDoor.group);
-    
     // Store hallways in gameState for collision detection
     gameState.hallwayToRoom1 = hallwayToRoom1;
     gameState.hallwayToRoom2 = hallwayToRoom2;
     gameState.hallwayToRoom3 = hallwayToRoom3;
-    gameState.hallwayBehindDoor = hallwayBehindDoor;
     gameState.hallwayToRoom4 = hallwayToRoom4;
 
     // Room 3 access is controlled by the existing westDoor in room0.js
@@ -853,6 +931,34 @@ window.addEventListener('keydown', (e) => {
       return;
     }
     
+    // Check for door interactions first
+    if (window.currentDoorInteraction) {
+      const doorInfo = window.currentDoorInteraction;
+      console.log('Door interaction detected:', doorInfo);
+      
+      if (doorInfo.isLocked) {
+        AI.say('This door is locked. Complete the required tasks to unlock it.');
+        return;
+      }
+      
+      // Toggle door state using the door's built-in methods
+      if (doorInfo.door && doorInfo.door.userData) {
+        const door = doorInfo.door;
+        const doorState = door.userData.state;
+        
+        if (doorState.openAmount > 0.9) {
+          // Door is open, close it
+          door.userData.closeDoor();
+          AI.say('Door closed.');
+        } else {
+          // Door is closed, open it
+          door.userData.openDoor();
+          AI.say('Door opened.');
+        }
+      }
+      return;
+    }
+    
     console.log('Game state check:', { 
       stage: gameState.stage, 
       room0Exists: !!gameState.room0,
@@ -1042,6 +1148,17 @@ function animate(currentTime) {
   
   const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
   lastTime = currentTime;
+  
+  // Update Matrix Sky animation
+  if (matrixSky) {
+    matrixSky.update(deltaTime);
+    
+    // Apply settings
+    matrixSky.setEnabled(gameStore.settings.enableMatrixSky);
+    matrixSky.setSpeed(gameStore.settings.matrixSkySpeed);
+    matrixSky.setIntensity(gameStore.settings.matrixSkyIntensity);
+  }
+  
   // Track whether the player is inside Room 3 across this frame (used later for stage progression)
   let insideRoom3 = false;
   
@@ -1116,6 +1233,35 @@ function animate(currentTime) {
     activePlayer.userData.lastValidPosition = activePlayer.position.clone();
   }
   
+  // Update all doors in the scene
+  scene.traverse((object) => {
+    if (object.userData && object.userData.category === 'door' && object.userData.update) {
+      object.userData.update(deltaTime);
+    }
+  });
+  
+  // Check door interactions
+  const doorInteraction = wallCollisionManager.checkDoorInteraction(activePlayer.position, 2.0);
+  if (doorInteraction) {
+    // Store current door interaction for UI
+    window.currentDoorInteraction = doorInteraction;
+    
+    // Show interaction prompt
+    const interactionText = wallCollisionManager.getDoorInteractionText(doorInteraction);
+    if (interactionText) {
+      // Update UI with door interaction text
+      if (window.updateInteractionUI) {
+        window.updateInteractionUI(interactionText, 'door');
+      }
+    }
+  } else {
+    // Clear door interaction
+    window.currentDoorInteraction = null;
+    if (window.updateInteractionUI) {
+      window.updateInteractionUI('', 'door');
+    }
+  }
+  
   // Check hallway collisions
   if (gameState.hallwayToRoom1 && gameState.hallwayToRoom1.checkCollisions) {
     gameState.hallwayToRoom1.checkCollisions(activePlayer);
@@ -1125,9 +1271,6 @@ function animate(currentTime) {
   }
   if (gameState.hallwayToRoom3 && gameState.hallwayToRoom3.checkCollisions) {
     gameState.hallwayToRoom3.checkCollisions(activePlayer);
-  }
-  if (gameState.hallwayBehindDoor && gameState.hallwayBehindDoor.checkCollisions) {
-    gameState.hallwayBehindDoor.checkCollisions(activePlayer);
   }
 
   // Simple check for Room 3 for stage progression

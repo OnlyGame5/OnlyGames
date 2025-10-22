@@ -132,52 +132,8 @@ export function createRoom2() {
   headerSouth.receiveShadow = true;
   group.add(headerSouth);
 
-  // Ceiling
-  const ceiling = floor.clone();
-  ceiling.position.y = 4;
-  group.add(ceiling);
-
-  // Light bulb in the middle of the ceiling
-  const lightBulbGroup = new THREE.Group();
-  lightBulbGroup.name = 'room2-lightbulb';
-  
-  // Light bulb glass part
-  const bulbGeometry = new THREE.SphereGeometry(0.15, 16, 16);
-  const bulbMaterial = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    emissive: 0xffff88,
-    emissiveIntensity: 1.5,
-    transparent: true,
-    opacity: 0.9,
-    roughness: 0.05,
-    metalness: 0.0
-  });
-  const bulb = new THREE.Mesh(bulbGeometry, bulbMaterial);
-  bulb.position.y = 0.1;
-  lightBulbGroup.add(bulb);
-  
-  // Light bulb base/socket
-  const socketGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.1, 8);
-  const socketMaterial = new THREE.MeshStandardMaterial({
-    color: 0x444444,
-    metalness: 0.8,
-    roughness: 0.2
-  });
-  const socket = new THREE.Mesh(socketGeometry, socketMaterial);
-  socket.position.y = -0.05;
-  lightBulbGroup.add(socket);
-  
-  // Position the light bulb in the center of the ceiling
-  lightBulbGroup.position.set(0, 4.2, 0);
-  group.add(lightBulbGroup);
-  
-  // Add a point light to the bulb
-  const bulbLight = new THREE.PointLight(0xffffff, 4.0, 12, 1.5);
-  bulbLight.position.set(0, 4.1, 0);
-  bulbLight.castShadow = true;
-  bulbLight.shadow.mapSize.width = 1024;
-  bulbLight.shadow.mapSize.height = 1024;
-  group.add(bulbLight);
+  // Ceiling removed - now using global skybox
+  // Light bulb removed - now using global lighting
 
   const loader = new GLTFLoader();
 

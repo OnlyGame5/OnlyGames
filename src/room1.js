@@ -17,6 +17,9 @@ import { createReusableHallway, HallwayPresets } from './components/ReusableHall
 export function createRoom1() {
   const group = new THREE.Group();
   group.name = 'room1';
+  
+  // Create shared GLTFLoader instance for better performance
+  const gltfLoader = new GLTFLoader();
 
   // Room state for interactions (declare early so loaders can assign)
   const state = {
@@ -80,20 +83,13 @@ export function createRoom1() {
 
 
 
-  // Front wall with doorway (split into two parts)
-  const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat);
-  frontWallLeft.position.set(-5, 2, 9);
-  frontWallLeft.userData = { type: 'wall', side: 'front-left' };
-  frontWallLeft.castShadow = true;
-  frontWallLeft.receiveShadow = true;
-  group.add(frontWallLeft);
-
-  const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat);
-  frontWallRight.position.set(5, 2, 9);
-  frontWallRight.userData = { type: 'wall', side: 'front-right' };
-  frontWallRight.castShadow = true;
-  frontWallRight.receiveShadow = true;
-  group.add(frontWallRight);
+  // Front wall - single continuous wall
+  const frontWall = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.2), wallMat);
+  frontWall.position.set(0, 2, 9);
+  frontWall.userData = { type: 'wall', side: 'front' };
+  frontWall.castShadow = true;
+  frontWall.receiveShadow = true;
+  group.add(frontWall);
 
   // Side walls - Left wall with opening for hub hallway
   const wall3_part1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 8), wallMat);
@@ -406,88 +402,8 @@ export function createRoom1() {
     addPaperClutter();
   }, 2000);
 
-  // Room 1: Tiles136c ceiling
-  function createTiles136cCeiling() {
-    const roofGeometry = new THREE.BoxGeometry(18, 0.3, 18);
-    const roofMaterial = makeTiles136cCeiling(18, 18, tiles136cFiles, {
-      tileSizeMeters: 1.0,
-      anisotropy: 16,
-      metalness: 0.1,
-      roughness: 0.7,
-      normalScale: new THREE.Vector2(0.4, 0.4)
-    });
-    
-    const roof = new THREE.Mesh(roofGeometry, roofMaterial);
-    roof.position.set(0, 4.15, 0);
-    roof.receiveShadow = true;
-    group.add(roof);
-  }
-  createTiles136cCeiling();
-
-  // Room 1: Enhanced ceiling light fixture (like Room 0)
-  const lightFixtureGroup = new THREE.Group();
-  lightFixtureGroup.name = 'ceiling-light-fixture';
-  
-  // Main light housing (metallic)
-  const lightHousing = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.8, 1.8, 0.3, 16),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x333333,
-      metalness: 0.9,
-      roughness: 0.1
-    })
-  );
-  lightHousing.position.set(0, 0, 0);
-  lightHousing.castShadow = false; // Don't cast shadows to avoid blocking light
-  lightHousing.receiveShadow = true;
-  lightFixtureGroup.add(lightHousing);
-  
-  // Light diffuser/cover (semi-transparent)
-  const lightDiffuser = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.6, 1.6, 0.1, 16),
-    new THREE.MeshStandardMaterial({ 
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.3,
-      emissive: 0xffffff,
-      emissiveIntensity: 0.1
-    })
-  );
-  lightDiffuser.position.set(0, -0.1, 0);
-  lightDiffuser.castShadow = false;
-  lightFixtureGroup.add(lightDiffuser);
-  
-  // Light bulb/emitter (glowing)
-  const lightBulb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.3, 12, 8),
-    new THREE.MeshStandardMaterial({ 
-      color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 0.8,
-      transparent: true,
-      opacity: 0.9
-    })
-  );
-  lightBulb.position.set(0, -0.15, 0);
-  lightBulb.castShadow = false;
-  lightBulb.name = 'light-bulb';
-  lightFixtureGroup.add(lightBulb);
-  
-  // Mounting bracket
-  const mountingBracket = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.1, 0.1, 0.4, 8),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x222222,
-      metalness: 0.8,
-      roughness: 0.3
-    })
-  );
-  mountingBracket.position.set(0, 0.2, 0);
-  mountingBracket.castShadow = false; // Don't cast shadows to avoid blocking light
-  lightFixtureGroup.add(mountingBracket);
-  
-  lightFixtureGroup.position.set(0, 4.0, 0);
-  group.add(lightFixtureGroup);
+  // Room 1: Ceiling removed - now using global skybox
+  // Ceiling light fixture removed - now using global lighting
 
   // --- Room 1 original lighting system ---
   {
@@ -767,11 +683,7 @@ export function createRoom1() {
   // Room 1: Create emissives list for bulbs, LEDs, and indicators
   const emissives = [];
   
-  // Add light fixture bulb to emissives
-  const lightBulbRef = lightFixtureGroup.getObjectByName('light-bulb');
-  if (lightBulbRef) {
-    emissives.push(lightBulbRef);
-  }
+  // Light fixture removed - now using global lighting
 
   // Room 1: Light switch system
   let lightsOn = true;
@@ -838,9 +750,6 @@ export function createRoom1() {
 
   // Removed pedestal, panel, and keypad to keep only table and safe in this room
 
-  // Create shared GLTFLoader instance for better performance
-  const gltfLoader = new GLTFLoader();
-  
   // Load sci-fi table (independent of safe placement)
   gltfLoader.load('/models/sci_fi_table.glb', (gltf) => {
     const sciFiTable = gltf.scene;

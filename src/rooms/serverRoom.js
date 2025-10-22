@@ -103,14 +103,7 @@ export class ServerRoom {
     floor.receiveShadow = true;
     this.group.add(floor);
 
-    // Ceiling cap for the chamber (now a thin cylinder for thickness)
-    const ceilingMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.6, roughness: 0.35 });
-    // Replace CircleGeometry with a thin CylinderGeometry
-    const ceiling = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.2, 48), ceilingMat);
-    // No rotation is needed for a cylinder
-    ceiling.position.set(0, height - 0.1, 0); // Position it at the top
-    ceiling.receiveShadow = true;
-    this.group.add(ceiling);
+    // Ceiling removed - now using global skybox
 
     // Inner pit wall with doorway gap aligned to hallway (visible from both sides)
     const doorwayThetaStart = 1.67;          // start angle of the solid arc

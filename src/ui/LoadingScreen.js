@@ -73,6 +73,9 @@ Whose truth will you believe?`;
   // Matrix Rain Animation
   const matrixAnimation = createMatrixRain(matrixCanvas);
   
+  // Audio setup
+  const audioManager = createAudioManager();
+  
   // Event listeners
   let isLoaded = false;
   let hasContinued = false;
@@ -107,6 +110,25 @@ Whose truth will you believe?`;
   startGate.addEventListener('click', handleStartGateClick);
   startGate.addEventListener('keydown', handleStartGateKeyPress);
   
+  // Try to start audio immediately (auto-play attempt)
+  console.log('Attempting immediate audio start...');
+  
+  // Try multiple times with different delays to maximize auto-play success
+  setTimeout(() => audioManager.startMusic(), 100);
+  setTimeout(() => audioManager.startMusic(), 500);
+  setTimeout(() => audioManager.startMusic(), 1000);
+  
+  // Add user interaction listener as fallback (required by browsers)
+  const startAudioOnInteraction = () => {
+    console.log('User interaction detected - attempting to start audio');
+    audioManager.startMusic();
+    document.removeEventListener('click', startAudioOnInteraction);
+    document.removeEventListener('keydown', startAudioOnInteraction);
+  };
+  
+  document.addEventListener('click', startAudioOnInteraction);
+  document.addEventListener('keydown', startAudioOnInteraction);
+  
   // Prevent default form submission behavior
   document.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -135,6 +157,10 @@ Whose truth will you believe?`;
     if (hasContinued) return;
     hasContinued = true;
     
+    // Stop the music before fading out
+    console.log('Stopping loading screen music...');
+    audioManager.stopMusic();
+    
     // Add fade out class
     loadingScreen.classList.add('fade-out');
     
@@ -144,6 +170,10 @@ Whose truth will you believe?`;
       if (matrixAnimation.stop) {
         matrixAnimation.stop();
       }
+      
+      // Final cleanup of audio
+      console.log('Final audio cleanup...');
+      audioManager.stopMusic();
       
       // Remove event listeners
       document.removeEventListener('keydown', handleKeyPress, true);
@@ -205,11 +235,101 @@ Whose truth will you believe?`;
       if (matrixAnimation.stop) {
         matrixAnimation.stop();
       }
+      audioManager.stopMusic();
       loadingScreen.remove();
       document.removeEventListener('keydown', handleKeyPress, true);
       window.removeEventListener('game:assetsProgress', handleProgress);
       window.removeEventListener('game:assetsLoaded', handleLoaded);
     }
+  };
+}
+
+/**
+ * Simplified Audio Manager for Loading Screen Music
+ */
+function createAudioManager() {
+  let backgroundMusic = null;
+  let isPlaying = false;
+  
+  // Initialize simple HTML5 Audio
+  function initAudio() {
+    console.log('Initializing simple HTML5 Audio');
+    backgroundMusic = new Audio('./audio/l_theme_death_note.mp3');
+    backgroundMusic.loop = true;
+    backgroundMusic.volume = 0.5; // Volume level
+    backgroundMusic.preload = 'auto';
+    
+    console.log('Audio source set to:', backgroundMusic.src);
+    
+    backgroundMusic.addEventListener('error', (e) => {
+      console.error('Loading screen music could not be loaded:', e);
+    });
+    
+    backgroundMusic.addEventListener('canplaythrough', () => {
+      console.log('Loading screen music ready');
+      
+    });
+  }
+  
+  
+  // Start playing music
+  function startMusic() {
+    console.log('Attempting to start music...');
+    console.log('Background music:', backgroundMusic ? 'exists' : 'null');
+    console.log('Is playing:', isPlaying);
+    
+    if (backgroundMusic && !isPlaying) {
+      // Try to play immediately
+      const playPromise = backgroundMusic.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            isPlaying = true;
+            console.log('Loading screen music started successfully');
+          })
+          .catch((error) => {
+            console.log('Auto-play blocked by browser - music will start on user interaction:', error.message);
+            // Don't treat this as an error - it's expected behavior
+          });
+      }
+    } else if (isPlaying) {
+      console.log('Music is already playing');
+    } else {
+      console.warn('Cannot start music - missing background music');
+    }
+  }
+  
+  // Stop playing music
+  function stopMusic() {
+    if (backgroundMusic) {
+      backgroundMusic.pause();
+      backgroundMusic.currentTime = 0;
+      backgroundMusic.volume = 0; // Mute the volume
+      console.log('Loading screen music paused and muted');
+    }
+    
+    isPlaying = false;
+    console.log('Loading screen music stopped');
+    
+    // Also stop any other audio elements on the page
+    const allAudioElements = document.querySelectorAll('audio');
+    allAudioElements.forEach(audio => {
+      if (!audio.paused) {
+        audio.pause();
+        audio.currentTime = 0;
+        console.log('Stopped additional audio element');
+      }
+    });
+  }
+  
+  // Initialize audio when manager is created
+  initAudio();
+  
+  return {
+    startMusic,
+    stopMusic,
+    isPlaying: () => isPlaying
   };
 }
 
