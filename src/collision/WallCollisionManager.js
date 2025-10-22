@@ -9,6 +9,15 @@ export class WallCollisionManager {
     this.objects = [];
     this.debugMode = false;
     this.debugMeshes = [];
+    this.scene = null;
+  }
+
+  /**
+   * Set the scene reference for door finding
+   * @param {THREE.Scene} scene - The Three.js scene
+   */
+  setScene(scene) {
+    this.scene = scene;
   }
 
   /**
@@ -89,11 +98,13 @@ export class WallCollisionManager {
    * @param {THREE.Vector3} size - Width, height, depth
    * @param {string} id - Unique identifier
    * @param {string} type - Object type (chair, pedestal, etc.)
+   * @param {boolean} dynamic - Whether this object can change state
    */
-  addObject(position, size, id, type = 'object') {
+  addObject(position, size, id, type = 'object', dynamic = false) {
     this.objects.push({
       id,
       type,
+      dynamic,
       position: position.clone(),
       size: size.clone(),
       min: new THREE.Vector3(
@@ -136,8 +147,13 @@ export class WallCollisionManager {
 
     // Check object collision (chairs, pedestals, etc.)
     for (const obj of this.objects) {
-      if (this.isAABBOverlap(playerMin, playerMax, obj.min, obj.max)) {
-        return true; // Collision with object
+      // Special handling for dynamic doors
+      if (obj.type === 'door' && obj.dynamic) {
+        if (this.checkDoorCollision(obj, playerMin, playerMax)) {
+          return true; // Collision with closed/locked door
+        }
+      } else if (this.isAABBOverlap(playerMin, playerMax, obj.min, obj.max)) {
+        return true; // Collision with static object
       }
     }
 
@@ -156,6 +172,79 @@ export class WallCollisionManager {
     }
 
     return false; // No collision
+  }
+
+  /**
+   * Check door collision based on door state and movement direction
+   * @param {Object} doorObj - Door collision object
+   * @param {THREE.Vector3} playerMin - Player bounding box min
+   * @param {THREE.Vector3} playerMax - Player bounding box max
+   * @returns {boolean} - True if collision with door
+   */
+  checkDoorCollision(doorObj, playerMin, playerMax) {
+    // Find the actual door object in the scene
+    const doorObject = this.findDoorById(doorObj.id);
+    if (!doorObject) {
+      console.log(`[Door Collision] Door ${doorObj.id} not found in scene`);
+      // If door not found, treat as solid collision
+      return this.isAABBOverlap(playerMin, playerMax, doorObj.min, doorObj.max);
+    }
+
+    // Check if door is locked OR not fully open
+    const isLocked = doorObject.userData.locked;
+    const openAmount = doorObject.userData.state.openAmount;
+    const isOpen = openAmount > 0.9;
+    
+    // Debug logging for door state
+    if (this.isAABBOverlap(playerMin, playerMax, doorObj.min, doorObj.max)) {
+      console.log(`[Door Collision] Door ${doorObj.id} state:`, {
+        isLocked,
+        openAmount: openAmount.toFixed(2),
+        isOpen,
+        shouldBlock: isLocked || !isOpen
+      });
+    }
+    
+    // If door is unlocked and fully open, no collision
+    if (!isLocked && isOpen) {
+      console.log(`[Door Collision] Door ${doorObj.id} is open - no collision`);
+      return false;
+    }
+    
+    // If door is locked or not fully open, check collision
+    console.log(`[Door Collision] Door ${doorObj.id} is closed/locked - collision active`);
+    return this.isAABBOverlap(playerMin, playerMax, doorObj.min, doorObj.max);
+  }
+
+  /**
+   * Find door object by ID in the scene
+   * @param {string} id - Door ID
+   * @returns {THREE.Object3D|null} - Door object or null
+   */
+  findDoorById(id) {
+    if (!this.scene) {
+      console.log(`[Door Collision] Scene not available`);
+      return null;
+    }
+    
+    let foundDoor = null;
+    let searchCount = 0;
+    
+    // Use traverse to search the entire scene graph
+    this.scene.traverse((object) => {
+      searchCount++;
+      if (object.userData && object.userData.id === id && object.userData.category === 'door') {
+        foundDoor = object;
+        console.log(`[Door Collision] Found door ${id} after searching ${searchCount} objects`);
+        return; // Stop searching once found
+      }
+    });
+    
+    if (!foundDoor) {
+      console.log(`[Door Collision] Door ${id} not found after searching ${searchCount} objects`);
+    }
+    
+    return foundDoor;
   }
 
   /**
@@ -235,18 +324,21 @@ export class WallCollisionManager {
       this.debugMeshes.push(mesh);
     }
 
-    // Create debug meshes for objects (blue)
+    // Create debug meshes for objects (blue) and doors (purple)
     for (const obj of this.objects) {
       const geometry = new THREE.BoxGeometry(obj.size.x, obj.size.y, obj.size.z);
+      
+      // Different colors for doors vs other objects
+      const color = obj.type === 'door' ? 0x800080 : 0x0000ff; // Purple for doors, blue for objects
       const material = new THREE.MeshBasicMaterial({ 
-        color: 0x0000ff, 
+        color: color, 
         transparent: true, 
         opacity: 0.3,
         wireframe: true 
       });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.copy(obj.position);
-      mesh.userData = { type: 'object', id: obj.id, objectType: obj.type };
+      mesh.userData = { type: 'object', id: obj.id, objectType: obj.type, dynamic: obj.dynamic };
       scene.add(mesh);
       this.debugMeshes.push(mesh);
     }

@@ -36,7 +36,16 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(-8, 2, -6), size: new THREE.Vector3(0.8, 4, 0.8), type: 'pillar' },
       
       // Pillar 2 (position: 9.5, wallHeight/2, -6) -> World: (9.5, 2, -6)
-      { position: new THREE.Vector3(9.5, 2, -6), size: new THREE.Vector3(0.8, 4, 0.8), type: 'pillar' }
+      { position: new THREE.Vector3(9.5, 2, -6), size: new THREE.Vector3(0.8, 4, 0.8), type: 'pillar' },
+      
+      // East Door (to Room 1) - Always unlocked - Thinner collision box
+      { position: new THREE.Vector3(9, 1.75, 0), size: new THREE.Vector3(0.2, 3.5, 3.0), type: 'door', id: 'east-door', dynamic: true },
+      
+      // South Door (to Room 2) - Locked until Room 1 completed - Thinner collision box
+      { position: new THREE.Vector3(0, 1.75, 6.5), size: new THREE.Vector3(3.0, 3.5, 0.2), type: 'door', id: 'south-door', dynamic: true },
+      
+      // West Door (to Room 3) - Locked until Room 2 completed - Thinner collision box
+      { position: new THREE.Vector3(-9, 1.75, 0), size: new THREE.Vector3(0.2, 3.5, 3.0), type: 'door', id: 'west-door', dynamic: true }
     ],
     hallways: [
       // Room 1 hallway (East)

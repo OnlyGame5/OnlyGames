@@ -88,6 +88,8 @@ scene.add(playerLight);
 
 // Wall Collision Manager setup
 const wallCollisionManager = new WallCollisionManager();
+// Pass scene reference to collision manager
+wallCollisionManager.setScene(scene);
 console.log('[Main] Wall collision system initialized');
 
 // Make collision manager globally accessible for debugging
@@ -130,12 +132,15 @@ function setupRoomCollisions(roomId = null) {
       console.log(`[Collision] Added hallway ${i} at (${hallway.position.x}, ${hallway.position.y}, ${hallway.position.z})`);
     }
     
-    // Add objects (chairs, pedestals, etc.)
+    // Add objects (chairs, pedestals, doors, etc.)
     if (roomData.objects) {
       for (let i = 0; i < roomData.objects.length; i++) {
         const obj = roomData.objects[i];
-        wallCollisionManager.addObject(obj.position, obj.size, `${currentRoomId}-object-${i}`, obj.type);
-        console.log(`[Collision] Added ${obj.type} ${i} at (${obj.position.x}, ${obj.position.y}, ${obj.position.z})`);
+        const dynamic = obj.dynamic || false;
+        // Use the object's own ID if it has one, otherwise use generic ID
+        const objectId = obj.id || `${currentRoomId}-object-${i}`;
+        wallCollisionManager.addObject(obj.position, obj.size, objectId, obj.type, dynamic);
+        console.log(`[Collision] Added ${obj.type} ${i} at (${obj.position.x}, ${obj.position.y}, ${obj.position.z}) - ID: ${objectId} - Dynamic: ${dynamic}`);
       }
     }
     
@@ -830,7 +835,7 @@ window.addEventListener('keydown', (e) => {
       setupRoomCollisions(forceRoom);
       wallCollisionManager.enableDebug(scene);
       console.log('[Main] Wall collision debug enabled (press K to toggle)');
-      AI.say('Wall collision debug enabled - Red = walls, Green = hallways, Yellow = hallway walls, Blue = objects');
+      AI.say('Wall collision debug enabled - Red = walls, Green = hallways, Yellow = hallway walls, Blue = objects, Purple = doors');
     }
   }
    
@@ -1129,7 +1134,7 @@ function animate(currentTime) {
     // Simple collision response - push player back to last valid position
     const lastValidPosition = activePlayer.userData.lastValidPosition || activePlayer.position.clone();
     activePlayer.position.copy(lastValidPosition);
-    console.log('[Collision] Wall collision detected, pushing player back');
+    console.log(`[Collision] Player blocked at position: (${activePlayer.position.x.toFixed(2)}, ${activePlayer.position.y.toFixed(2)}, ${activePlayer.position.z.toFixed(2)})`);
   } else {
     // Update last valid position
     activePlayer.userData.lastValidPosition = activePlayer.position.clone();
