@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { textureCache as globalTextureCache } from '../utils/TextureCache.js';
 
 // Performance optimization: Shared material pool
 const materialPool = {
@@ -6,7 +7,7 @@ const materialPool = {
   tiles: null
 };
 
-// Performance optimization: Shared texture cache
+// Performance optimization: Shared texture cache (DEPRECATED - now using globalTextureCache)
 const textureCache = {
   concrete: null,
   tiles: null
@@ -73,12 +74,11 @@ export function createReusableHallway(options = {}) {
   // Performance optimized: Get or create shared concrete material
   function getSharedConcreteMaterial(width, height, options = {}) {
     if (!materialPool.concrete) {
-      const loader = new THREE.TextureLoader();
-      
-      const colorTexture = loader.load("/textures/concrete031/Concrete031_2K-JPG_Color.jpg");
-      const normalTexture = loader.load("/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg");
-      const roughTexture = loader.load("/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg");
-      const aoTexture = loader.load("/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg");
+      // Use texture cache instead of creating new loader
+      const colorTexture = globalTextureCache.load("/textures/concrete031/Concrete031_2K-JPG_Color.jpg");
+      const normalTexture = globalTextureCache.load("/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg");
+      const roughTexture = globalTextureCache.load("/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg");
+      const aoTexture = globalTextureCache.load("/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg");
       
       // Performance optimization: Reduce anisotropy to 1
       const anisotropy = 1; // Reduced from 4 to 1 for better performance
@@ -116,12 +116,11 @@ export function createReusableHallway(options = {}) {
   // Performance optimized: Get or create shared tiles material
   function getSharedTilesMaterial(width, height, options = {}) {
     if (!materialPool.tiles) {
-      const loader = new THREE.TextureLoader();
-      
-      const colorTexture = loader.load("/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg");
-      const normalTexture = loader.load("/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg");
-      const roughTexture = loader.load("/textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg");
-      const aoTexture = loader.load("/textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg");
+      // Use texture cache instead of creating new loader
+      const colorTexture = globalTextureCache.load("/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg");
+      const normalTexture = globalTextureCache.load("/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg");
+      const roughTexture = globalTextureCache.load("/textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg");
+      const aoTexture = globalTextureCache.load("/textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg");
       
       // Performance optimization: Reduce anisotropy to 1
       const anisotropy = 1; // Reduced from 4 to 1 for better performance

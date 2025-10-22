@@ -26,6 +26,21 @@ scene.background = new THREE.Color(0x0b0b12);
 // Disable scene environment map to prevent reflections
 scene.environment = null;
 
+// --- Subtle Global Lighting (performance-friendly) ---
+// HemisphereLight provides soft ambient fill without shadows (very cheap)
+const globalHemi = new THREE.HemisphereLight(
+  0x2a3a5a, // Sky color - soft blue-grey
+  0x0f0f18, // Ground color - very dark blue
+  0.70      // Subtle intensity
+);
+globalHemi.name = 'global-hemisphere';
+scene.add(globalHemi);
+
+// Very subtle ambient light to ensure nothing is completely black
+const globalAmbient = new THREE.AmbientLight(0x1a1a2a, 0.35); // Brighter ambient light
+globalAmbient.name = 'global-ambient';
+scene.add(globalAmbient);
+
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 4, 10);
 
@@ -55,6 +70,19 @@ renderer.autoClear = false;
 
 // Player setup
 const player = setupPlayer(scene);
+
+// --- Player Personal Light (follows player) ---
+// Performance-friendly: No shadows, limited range
+const playerLight = new THREE.PointLight(
+  0xffeedd, // Warm white color
+  0.8,      // Moderate intensity
+  8,        // Limited range (8 units radius)
+  2         // Decay (light falloff rate)
+);
+playerLight.name = 'player-light';
+playerLight.castShadow = false; // CRITICAL: No shadows for performance
+playerLight.position.set(0, 2, 0); // Slightly above player center
+scene.add(playerLight);
 
 // Level Manager setup
 const levelManager = new LevelManager(scene, player);
@@ -478,6 +506,12 @@ async function initGame() {
         if (room0WestDoor) {
           room0WestDoor.userData.setLocked(false);
           room0WestDoor.userData.openDoor();
+        }
+                
+        // Force minimap redraw to show Room 3 and hallway as accessible (green)
+        if (minimap) {
+          minimap.forceRedraw();
+          console.log('Minimap marked for redraw after Room 2 completion');
         }
       }
     });
@@ -931,6 +965,12 @@ function animate(currentTime) {
   
   // Get the active player object (Leonard model or fallback box)
   const activePlayer = leonardModel || player;
+  
+  // Update player light to follow the active player
+  if (playerLight && activePlayer) {
+    playerLight.position.copy(activePlayer.position);
+    playerLight.position.y += 2; // Keep light slightly above player's head
+  }
   
   // Stage 0: Update player movement with deltaTime for animations
   // Check if movement is restricted during awakening or minigame

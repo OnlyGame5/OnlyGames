@@ -234,9 +234,38 @@ export function createRoom4() {
     }
   }
   
+  // Dispose method for cleanup
+  function dispose() {
+    // Import dispose helper
+    import('./utils/DisposeHelper.js').then(({ disposeGroup }) => {
+      disposeGroup(group);
+    });
+    
+    // Dispose of floating binary
+    if (floatingBinary && typeof floatingBinary.dispose === 'function') {
+      floatingBinary.dispose();
+    }
+    
+    // Dispose of nexus panel
+    if (nexusPanel && typeof nexusPanel.dispose === 'function') {
+      nexusPanel.dispose();
+    }
+    
+    // Clear state
+    Object.keys(state).forEach(key => {
+      state[key] = null;
+    });
+    
+    // Clear dialogue state
+    Object.keys(room4DialogueState).forEach(key => {
+      room4DialogueState[key] = null;
+    });
+  }
+  
   // Return object with group property like other rooms
   return {
     group,
+    dispose,
     update: (delta) => {
       // Update dialogue system
       updateRoom4Dialogue();

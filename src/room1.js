@@ -1833,6 +1833,34 @@ export function createRoom1() {
     }
   }
   
+  // Dispose method for cleanup
+  function dispose() {
+    // Import dispose helper
+    import('./utils/DisposeHelper.js').then(({ disposeGroup }) => {
+      disposeGroup(group);
+    });
+    
+    // Dispose of wire puzzle if it exists
+    if (wirePanel && typeof wirePanel.dispose === 'function') {
+      wirePanel.dispose();
+    }
+    
+    // Dispose of Simon stand if it exists
+    if (simonStand && typeof simonStand.dispose === 'function') {
+      simonStand.dispose();
+    }
+    
+    // Clear all references
+    Object.keys(state).forEach(key => {
+      state[key] = null;
+    });
+    
+    // Clear dialogue state
+    Object.keys(room1DialogueState).forEach(key => {
+      room1DialogueState[key] = null;
+    });
+  }
+
   return {
     group,
     anchors: { entry: entryAnchor, exit: exitAnchor },
@@ -1851,8 +1879,7 @@ export function createRoom1() {
     getLightsOn, // <-- getter for current light state
     lightsOn: lightsOn, // <-- expose current state
     updateRoom1Dialogue, // <-- contextual dialogue system
-    cleanup: () => {
-      // Clean up any room-specific resources
-    }
+    dispose, // <-- proper cleanup
+    cleanup: dispose // <-- alias for backward compatibility
   };
 }
