@@ -10,20 +10,20 @@ export const roomWallDefinitions = {
     name: 'Hub',
     walls: [
       // Back wall (split with door opening) - moved forward slightly
-      { position: new THREE.Vector3(-5.75, 2, -7.2), size: new THREE.Vector3(8.5, 4, 0.5) },
-      { position: new THREE.Vector3(5.75, 2, -7.2), size: new THREE.Vector3(8.5, 4, 0.5) },
+      { position: new THREE.Vector3(-6.5, 2, -7.2), size: new THREE.Vector3(7, 4, 0.5) },
+      { position: new THREE.Vector3(6.5, 2, -7.2), size: new THREE.Vector3(7, 4, 0.5) },
       
       // Left wall (split with Room 3 hallway) - moved forward slightly
-      { position: new THREE.Vector3(-9.7, 2, 4.0), size: new THREE.Vector3(0.5, 4, 6) },
-      { position: new THREE.Vector3(-9.7, 2, -4.0), size: new THREE.Vector3(0.5, 4, 6) },
+      { position: new THREE.Vector3(-9.7, 2, 5.0), size: new THREE.Vector3(0.5, 4, 4) },
+      { position: new THREE.Vector3(-9.7, 2, -5.0), size: new THREE.Vector3(0.5, 4, 4) },
       
       // Right wall (split with Room 1 hallway) - moved forward slightly
-      { position: new THREE.Vector3(9.7, 2, 4.0), size: new THREE.Vector3(0.5, 4, 6) },
-      { position: new THREE.Vector3(9.7, 2, -4.0), size: new THREE.Vector3(0.5, 4, 6) },
+      { position: new THREE.Vector3(9.7, 2, 5.0), size: new THREE.Vector3(0.5, 4, 4) },
+      { position: new THREE.Vector3(9.7, 2, -5.0), size: new THREE.Vector3(0.5, 4, 4) },
       
       // Front wall (split with entry) - moved forward slightly
-      { position: new THREE.Vector3(-4, 2, 7.2), size: new THREE.Vector3(6, 4, 0.5) },
-      { position: new THREE.Vector3(4, 2, 7.2), size: new THREE.Vector3(6, 4, 0.5) }
+      { position: new THREE.Vector3(-5, 2, 7.2), size: new THREE.Vector3(5, 4, 0.5) },
+      { position: new THREE.Vector3(5, 2, 7.2), size: new THREE.Vector3(5, 4, 0.5) }
     ],
     objects: [
       // Awakening chair collision (position: 0, 1.5, 2)
@@ -45,7 +45,10 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(0, 1.75, 6.5), size: new THREE.Vector3(3.0, 3.5, 0.2), type: 'door', id: 'south-door', dynamic: true },
       
       // West Door (to Room 3) - Locked until Room 2 completed - Thinner collision box
-      { position: new THREE.Vector3(-9, 1.75, 0), size: new THREE.Vector3(0.2, 3.5, 3.0), type: 'door', id: 'west-door', dynamic: true }
+      { position: new THREE.Vector3(-9, 1.75, 0), size: new THREE.Vector3(0.2, 3.5, 3.0), type: 'door', id: 'west-door', dynamic: true },
+      
+      // Main Door (RESTRICTED SECTOR) - Locked until key is found - Thinner collision box
+      { position: new THREE.Vector3(0, 1.75, -7.35), size: new THREE.Vector3(3.0, 3.5, 0.2), type: 'door', id: 'stage0-door', dynamic: true }
     ],
     hallways: [
       // Room 1 hallway (East)
@@ -196,6 +199,32 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(-40, 2, 4.0), size: new THREE.Vector3(0.5, 4, 6) },
       { position: new THREE.Vector3(-40, 2, -4.0), size: new THREE.Vector3(0.5, 4, 6) }
     ],
+    objects: [
+      // Server racks and equipment collision boxes
+      // Server rack 1 (position: -5, 0, -5) -> World: (-35, 1, -5)
+      { position: new THREE.Vector3(-35, 1, -5), size: new THREE.Vector3(1.0, 2.0, 0.8), type: 'serverRack' },
+      
+      // Server rack 2 (position: -5, 0, 5) -> World: (-35, 1, 5)
+      { position: new THREE.Vector3(-35, 1, 5), size: new THREE.Vector3(1.0, 2.0, 0.8), type: 'serverRack' },
+      
+      // Server rack 3 (position: 5, 0, -5) -> World: (-25, 1, -5)
+      { position: new THREE.Vector3(-25, 1, -5), size: new THREE.Vector3(1.0, 2.0, 0.8), type: 'serverRack' },
+      
+      // Server rack 4 (position: 5, 0, 5) -> World: (-25, 1, 5)
+      { position: new THREE.Vector3(-25, 1, 5), size: new THREE.Vector3(1.0, 2.0, 0.8), type: 'serverRack' },
+      
+      // Central console (position: 0, 0, 0) -> World: (-30, 0.5, 0)
+      { position: new THREE.Vector3(-30, 0.5, 0), size: new THREE.Vector3(2.0, 1.0, 1.5), type: 'console' },
+      
+      // Data storm puzzle console (position: 0, 0, -3) -> World: (-30, 0.5, -3)
+      { position: new THREE.Vector3(-30, 0.5, -3), size: new THREE.Vector3(1.5, 1.0, 1.0), type: 'dataStormConsole' },
+      
+      // Purge minigame console (position: 0, 0, 3) -> World: (-30, 0.5, 3)
+      { position: new THREE.Vector3(-30, 0.5, 3), size: new THREE.Vector3(1.5, 1.0, 1.0), type: 'purgeConsole' },
+      
+      // Light fixture (position: 0, 4.0, 0) -> World: (-30, 4.0, 0)
+      { position: new THREE.Vector3(-30, 4.0, 0), size: new THREE.Vector3(1.0, 0.5, 1.0), type: 'lightFixture' }
+    ],
     hallways: [
       // Hub connection
       { position: new THREE.Vector3(-15, 1, 0), size: new THREE.Vector3(10, 4, 2) }
@@ -217,6 +246,31 @@ export const roomWallDefinitions = {
       // Front wall (with hub connection) - Room 4 is at (0, 0, -26.5), so front wall is at z = -26.5 + 9 = -17.5
       { position: new THREE.Vector3(-4.5, 2, -17.5), size: new THREE.Vector3(9, 4, 0.5) },
       { position: new THREE.Vector3(4.5, 2, -17.5), size: new THREE.Vector3(9, 4, 0.5) }
+    ],
+    objects: [
+      // Nexus panel (position: 0, 0, -7.5) -> World: (0, 0.5, -34.0)
+      { position: new THREE.Vector3(0, 0.5, -34.0), size: new THREE.Vector3(2.0, 1.0, 1.5), type: 'nexusPanel' },
+      
+      // Floating binary console (position: -3, 0, -5) -> World: (-3, 0.5, -31.5)
+      { position: new THREE.Vector3(-3, 0.5, -31.5), size: new THREE.Vector3(1.5, 1.0, 1.0), type: 'binaryConsole' },
+      
+      // Floating binary console 2 (position: 3, 0, -5) -> World: (3, 0.5, -31.5)
+      { position: new THREE.Vector3(3, 0.5, -31.5), size: new THREE.Vector3(1.5, 1.0, 1.0), type: 'binaryConsole' },
+      
+      // Sci-fi table (position: 0, 0, -2) -> World: (0, 0.5, -28.5)
+      { position: new THREE.Vector3(0, 0.5, -28.5), size: new THREE.Vector3(2.0, 1.0, 1.5), type: 'table' },
+      
+      // Sci-fi tablet (position: 0, 0, -1) -> World: (0, 0.3, -27.5)
+      { position: new THREE.Vector3(0, 0.3, -27.5), size: new THREE.Vector3(1.0, 0.6, 0.8), type: 'tablet' },
+      
+      // Console 1 (position: -4, 0, 2) -> World: (-4, 0.4, -24.5)
+      { position: new THREE.Vector3(-4, 0.4, -24.5), size: new THREE.Vector3(1.0, 0.8, 0.6), type: 'console' },
+      
+      // Console 2 (position: 4, 0, 2) -> World: (4, 0.4, -24.5)
+      { position: new THREE.Vector3(4, 0.4, -24.5), size: new THREE.Vector3(1.0, 0.8, 0.6), type: 'console' },
+      
+      // Light fixture (position: 0, 4.0, 0) -> World: (0, 4.0, -26.5)
+      { position: new THREE.Vector3(0, 4.0, -26.5), size: new THREE.Vector3(1.0, 0.5, 1.0), type: 'lightFixture' }
     ],
     hallways: [
       // Hub connection - Room 4 is at (0, 0, -26.5), so hallway is at z = -26.5 + 9 = -17.5

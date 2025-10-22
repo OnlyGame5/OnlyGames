@@ -186,12 +186,13 @@ export class WallCollisionManager {
     const doorObject = this.findDoorById(doorObj.id);
     if (!doorObject) {
       // If door not found, treat as solid collision
+      console.log(`[Debug] Door object not found in scene: ${doorObj.id}`);
       return this.isAABBOverlap(playerMin, playerMax, doorObj.min, doorObj.max);
     }
 
     // Check if door is locked OR not fully open
     const isLocked = doorObject.userData.locked;
-    const openAmount = doorObject.userData.state.openAmount;
+    const openAmount = doorObject.userData.state?.openAmount || 0;
     const isOpen = openAmount > 0.9;
     
     // If door is unlocked and fully open, no collision
@@ -204,24 +205,93 @@ export class WallCollisionManager {
   }
 
   /**
+   * Check if player is near a door for interaction
+   * @param {THREE.Vector3} playerPosition - Player position
+   * @param {number} interactionRange - Range for door interaction
+   * @returns {Object|null} - Door object and interaction info, or null
+   */
+  checkDoorInteraction(playerPosition, interactionRange = 2.0) {
+    const playerMin = new THREE.Vector3(
+      playerPosition.x - interactionRange,
+      playerPosition.y - interactionRange,
+      playerPosition.z - interactionRange
+    );
+    const playerMax = new THREE.Vector3(
+      playerPosition.x + interactionRange,
+      playerPosition.y + interactionRange,
+      playerPosition.z + interactionRange
+    );
+
+    // Check all door objects for interaction
+    for (const doorObj of this.objects) {
+      if (doorObj.type === 'door' && doorObj.dynamic) {
+        if (this.isAABBOverlap(playerMin, playerMax, doorObj.min, doorObj.max)) {
+          const doorObject = this.findDoorById(doorObj.id);
+          if (doorObject) {
+            return {
+              door: doorObject,
+              doorObj: doorObj,
+              canInteract: true,
+              isLocked: doorObject.userData.locked,
+              isOpen: doorObject.userData.state?.openAmount > 0.9,
+              distance: playerPosition.distanceTo(doorObject.position)
+            };
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Get door interaction text based on door state
+   * @param {Object} doorInfo - Door interaction info from checkDoorInteraction
+   * @returns {string} - Interaction text
+   */
+  getDoorInteractionText(doorInfo) {
+    if (!doorInfo) return '';
+    
+    if (doorInfo.isLocked) {
+      return 'Door is locked - Complete required tasks to unlock';
+    } else if (doorInfo.isOpen) {
+      return 'Press E to close door';
+    } else {
+      return 'Press E to open door';
+    }
+  }
+
+  /**
    * Find door object by ID in the scene
    * @param {string} id - Door ID
    * @returns {THREE.Object3D|null} - Door object or null
    */
   findDoorById(id) {
     if (!this.scene) {
+      console.log(`[Debug] No scene available for door search: ${id}`);
       return null;
     }
     
     let foundDoor = null;
+    let foundObjects = [];
     
     // Use traverse to search the entire scene graph
     this.scene.traverse((object) => {
-      if (object.userData && object.userData.id === id && object.userData.category === 'door') {
-        foundDoor = object;
-        return; // Stop searching once found
+      if (object.userData && object.userData.id === id) {
+        foundObjects.push({ object, userData: object.userData });
+        console.log(`[Debug] Found object with ID ${id}:`, object.userData);
+        if (object.userData.category === 'door') {
+          foundDoor = object;
+          console.log(`[Debug] Found DOOR object: ${id}`);
+          return; // Stop searching once found
+        }
       }
     });
+    
+    if (!foundDoor) {
+      console.log(`[Debug] Door not found in scene: ${id}`);
+      console.log(`[Debug] Found ${foundObjects.length} objects with ID ${id}:`, foundObjects);
+    }
     
     return foundDoor;
   }
@@ -254,6 +324,9 @@ export class WallCollisionManager {
   enableDebug(scene) {
     this.debugMode = true;
     this.clearDebug();
+    
+    console.log(`[Debug] Enabling debug for scene with ${this.objects.length} objects`);
+    console.log(`[Debug] Objects:`, this.objects.map(obj => ({ id: obj.id, type: obj.type, dynamic: obj.dynamic })));
 
     // Create debug meshes for walls (red)
     for (const wall of this.walls) {
@@ -304,11 +377,15 @@ export class WallCollisionManager {
     }
 
     // Create debug meshes for objects (blue) and doors (purple)
+    console.log(`[Debug] Creating debug meshes for ${this.objects.length} objects`);
     for (const obj of this.objects) {
+      console.log(`[Debug] Creating debug mesh for object: ${obj.id}, type: ${obj.type}, dynamic: ${obj.dynamic}`);
       const geometry = new THREE.BoxGeometry(obj.size.x, obj.size.y, obj.size.z);
       
       // Different colors for doors vs other objects
       const color = obj.type === 'door' ? 0x800080 : 0x0000ff; // Purple for doors, blue for objects
+      console.log(`[Debug] Object ${obj.id} type: "${obj.type}", color: ${color.toString(16)}`);
+      
       const material = new THREE.MeshBasicMaterial({ 
         color: color, 
         transparent: true, 
@@ -320,6 +397,12 @@ export class WallCollisionManager {
       mesh.userData = { type: 'object', id: obj.id, objectType: obj.type, dynamic: obj.dynamic };
       scene.add(mesh);
       this.debugMeshes.push(mesh);
+      
+      if (obj.type === 'door') {
+        console.log(`[Debug] Created PURPLE debug mesh for door: ${obj.id} at position:`, obj.position);
+      } else {
+        console.log(`[Debug] Created BLUE debug mesh for object: ${obj.id} at position:`, obj.position);
+      }
     }
   }
 

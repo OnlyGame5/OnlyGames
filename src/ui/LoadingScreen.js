@@ -110,7 +110,15 @@ Whose truth will you believe?`;
   startGate.addEventListener('click', handleStartGateClick);
   startGate.addEventListener('keydown', handleStartGateKeyPress);
   
-  // Add user interaction listener to start audio (required by browsers)
+  // Try to start audio immediately (auto-play attempt)
+  console.log('Attempting immediate audio start...');
+  
+  // Try multiple times with different delays to maximize auto-play success
+  setTimeout(() => audioManager.startMusic(), 100);
+  setTimeout(() => audioManager.startMusic(), 500);
+  setTimeout(() => audioManager.startMusic(), 1000);
+  
+  // Add user interaction listener as fallback (required by browsers)
   const startAudioOnInteraction = () => {
     console.log('User interaction detected - attempting to start audio');
     audioManager.startMusic();
@@ -120,12 +128,6 @@ Whose truth will you believe?`;
   
   document.addEventListener('click', startAudioOnInteraction);
   document.addEventListener('keydown', startAudioOnInteraction);
-  
-  // Also try to start audio immediately (in case user has already interacted)
-  console.log('Attempting immediate audio start...');
-  setTimeout(() => {
-    audioManager.startMusic();
-  }, 100);
   
   // Prevent default form submission behavior
   document.addEventListener('submit', (e) => {
@@ -156,6 +158,7 @@ Whose truth will you believe?`;
     hasContinued = true;
     
     // Stop the music before fading out
+    console.log('Stopping loading screen music...');
     audioManager.stopMusic();
     
     // Add fade out class
@@ -167,6 +170,10 @@ Whose truth will you believe?`;
       if (matrixAnimation.stop) {
         matrixAnimation.stop();
       }
+      
+      // Final cleanup of audio
+      console.log('Final audio cleanup...');
+      audioManager.stopMusic();
       
       // Remove event listeners
       document.removeEventListener('keydown', handleKeyPress, true);
@@ -260,6 +267,7 @@ function createAudioManager() {
     
     backgroundMusic.addEventListener('canplaythrough', () => {
       console.log('Loading screen music ready');
+      
     });
   }
   
@@ -271,16 +279,24 @@ function createAudioManager() {
     console.log('Is playing:', isPlaying);
     
     if (backgroundMusic && !isPlaying) {
-      backgroundMusic.play()
-        .then(() => {
-          isPlaying = true;
-          console.log('Loading screen music started successfully');
-        })
-        .catch((error) => {
-          console.error('Could not start loading screen music:', error);
-        });
+      // Try to play immediately
+      const playPromise = backgroundMusic.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            isPlaying = true;
+            console.log('Loading screen music started successfully');
+          })
+          .catch((error) => {
+            console.log('Auto-play blocked by browser - music will start on user interaction:', error.message);
+            // Don't treat this as an error - it's expected behavior
+          });
+      }
+    } else if (isPlaying) {
+      console.log('Music is already playing');
     } else {
-      console.warn('Cannot start music - missing background music or already playing');
+      console.warn('Cannot start music - missing background music');
     }
   }
   
@@ -289,10 +305,22 @@ function createAudioManager() {
     if (backgroundMusic) {
       backgroundMusic.pause();
       backgroundMusic.currentTime = 0;
+      backgroundMusic.volume = 0; // Mute the volume
+      console.log('Loading screen music paused and muted');
     }
     
     isPlaying = false;
     console.log('Loading screen music stopped');
+    
+    // Also stop any other audio elements on the page
+    const allAudioElements = document.querySelectorAll('audio');
+    allAudioElements.forEach(audio => {
+      if (!audio.paused) {
+        audio.pause();
+        audio.currentTime = 0;
+        console.log('Stopped additional audio element');
+      }
+    });
   }
   
   // Initialize audio when manager is created

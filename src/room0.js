@@ -309,78 +309,8 @@ export function createRoom0() {
     group.add(bar);
   }
 
-  // Stage 0: Roof
-  const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(20, 0.3, 15),
-    new THREE.MeshStandardMaterial({ color: 0x555555 })
-  );
-  roof.position.set(0, wallHeight + 0.15, 0);
-  roof.receiveShadow = true;
-  group.add(roof);
-
-  // Stage 0: Enhanced ceiling light fixture with proper housing
-  const lightFixtureGroup = new THREE.Group();
-  lightFixtureGroup.name = 'ceiling-light-fixture';
-  
-  // Main light housing (metallic)
-  const lightHousing = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.8, 1.8, 0.3, 16),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x333333,
-      metalness: 0.9,
-      roughness: 0.1
-    })
-  );
-  lightHousing.position.set(0, 0, 0);
-  lightHousing.castShadow = false; // Don't cast shadows to avoid blocking light
-  lightHousing.receiveShadow = true;
-  lightFixtureGroup.add(lightHousing);
-  
-  // Light diffuser/cover (semi-transparent)
-  const lightDiffuser = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.6, 1.6, 0.1, 16),
-    new THREE.MeshStandardMaterial({ 
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.3,
-      // emissive: 0xffffff, // Removed for performance
-      // emissiveIntensity: 0.1 // Removed for performance
-    })
-  );
-  lightDiffuser.position.set(0, -0.1, 0);
-  lightDiffuser.castShadow = false;
-  lightFixtureGroup.add(lightDiffuser);
-  
-  // Light bulb/emitter (glowing)
-  const lightBulb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.3, 12, 8),
-    new THREE.MeshStandardMaterial({ 
-      color: 0xffffff,
-      // emissive: 0xffffff, // Removed for performance
-      // emissiveIntensity: 0.8, // Removed for performance
-      transparent: true,
-      opacity: 0.9
-    })
-  );
-  lightBulb.position.set(0, -0.15, 0);
-  lightBulb.castShadow = false;
-  lightFixtureGroup.add(lightBulb);
-  
-  // Mounting bracket
-  const mountingBracket = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.1, 0.1, 0.4, 8),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x222222,
-      metalness: 0.8,
-      roughness: 0.3
-    })
-  );
-  mountingBracket.position.set(0, 0.2, 0);
-  mountingBracket.castShadow = false; // Don't cast shadows to avoid blocking light
-  lightFixtureGroup.add(mountingBracket);
-  
-  lightFixtureGroup.position.set(0, wallHeight - 0.1, 0);
-  group.add(lightFixtureGroup);
+  // Stage 0: Roof removed - now using global skybox
+  // Ceiling light fixture removed - now using global lighting
 
   // --- Standard lighting rig for Room 0 ---
   {
@@ -576,6 +506,8 @@ export function createRoom0() {
     labelText: "EAST SECTOR",
     id: 'east-door'
   });
+  
+  console.log(`[Room0] Created east door with ID: ${eastDoor.userData.id}, category: ${eastDoor.userData.category}`);
 
   eastDoor.userData.onOpen = () => {
     if (window.AI) {
@@ -610,6 +542,8 @@ export function createRoom0() {
     labelText: "SOUTH SECTOR",
     id: 'south-door'
   });
+  
+  console.log(`[Room0] Created south door with ID: ${southDoor.userData.id}, category: ${southDoor.userData.category}`);
 
   southDoor.userData.onOpen = () => {
     if (window.AI) {
@@ -644,6 +578,8 @@ export function createRoom0() {
     labelText: "ROOM 3 ACCESS\nREQUIRES ROOM 2 COMPLETION",
     id: 'west-door'
   });
+  
+  console.log(`[Room0] Created west door with ID: ${westDoor.userData.id}, category: ${westDoor.userData.category}`);
 
   westDoor.userData.onOpen = () => {
     if (window.AI) {
@@ -665,6 +601,7 @@ export function createRoom0() {
 
   westDoor.castShadow = true;
   group.add(westDoor);
+
 
   // Stage 0: Doorway trigger volume (Box3 for transition check)
   const doorwayBox = new THREE.Box3();

@@ -92,14 +92,7 @@ export function createRoom4() {
   rightWall.receiveShadow = true;
   group.add(rightWall);
 
-  // Black ceiling
-  const ceilingGeometry = new THREE.BoxGeometry(18, 0.2, 18);
-  const ceilingMaterial = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.9, metalness: 0.0 });
-  const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
-  ceiling.position.set(0, 4, 0);
-  ceiling.receiveShadow = true;
-  ceiling.name = 'room4-ceiling';
-  group.add(ceiling);
+  // Ceiling removed - now using global skybox
 
   // Add hallway connecting to center room (Room 0)
   // Temporarily comment out hallway to test basic room
