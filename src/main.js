@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory } from './player.js';
 import { AI } from './ai.js';
+import { WallCollisionManager } from './collision/WallCollisionManager.js';
+import { roomWallDefinitions } from './collision/roomWalls.js';
 import { createRoom0 } from './room0.js';
 import { createRoom1 } from './room1.js';
 import { createRoom2 } from './room2.js';
@@ -83,6 +85,58 @@ playerLight.name = 'player-light';
 playerLight.castShadow = false; // CRITICAL: No shadows for performance
 playerLight.position.set(0, 2, 0); // Slightly above player center
 scene.add(playerLight);
+
+// Wall Collision Manager setup
+const wallCollisionManager = new WallCollisionManager();
+console.log('[Main] Wall collision system initialized');
+
+// Make collision manager globally accessible for debugging
+window.wallCollisionManager = wallCollisionManager;
+
+/**
+ * Setup wall collisions for current room
+ */
+function setupRoomCollisions(roomId = null) {
+  // Clear existing walls
+  wallCollisionManager.clear();
+  
+  // Get current room
+  let currentRoomId = roomId || (gameStore.getCurrentRoom ? gameStore.getCurrentRoom() : 'room0');
+  
+  // Fix: Convert 'hub' to 'room0' for wall definitions
+  if (currentRoomId === 'hub') {
+    currentRoomId = 'room0';
+  }
+  
+  console.log(`[Collision] Setting up collisions for room: ${currentRoomId}`);
+  console.log(`[Collision] Available rooms:`, Object.keys(roomWallDefinitions));
+  
+  const roomData = roomWallDefinitions[currentRoomId];
+  
+  if (roomData) {
+    console.log(`[Collision] Setting up walls for ${roomData.name}`);
+    
+    // Add walls
+    for (let i = 0; i < roomData.walls.length; i++) {
+      const wall = roomData.walls[i];
+      wallCollisionManager.addWall(wall.position, wall.size, `${currentRoomId}-wall-${i}`);
+      console.log(`[Collision] Added wall ${i} at (${wall.position.x}, ${wall.position.y}, ${wall.position.z})`);
+    }
+    
+    // Add hallways
+    for (let i = 0; i < roomData.hallways.length; i++) {
+      const hallway = roomData.hallways[i];
+      wallCollisionManager.addHallway(hallway.position, hallway.size, `${currentRoomId}-hallway-${i}`);
+      console.log(`[Collision] Added hallway ${i} at (${hallway.position.x}, ${hallway.position.y}, ${hallway.position.z})`);
+    }
+    
+    console.log(`[Collision] Added ${roomData.walls.length} walls and ${roomData.hallways.length} hallways`);
+    console.log(`[Collision] Total walls in manager: ${wallCollisionManager.walls.length}`);
+    console.log(`[Collision] Total hallways in manager: ${wallCollisionManager.hallways.length}`);
+  } else {
+    console.log(`[Collision] No wall definitions found for room: ${currentRoomId}`);
+  }
+}
 
 // Level Manager setup
 const levelManager = new LevelManager(scene, player);
@@ -570,6 +624,9 @@ async function initGame() {
     // Complete loading
     updateProgress(2); // Models and final setup
     
+    // Setup wall collisions for the hub
+    setupRoomCollisions();
+    
     console.log('Game initialized successfully!');
   } catch (error) {
     console.error('Failed to initialize game:', error);
@@ -729,6 +786,22 @@ window.addEventListener('keydown', (e) => {
        minimap.toggleZoom();
      }
    }
+   
+  // K key for wall collision debug toggle
+  if (e.code === 'KeyK') {
+    if (wallCollisionManager.debugMode) {
+      wallCollisionManager.clearDebug();
+      console.log('[Main] Wall collision debug disabled');
+      AI.say('Wall collision debug disabled');
+    } else {
+      // Force collision setup before enabling debug
+      console.log('[Main] Forcing collision setup...');
+      setupRoomCollisions();
+      wallCollisionManager.enableDebug(scene);
+      console.log('[Main] Wall collision debug enabled (press K to toggle)');
+      AI.say('Wall collision debug enabled - Red = walls, Green = hallways');
+    }
+  }
    
   // F key for FPS counter toggle and Room 2 note interaction
   if (e.code === 'KeyF') {
@@ -984,12 +1057,51 @@ function animate(currentTime) {
     updatePlayer(activePlayer, camera, deltaTime);
   }
   
-  // --- NEW SIMPLIFIED COLLISION LOGIC ---
+  // --- SAFE WALL COLLISION SYSTEM ---
+  // Only run collision for current room, no room transitions
   const currentRoomId = gameStore.getCurrentRoom ? gameStore.getCurrentRoom() : 'room0';
-  const room = gameState[currentRoomId];
-
-  if (room && room.checkWallCollisions) {
-      room.checkWallCollisions(activePlayer);
+  
+  // Enhanced room detection based on player position
+  let detectedRoom = 'room0'; // Default to hub
+  
+  // Check player position to determine current room
+  const playerX = activePlayer.position.x;
+  const playerZ = activePlayer.position.z;
+  
+  if (playerX > 20) {
+    detectedRoom = 'room1'; // East
+  } else if (playerZ > 15) {
+    detectedRoom = 'room2'; // South  
+  } else if (playerX < -20) {
+    detectedRoom = 'room3'; // West
+  } else if (playerZ < -20) {
+    detectedRoom = 'room4'; // North
+  } else {
+    detectedRoom = 'room0'; // Hub
+  }
+  
+  // Check if we need to update collision setup (room changed)
+  if (window.lastCollisionRoom !== detectedRoom) {
+    console.log(`[Collision] Room changed from ${window.lastCollisionRoom} to ${detectedRoom} (player at ${playerX.toFixed(1)}, ${playerZ.toFixed(1)})`);
+    setupRoomCollisions(detectedRoom);
+    window.lastCollisionRoom = detectedRoom;
+  }
+  
+  // Run wall collision detection
+  const collision = wallCollisionManager.checkCollision(activePlayer.position, 0.5);
+  if (collision) {
+    // Simple collision response - push player back to last valid position
+    const lastValidPosition = activePlayer.userData.lastValidPosition || activePlayer.position.clone();
+    activePlayer.position.copy(lastValidPosition);
+    console.log('[Collision] Wall collision detected, pushing player back');
+  } else {
+    // Update last valid position
+    activePlayer.userData.lastValidPosition = activePlayer.position.clone();
+  }
+  
+  // Debug: Log collision status occasionally
+  if (Math.random() < 0.01) { // 1% chance per frame
+    console.log(`[Collision Debug] Player at (${activePlayer.position.x.toFixed(2)}, ${activePlayer.position.z.toFixed(2)}), collision: ${collision}`);
   }
   
   // Check hallway collisions
