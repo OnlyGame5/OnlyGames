@@ -110,26 +110,19 @@ function setupRoomCollisions(roomId = null) {
     currentRoomId = 'room0';
   }
   
-  console.log(`[Collision] Setting up collisions for room: ${currentRoomId}`);
-  console.log(`[Collision] Available rooms:`, Object.keys(roomWallDefinitions));
-  
   const roomData = roomWallDefinitions[currentRoomId];
   
   if (roomData) {
-    console.log(`[Collision] Setting up walls for ${roomData.name}`);
-    
     // Add walls
     for (let i = 0; i < roomData.walls.length; i++) {
       const wall = roomData.walls[i];
       wallCollisionManager.addWall(wall.position, wall.size, `${currentRoomId}-wall-${i}`);
-      console.log(`[Collision] Added wall ${i} at (${wall.position.x}, ${wall.position.y}, ${wall.position.z})`);
     }
     
     // Add hallways
     for (let i = 0; i < roomData.hallways.length; i++) {
       const hallway = roomData.hallways[i];
       wallCollisionManager.addHallway(hallway.position, hallway.size, `${currentRoomId}-hallway-${i}`);
-      console.log(`[Collision] Added hallway ${i} at (${hallway.position.x}, ${hallway.position.y}, ${hallway.position.z})`);
     }
     
     // Add objects (chairs, pedestals, doors, etc.)
@@ -140,7 +133,6 @@ function setupRoomCollisions(roomId = null) {
         // Use the object's own ID if it has one, otherwise use generic ID
         const objectId = obj.id || `${currentRoomId}-object-${i}`;
         wallCollisionManager.addObject(obj.position, obj.size, objectId, obj.type, dynamic);
-        console.log(`[Collision] Added ${obj.type} ${i} at (${obj.position.x}, ${obj.position.y}, ${obj.position.z}) - ID: ${objectId} - Dynamic: ${dynamic}`);
       }
     }
     
@@ -149,17 +141,8 @@ function setupRoomCollisions(roomId = null) {
       for (let i = 0; i < roomData.hallwayWalls.length; i++) {
         const hallwayWall = roomData.hallwayWalls[i];
         wallCollisionManager.addHallwayWall(hallwayWall.position, hallwayWall.size, `${currentRoomId}-hallway-wall-${i}`);
-        console.log(`[Collision] Added hallway wall ${i} at (${hallwayWall.position.x}, ${hallwayWall.position.y}, ${hallwayWall.position.z})`);
       }
     }
-    
-    console.log(`[Collision] Added ${roomData.walls.length} walls, ${roomData.hallways.length} hallways, ${roomData.objects ? roomData.objects.length : 0} objects, and ${roomData.hallwayWalls ? roomData.hallwayWalls.length : 0} hallway walls`);
-    console.log(`[Collision] Total walls in manager: ${wallCollisionManager.walls.length}`);
-    console.log(`[Collision] Total hallways in manager: ${wallCollisionManager.hallways.length}`);
-    console.log(`[Collision] Total objects in manager: ${wallCollisionManager.objects.length}`);
-    console.log(`[Collision] Total hallway walls in manager: ${wallCollisionManager.hallwayWalls.length}`);
-  } else {
-    console.log(`[Collision] No wall definitions found for room: ${currentRoomId}`);
   }
 }
 
@@ -1116,14 +1099,8 @@ function animate(currentTime) {
     detectedRoom = 'room0'; // Hub
   }
   
-  // Debug: Log room detection occasionally
-  if (Math.random() < 0.01) { // 1% chance per frame
-    console.log(`[Room Detection] Player at (${playerX.toFixed(1)}, ${playerZ.toFixed(1)}) -> Room: ${detectedRoom}`);
-  }
-  
   // Check if we need to update collision setup (room changed)
   if (window.lastCollisionRoom !== detectedRoom) {
-    console.log(`[Collision] Room changed from ${window.lastCollisionRoom} to ${detectedRoom} (player at ${playerX.toFixed(1)}, ${playerZ.toFixed(1)})`);
     setupRoomCollisions(detectedRoom);
     window.lastCollisionRoom = detectedRoom;
   }
@@ -1134,21 +1111,9 @@ function animate(currentTime) {
     // Simple collision response - push player back to last valid position
     const lastValidPosition = activePlayer.userData.lastValidPosition || activePlayer.position.clone();
     activePlayer.position.copy(lastValidPosition);
-    console.log(`[Collision] Player blocked at position: (${activePlayer.position.x.toFixed(2)}, ${activePlayer.position.y.toFixed(2)}, ${activePlayer.position.z.toFixed(2)})`);
   } else {
     // Update last valid position
     activePlayer.userData.lastValidPosition = activePlayer.position.clone();
-  }
-  
-  // Debug: Log collision status occasionally when in Room 1
-  if (detectedRoom === 'room1' && Math.random() < 0.02) { // 2% chance per frame
-    console.log(`[Room 1 Collision Debug] Player at (${activePlayer.position.x.toFixed(2)}, ${activePlayer.position.z.toFixed(2)}), collision: ${collision}`);
-    console.log(`[Room 1 Collision Debug] Manager has ${wallCollisionManager.walls.length} walls, ${wallCollisionManager.hallways.length} hallways, ${wallCollisionManager.objects.length} objects, ${wallCollisionManager.hallwayWalls.length} hallway walls`);
-  }
-  
-  // Debug: Log collision status occasionally
-  if (Math.random() < 0.01) { // 1% chance per frame
-    console.log(`[Collision Debug] Player at (${activePlayer.position.x.toFixed(2)}, ${activePlayer.position.z.toFixed(2)}), collision: ${collision}`);
   }
   
   // Check hallway collisions

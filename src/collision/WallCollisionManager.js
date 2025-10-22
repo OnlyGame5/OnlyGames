@@ -185,7 +185,6 @@ export class WallCollisionManager {
     // Find the actual door object in the scene
     const doorObject = this.findDoorById(doorObj.id);
     if (!doorObject) {
-      console.log(`[Door Collision] Door ${doorObj.id} not found in scene`);
       // If door not found, treat as solid collision
       return this.isAABBOverlap(playerMin, playerMax, doorObj.min, doorObj.max);
     }
@@ -195,24 +194,12 @@ export class WallCollisionManager {
     const openAmount = doorObject.userData.state.openAmount;
     const isOpen = openAmount > 0.9;
     
-    // Debug logging for door state
-    if (this.isAABBOverlap(playerMin, playerMax, doorObj.min, doorObj.max)) {
-      console.log(`[Door Collision] Door ${doorObj.id} state:`, {
-        isLocked,
-        openAmount: openAmount.toFixed(2),
-        isOpen,
-        shouldBlock: isLocked || !isOpen
-      });
-    }
-    
     // If door is unlocked and fully open, no collision
     if (!isLocked && isOpen) {
-      console.log(`[Door Collision] Door ${doorObj.id} is open - no collision`);
       return false;
     }
     
     // If door is locked or not fully open, check collision
-    console.log(`[Door Collision] Door ${doorObj.id} is closed/locked - collision active`);
     return this.isAABBOverlap(playerMin, playerMax, doorObj.min, doorObj.max);
   }
 
@@ -223,26 +210,18 @@ export class WallCollisionManager {
    */
   findDoorById(id) {
     if (!this.scene) {
-      console.log(`[Door Collision] Scene not available`);
       return null;
     }
     
     let foundDoor = null;
-    let searchCount = 0;
     
     // Use traverse to search the entire scene graph
     this.scene.traverse((object) => {
-      searchCount++;
       if (object.userData && object.userData.id === id && object.userData.category === 'door') {
         foundDoor = object;
-        console.log(`[Door Collision] Found door ${id} after searching ${searchCount} objects`);
         return; // Stop searching once found
       }
     });
-    
-    if (!foundDoor) {
-      console.log(`[Door Collision] Door ${id} not found after searching ${searchCount} objects`);
-    }
     
     return foundDoor;
   }
