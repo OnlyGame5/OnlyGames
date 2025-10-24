@@ -6,6 +6,7 @@ import { AI } from './ai.js'; // AI for feedback
 import { ScaleOfBalance } from './puzzles/ScaleOfBalance.js';
 import { CandleBeamPuzzle } from './puzzles/CandleBeamPuzzle.js';
 import { gameStore } from './state/gameStore.js'; // Game state tracking
+import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 
 export function createRoom2() {
   const group = new THREE.Group();
@@ -52,16 +53,36 @@ export function createRoom2() {
     }
   }
 
-  const wallMaterial = new THREE.MeshStandardMaterial({
-    color: 0x333344, 
-    roughness: 0.35,
-    metalness: 0.5
+  // Concrete031 texture files for Room 2
+  const concrete031Files = {
+    color: "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
+    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
+    rough: "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
+    ao: "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg"
+  };
+
+  // Create concrete material for walls
+  const wallMaterial = makeConcrete031MaterialFlexible(12, 4, concrete031Files, {
+    uScale: 0.8,
+    vScale: 0.8,
+    metalness: 0.1,
+    roughness: 0.8,
+    anisotropy: 4
+  });
+
+  // Create concrete material for floor
+  const floorMaterial = makeConcrete031MaterialFlexible(12, 12, concrete031Files, {
+    uScale: 1.0,
+    vScale: 1.0,
+    metalness: 0.0,
+    roughness: 0.9,
+    anisotropy: 4
   });
 
   // Floor
   const floor = new THREE.Mesh(
     new THREE.BoxGeometry(12, 0.2, 12),
-    wallMaterial
+    floorMaterial
   );
   floor.receiveShadow = true;
   group.add(floor);

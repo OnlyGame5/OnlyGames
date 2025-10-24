@@ -23,7 +23,10 @@ export function initMenu({ onPauseChange: pauseCallback }) {
   buildMenu();
   bindEvents();
   startGameTimer();
-  startGameCountdown(20); // Start 20-minute countdown
+  
+  // Get difficulty from localStorage or default to normal
+  const difficulty = localStorage.getItem('gameDifficulty') || 'normal';
+  startGameCountdown(difficulty);
   
 }
 
@@ -76,7 +79,25 @@ function resumeTimer() {
 }
 
 // Start the game countdown
-function startGameCountdown(minutes = 20) {
+function startGameCountdown(difficulty = 'normal') {
+  let minutes;
+  switch(difficulty) {
+    case 'easy':
+      // Easy mode - no countdown
+      gameCountdown = null;
+      countdownInterval = null;
+      updateCountdownDisplay();
+      return;
+    case 'normal':
+      minutes = 20;
+      break;
+    case 'hard':
+      minutes = 10;
+      break;
+    default:
+      minutes = 20;
+  }
+  
   gameCountdown = minutes * 60; // convert to seconds
   countdownPausedTime = 0;
   countdownPauseStartTime = null;
@@ -95,6 +116,25 @@ function startGameCountdown(minutes = 20) {
 function updateCountdownDisplay() {
   const countdownElement = document.getElementById('game-countdown');
   const mainCountdownElement = document.getElementById('countdown-timer');
+  const countdownContainer = document.getElementById('game-countdown-display');
+  
+  // Handle easy mode (no countdown)
+  if (gameCountdown === null) {
+    // Hide countdown display for easy mode
+    if (countdownContainer) {
+      countdownContainer.style.display = 'none';
+    }
+    if (countdownElement) {
+      countdownElement.textContent = 'No Limit';
+      countdownElement.style.color = '#00ff00';
+    }
+    return;
+  }
+  
+  // Show countdown for normal/hard modes
+  if (countdownContainer) {
+    countdownContainer.style.display = 'block';
+  }
   
   const minutes = Math.floor(gameCountdown / 60);
   const seconds = gameCountdown % 60;
@@ -117,14 +157,28 @@ function updateCountdownDisplay() {
   // Update main HUD countdown
   if (mainCountdownElement) {
     mainCountdownElement.textContent = timeString;
-    
-    // Change color based on remaining time
+  }
+  
+  // Update entire countdown container styling
+  if (countdownContainer) {
     if (gameCountdown <= 60) {
-      mainCountdownElement.style.color = '#ff0000'; // Red for last minute
+      // Red for last minute - critical
+      countdownContainer.style.color = '#ff0000';
+      countdownContainer.style.borderColor = '#ff0000';
+      countdownContainer.style.textShadow = '0 0 5px #ff0000';
+      countdownContainer.style.boxShadow = '0 0 10px rgba(255, 0, 0, 0.5)';
     } else if (gameCountdown <= 300) {
-      mainCountdownElement.style.color = '#ff8800'; // Orange for last 5 minutes
+      // Orange for last 5 minutes - warning
+      countdownContainer.style.color = '#ff8800';
+      countdownContainer.style.borderColor = '#ff8800';
+      countdownContainer.style.textShadow = '0 0 5px #ff8800';
+      countdownContainer.style.boxShadow = '0 0 10px rgba(255, 136, 0, 0.5)';
     } else {
-      mainCountdownElement.style.color = '#00ff00'; // Green for normal time
+      // Green for normal time
+      countdownContainer.style.color = '#00ff00';
+      countdownContainer.style.borderColor = '#00ff00';
+      countdownContainer.style.textShadow = '0 0 5px #00ff00';
+      countdownContainer.style.boxShadow = '0 0 10px rgba(0, 255, 0, 0.3)';
     }
   }
 }
@@ -644,9 +698,23 @@ export function setCountdown(seconds) {
   console.log(`Countdown set to ${seconds} seconds`);
 }
 
+// Console command to set difficulty
+export function setDifficulty(difficulty) {
+  const validDifficulties = ['easy', 'normal', 'hard'];
+  if (!validDifficulties.includes(difficulty)) {
+    console.log('Usage: setDifficulty(difficulty) - e.g., setDifficulty("easy"), setDifficulty("normal"), setDifficulty("hard")');
+    return;
+  }
+  
+  localStorage.setItem('gameDifficulty', difficulty);
+  startGameCountdown(difficulty);
+  console.log(`Difficulty set to ${difficulty}`);
+}
+
 // Make functions globally accessible for console testing
 window.testGameOver = testGameOver;
 window.setCountdown = setCountdown;
+window.setDifficulty = setDifficulty;
 
 // Update HUD instructions with current bindings
 export function updateHUDInstructions() {
