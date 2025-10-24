@@ -127,6 +127,11 @@ export class WallCollisionManager {
    * @returns {boolean} - True if collision occurred
    */
   checkCollision(playerPosition, playerRadius = 0.5) {
+    // Check for noclip mode first
+    if (window.noclipMode) {
+      return false; // No collision in noclip mode
+    }
+
     const playerMin = new THREE.Vector3(
       playerPosition.x - playerRadius,
       playerPosition.y - playerRadius,
@@ -182,6 +187,11 @@ export class WallCollisionManager {
    * @returns {boolean} - True if collision with door
    */
   checkDoorCollision(doorObj, playerMin, playerMax) {
+    // Check for cheat mode - if doors are opened via cheat, bypass collision
+    if (this.cheatMode || window.cheatMode) {
+      return false; // No door collision in cheat mode
+    }
+
     // Find the actual door object in the scene
     const doorObject = this.findDoorById(doorObj.id);
     if (!doorObject) {

@@ -7,6 +7,7 @@ import { ScaleOfBalance } from './puzzles/ScaleOfBalance.js';
 import { CandleBeamPuzzle } from './puzzles/CandleBeamPuzzle.js';
 import { gameStore } from './state/gameStore.js'; // Game state tracking
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
+import { createReusableLaptop, LaptopPresets } from './components/ReusableLaptop.js';
 
 export function createRoom2() {
   const group = new THREE.Group();
@@ -206,6 +207,14 @@ export function createRoom2() {
         }
       });
       scalePuzzle.attach();
+      
+      // Add laptop to Room 2
+      const laptop = createReusableLaptop({
+        ...LaptopPresets.room2,
+        position: new THREE.Vector3(3, 0, 2), // Position near the front wall, right side
+        rotation: Math.PI // Face towards the center of the room
+      });
+      group.add(laptop);
   });
   
   // Statue of Liberty
@@ -438,6 +447,21 @@ export function createRoom2() {
 
   function handleEKeyInteraction(player) {
     if (window.disablePlayerControls) return false;
+
+    // Check laptop interaction first
+    const laptop = group.getObjectByName('reusable-laptop');
+    if (laptop) {
+      const laptopWorldPos = new THREE.Vector3();
+      laptop.getWorldPosition(laptopWorldPos);
+      const distanceToLaptop = player.position.distanceTo(laptopWorldPos);
+      
+      if (distanceToLaptop < 3.0) {
+        if (laptop.userData && laptop.userData.onInteract) {
+          laptop.userData.onInteract();
+        }
+        return true;
+      }
+    }
 
     // 1) Raycast for pickups
     const cam = window.camera;

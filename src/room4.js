@@ -11,6 +11,7 @@ import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { FloatingBinary } from './rooms/Room4/FloatingBinary.js';
 import { NexusPanel } from './rooms/Room4/NexusPanel.js';
+import { createReusableLaptop, LaptopPresets } from './components/ReusableLaptop.js';
 
 export function createRoom4() {
   const group = new THREE.Group();
@@ -158,6 +159,14 @@ export function createRoom4() {
   fillLight2.position.set(6, 3, 6);
   fillLight2.castShadow = false;
   group.add(fillLight2);
+
+  // Add laptop to Room 4
+  const laptop = createReusableLaptop({
+    ...LaptopPresets.room4,
+    position: new THREE.Vector3(0, 0, -3), // Position near the back wall, center
+    rotation: 0 // Face towards the front of the room
+  });
+  group.add(laptop);
 
   // Table removed - room is now empty and ready for custom content
 
@@ -328,6 +337,24 @@ export function createRoom4() {
     },
     handleEKeyInteraction: (player) => {
       console.log('Room 4 E-key handler called with player:', player?.position);
+      
+      // Check laptop interaction first
+      const laptop = group.getObjectByName('reusable-laptop');
+      if (laptop && player && player.position) {
+        const laptopWorldPos = new THREE.Vector3();
+        laptop.getWorldPosition(laptopWorldPos);
+        const distanceToLaptop = player.position.distanceTo(laptopWorldPos);
+        
+        console.log('Laptop distance:', distanceToLaptop, 'threshold: 3.0');
+        
+        if (distanceToLaptop < 3.0) {
+          console.log('Laptop interaction handled');
+          if (laptop.userData && laptop.userData.onInteract) {
+            laptop.userData.onInteract();
+          }
+          return true;
+        }
+      }
       
       // Check if player is near the NEXUS panel
       if (nexusPanel && player && player.position) {
