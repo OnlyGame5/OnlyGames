@@ -111,8 +111,7 @@ Meet the brilliant minds bringing this betrayal to life!
 - Abdullah Ali
 - Kovendan Raman
 - Jaishil Patel
-- Umayr Gadat
-- Muhammad Ahmed
+
 
 ---
 
