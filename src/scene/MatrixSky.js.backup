@@ -1,4 +1,4 @@
-// Matrix Sky - Animated Matrix rain skybox with proper speed controls
+// Matrix Sky - Animated Matrix rain skybox
 import * as THREE from 'three';
 
 export class MatrixSky {
@@ -8,12 +8,11 @@ export class MatrixSky {
     this.material = null;
     this.uniforms = {
       uTime: { value: 0.0 },
-      uFallSpeed: { value: 0.001 },
-      uIntensity: { value: 1.0 }
+      uFallSpeed: { value: 0.001 }
     };
     this.enabled = true;
-    this.rotationSpeed = 0.000167; // Very slight rotation (1/3 of 0.0005)
-    this.fallSpeed = 0.001; // Start with slow speed
+    this.rotationSpeed = 0.002;
+    this.fallSpeed = 0.001;
     
     this.createMatrixSky();
   }
@@ -35,7 +34,6 @@ export class MatrixSky {
       fragmentShader: `
         uniform float uTime;
         uniform float uFallSpeed;
-        uniform float uIntensity;
         varying vec2 vUv;
         
         // Hash function for pseudo-random numbers
@@ -109,9 +107,6 @@ export class MatrixSky {
           // Combine all effects with reduced intensity
           float intensity = digit * 0.6 + head * 1.5 + sparkle * 2.0;
           
-          // Apply intensity uniform
-          intensity *= uIntensity;
-          
           // Fade to black at bottom
           float depthFade = smoothstep(0.0, 0.2, vUv.y);
           intensity *= depthFade;
@@ -153,8 +148,12 @@ export class MatrixSky {
     // Update time uniform for animation
     this.uniforms.uTime.value += deltaTime;
     
+    // Debug: Log time every 5 seconds
+    if (Math.floor(this.uniforms.uTime.value) % 5 === 0 && Math.floor(this.uniforms.uTime.value) !== Math.floor(this.uniforms.uTime.value - deltaTime)) {
+      console.log('Matrix Sky time:', this.uniforms.uTime.value);
+    }
     
-    // Very slight rotation for subtle effect
+    // Slow rotation for added effect
     if (this.mesh) {
       this.mesh.rotation.y += this.rotationSpeed;
     }
@@ -168,21 +167,20 @@ export class MatrixSky {
   }
 
   setSpeed(speed) {
-    // Keep the very slow rotation speed, don't use the speed parameter for rotation
-    this.rotationSpeed = 0.000167; // Very slow rotation
-    // Use the provided speed parameter for the shader fall speed
+    this.rotationSpeed = speed;
+    // Use the provided speed parameter for the shader
     this.fallSpeed = speed;
     if (this.material && this.material.uniforms.uFallSpeed) {
       this.material.uniforms.uFallSpeed.value = this.fallSpeed;
+      console.log('MatrixSky: setSpeed called, uFallSpeed set to:', this.fallSpeed);
     } else {
+      console.log('MatrixSky: setSpeed called but material or uniform not found');
     }
   }
 
   setIntensity(intensity) {
-    this.uniforms.uIntensity.value = intensity;
     if (this.material && this.material.uniforms.uIntensity) {
       this.material.uniforms.uIntensity.value = intensity;
-    } else {
     }
   }
 

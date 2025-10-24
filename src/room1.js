@@ -740,11 +740,14 @@ export function createRoom1() {
       ceilingLight.intensity = baseIntensity + humVariation + (flickerIntensity - 1.0);
     }
     
-    // Apply to light fixture bulb (cached reference)
-    const lightBulb = lightFixtureGroup.getObjectByName('light-bulb');
-    if (lightBulb && lightBulb.material) {
-      const newIntensity = 0.8 + humVariation * 0.3 + (flickerIntensity - 1.0) * 0.3;
-      lightBulb.material.emissiveIntensity = Math.max(0.1, newIntensity);
+    // Apply to light fixture bulb (get reference each time)
+    const lightFixtureGroup = group.getObjectByName('ceiling-light-fixture');
+    if (lightFixtureGroup) {
+      const lightBulb = lightFixtureGroup.getObjectByName('light-bulb');
+      if (lightBulb && lightBulb.material) {
+        const newIntensity = 0.8 + humVariation * 0.3 + (flickerIntensity - 1.0) * 0.3;
+        lightBulb.material.emissiveIntensity = Math.max(0.1, newIntensity);
+      }
     }
   }
 

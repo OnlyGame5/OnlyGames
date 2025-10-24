@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory } from './player.js';
+import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory, toggleLookMode, handleDroppedItemInteraction, handleDropItem, ensureDroppedItemsInScene, loadGlobalPickableModels } from './player.js';
 import { AI } from './ai.js';
 import { WallCollisionManager } from './collision/WallCollisionManager.js';
 import { roomWallDefinitions } from './collision/roomWalls.js';
@@ -13,7 +13,12 @@ import { initInput, isDown as inputIsDown, getBindings } from './systems/input.j
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
 import { loadingScreen } from './loading.js';
 import { createLoadingScreen, dispatchLoadingProgress, dispatchLoadingComplete } from './ui/LoadingScreen.js';
+import { createMainMenu } from './ui/MainMenu.js';
 import { uiRoot } from './ui/UIRoot.js';
+import { cursorManager } from './ui/CursorManager.js';
+
+// Initialize global cursor manager
+window.cursorManager = cursorManager;
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { Minimap } from './minimap.js';
 import { FPSCounter } from './ui/FPSCounter.js';
@@ -72,6 +77,10 @@ globalPoint2.position.set(20, 10, 20);
 globalPoint2.castShadow = false;
 globalPoint2.name = 'global-point-2';
 scene.add(globalPoint2);
+
+// --- Initialize Dropped Items System ---
+// Make scene globally available for dropped items system
+window.scene = scene;
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 4, 10);
@@ -167,8 +176,8 @@ window.updateInteractionUI = function(text, type = '') {
     
     // Add type-specific styling
     if (type === 'door') {
-      interactionUI.style.borderColor = '#ff6600';
-      interactionUI.style.color = '#ff6600';
+      interactionUI.style.borderColor = '#00ff7f';
+      interactionUI.style.color = '#00ff7f';
     } else {
       interactionUI.style.borderColor = '#00ff00';
       interactionUI.style.color = '#00ff00';
@@ -526,7 +535,7 @@ async function initGame() {
     createFadeOverlay();
     
     // Track loading progress for new loading screen
-    let totalItems = 8; // leonard(1) + rooms(5) + models(2) - security camera removed
+    let totalItems = 9; // leonard(1) + rooms(5) + models(2) + global models(1) - security camera removed
     let loadedItems = 0;
     
     function updateProgress(itemCount = 1) {
@@ -544,11 +553,23 @@ async function initGame() {
     updateProgress(1); // Leonard loaded
     console.log('Leonard loaded successfully!');
     
+    // Load global pickable models in background (completely non-blocking)
+    setTimeout(() => {
+      loadGlobalPickableModels().then(() => {
+        console.log('Global pickable models loaded successfully!');
+      }).catch((error) => {
+        console.warn('Some global models failed to load, continuing with fallbacks:', error);
+      });
+    }, 1000); // Start loading after 1 second delay
+    updateProgress(1); // Global models loading started
+    
     // Make leonardModel globally accessible for minimap and other systems
     window.leonardModel = leonardModel;
     window.player = player; // Also make player globally accessible
     window.camera = camera; // Make camera globally accessible for minimap
     window.isInFirstPerson = isInFirstPerson; // Make view mode function globally accessible
+    window.toggleLookMode = toggleLookMode; // Make look mode function globally accessible
+    window.ensureDroppedItemsInScene = ensureDroppedItemsInScene; // Make dropped items function globally accessible
     window.levelManager = levelManager; // Make LevelManager globally accessible for room transitions
     
     // Create all rooms (Room 0 serves as the hub)
@@ -773,8 +794,124 @@ async function initGame() {
   }
 }
 
-// Initialize the game with new loading screen
-initializeGameWithLoading();
+// Initialize the game with main menu first
+initializeMainMenu();
+
+function initializeMainMenu() {
+  // Create the main menu
+  const mainMenuInstance = createMainMenu({
+    onStartGame: () => {
+      console.log('Starting game from main menu...');
+      loadSettingsFromMainMenu();
+      // Properly destroy the main menu before starting loading screen
+      if (mainMenuInstance && mainMenuInstance.destroy) {
+        mainMenuInstance.destroy();
+      }
+      initializeGameWithLoading();
+    },
+    onSettings: () => {
+      console.log('Settings clicked - handled by main menu');
+    },
+    onCredits: () => {
+      console.log('Credits clicked - handled by main menu');
+    },
+    onExit: () => {
+      console.log('Exit game clicked');
+      // Close the browser tab/window
+      window.close();
+    }
+  });
+}
+
+// Load settings from main menu when starting game
+function loadSettingsFromMainMenu() {
+  try {
+    localStorage.removeItem('gameSettings');
+    
+    // Set the correct default settings
+    const correctSettings = {
+      sensitivity: 1.0,
+      enableMatrixSky: true,
+      matrixSkySpeed: 0.01, // 2x faster than 0.005
+      matrixSkyIntensity: 1.0
+    };
+    
+    localStorage.setItem('gameSettings', JSON.stringify(correctSettings));
+    
+    // Update gameStore settings with correct values
+    if (window.gameStore && window.gameStore.settings) {
+      window.gameStore.settings.enableMatrixSky = correctSettings.enableMatrixSky;
+      window.gameStore.settings.matrixSkySpeed = correctSettings.matrixSkySpeed;
+      window.gameStore.settings.matrixSkyIntensity = correctSettings.matrixSkyIntensity;
+    }
+    
+    // Update input system settings if available
+    if (window.Input && correctSettings.sensitivity !== undefined) {
+      window.Input.setSettings({ sensitivity: correctSettings.sensitivity });
+    }
+    
+  } catch (error) {
+    console.error('Failed to load settings from main menu:', error);
+  }
+}
+
+// Stop any background music and 2D Matrix rain effects from main menu/loading screen
+function stopBackgroundMusic() {
+  console.log('Stopping background music and 2D Matrix effects for game start...');
+  
+  // Use global music manager to stop music
+  if (window.GlobalMusicManager) {
+    window.GlobalMusicManager.stop();
+    console.log('Global music stopped via GlobalMusicManager');
+  }
+  
+  // Stop any 2D Matrix rain animations that might still be running
+  try {
+    // Find and remove any remaining Matrix rain canvases
+    const matrixCanvases = document.querySelectorAll('#matrix-rain, #main-menu-matrix-rain');
+    matrixCanvases.forEach(canvas => {
+      console.log('Removing remaining Matrix rain canvas:', canvas.id);
+      canvas.remove();
+    });
+    
+    // Also remove any remaining main menu or loading screen elements
+    const menuElements = document.querySelectorAll('.main-menu, .loading-screen');
+    menuElements.forEach(element => {
+      console.log('Removing remaining menu element:', element.className);
+      element.remove();
+    });
+  } catch (error) {
+    console.log('Error cleaning up 2D Matrix effects:', error);
+  }
+  
+  // Fallback: Find and stop all audio elements
+  const audioElements = document.querySelectorAll('audio');
+  audioElements.forEach(audio => {
+    if (!audio.paused) {
+      console.log('Stopping audio element:', audio.src);
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = 0;
+    }
+  });
+  
+  // Also try to stop any audio created by the menu systems
+  try {
+    // Stop any audio that might be playing from main menu or loading screen
+    const allAudio = document.querySelectorAll('audio, video');
+    allAudio.forEach(media => {
+      if (!media.paused) {
+        media.pause();
+        media.currentTime = 0;
+        console.log('Stopped media element:', media.tagName, media.src);
+      }
+    });
+  } catch (error) {
+    console.log('Error stopping background music:', error);
+  }
+  
+  console.log('Background music and 2D Matrix effects stopped - game audio can now start');
+}
 
 async function initializeGameWithLoading() {
   // Create the new Matrix-style loading screen
@@ -783,6 +920,14 @@ async function initializeGameWithLoading() {
       // Hide the old loading screen
       loadingScreen.hide();
       
+      // Properly destroy the loading screen before starting game
+      if (loadingScreenInstance && loadingScreenInstance.destroy) {
+        loadingScreenInstance.destroy();
+      }
+      
+      // Stop any background music from main menu/loading screen
+      stopBackgroundMusic();
+      
       // Initialize input and start the game
       initInput();
       
@@ -790,6 +935,14 @@ async function initializeGameWithLoading() {
       if (window.AI) {
         window.AI.onSpawn();
       }
+      
+      // Auto-enter look mode when game starts
+      setTimeout(() => {
+        if (window.toggleLookMode && isInFirstPerson()) {
+          console.log('Auto-entering look mode on game start...');
+          window.toggleLookMode();
+        }
+      }, 1000); // Small delay to ensure everything is initialized
       
       // Start the animation loop
       animate(0);
@@ -806,6 +959,13 @@ async function initializeGameWithLoading() {
 // Stage 0: Input handling for different stages
 window.addEventListener('click', (e) => {
   // Handle mouse clicks for interactions in both first-person (with locked pointer) and third-person modes
+  
+  // First, check for dropped item interactions (highest priority)
+  if (handleDroppedItemInteraction(camera)) {
+    console.log('Dropped item clicked and picked up');
+    return;
+  }
+  
   if (gameState.stage === 0) {
     // Stage 0: Handle Stage 0 interactions (key, door)
     handleStage0Click(e, camera, scene, gameState.room0);
@@ -833,6 +993,11 @@ window.addEventListener('keydown', (e) => {
     // Update AI dialogue to inform player about view change
     const viewMode = isInFirstPerson() ? 'First-Person' : 'Third-Person';
     AI.say(`Switched to ${viewMode} view. Use mouse to look around in first-person.`);
+  }
+  
+  // J key for look mode toggle
+  if (e.code === 'KeyJ') {
+    toggleLookMode();
   }
   
   // I key interaction handler for inventory inspection
@@ -913,28 +1078,41 @@ window.addEventListener('keydown', (e) => {
     }
   }
   
+  // R key for dropping items
+  if (e.code === getBindings().dropItem) {
+    if (window.disablePlayerControls) return;
+    
+    const activePlayer = leonardModel || player;
+    if (handleDropItem(activePlayer)) {
+      console.log('Item dropped');
+    }
+  }
+  
   // E key interaction handler
   if (e.code === getBindings().interact) {
-    console.log('E-key pressed! Key code:', e.code, 'getBindings().interact:', getBindings().interact);
     
     // Check if minigame is active - if so, don't process E-key interactions
     if (window.disablePlayerControls) {
-      console.log('Minigame is active, skipping E-key handling');
       return;
     }
     
     // Check if paper examination is open first
     const paperExamination = document.getElementById('paperExamination');
     if (paperExamination) {
-      console.log('Paper examination is open, skipping E-key handling');
       // Paper examination is open, let it handle the E-key to close
       return;
     }
     
-    // Check for door interactions first
+    // Check for dropped items first (highest priority)
+    const activePlayer = leonardModel || player;
+    if (handleDroppedItemInteraction(camera)) {
+      console.log('Dropped item interaction handled');
+      return;
+    }
+    
+    // Check for door interactions second
     if (window.currentDoorInteraction) {
       const doorInfo = window.currentDoorInteraction;
-      console.log('Door interaction detected:', doorInfo);
       
       if (doorInfo.isLocked) {
         AI.say('This door is locked. Complete the required tasks to unlock it.');
@@ -958,16 +1136,6 @@ window.addEventListener('keydown', (e) => {
       }
       return;
     }
-    
-    console.log('Game state check:', { 
-      stage: gameState.stage, 
-      room0Exists: !!gameState.room0,
-      room1Exists: !!gameState.room1,
-      room2Exists: !!gameState.room2,
-      room3Exists: !!gameState.room3
-    });
-    
-    const activePlayer = leonardModel || player;
     
     // Always try Room 1 first if it exists (regardless of stage)
     if (gameState.room1 && gameState.room1.handleEKeyInteraction) {
@@ -1155,8 +1323,11 @@ function animate(currentTime) {
     
     // Apply settings
     matrixSky.setEnabled(gameStore.settings.enableMatrixSky);
+    
+    
     matrixSky.setSpeed(gameStore.settings.matrixSkySpeed);
     matrixSky.setIntensity(gameStore.settings.matrixSkyIntensity);
+    
   }
   
   // Track whether the player is inside Room 3 across this frame (used later for stage progression)
@@ -1171,6 +1342,9 @@ function animate(currentTime) {
   
   // Update fade-in effect
   updateFadeEffect();
+  
+  // Ensure dropped items are always in the scene
+  ensureDroppedItemsInScene();
   
   // Get the active player object (Leonard model or fallback box)
   const activePlayer = leonardModel || player;

@@ -1193,6 +1193,12 @@ export class ServerRoom {
         window.gameState.stage = 0;
         console.log('[Server Room] Updated window.gameState.stage to 0');
       }
+      
+      // Ensure dropped items persist during room transition
+      if (window.ensureDroppedItemsInScene) {
+        window.ensureDroppedItemsInScene();
+        console.log('[Server Room] Ensured dropped items persist during transition');
+      }
     }
   }
 

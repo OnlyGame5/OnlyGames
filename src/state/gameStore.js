@@ -7,7 +7,7 @@ class GameStore {
     // Matrix Sky settings
     this.settings = {
       enableMatrixSky: true,
-      matrixSkySpeed: 0.002,
+      matrixSkySpeed: 0.01, // 2x faster than 0.005
       matrixSkyIntensity: 1.0
     };
     this.hub = {

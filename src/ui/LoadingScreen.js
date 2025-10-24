@@ -73,8 +73,8 @@ Whose truth will you believe?`;
   // Matrix Rain Animation
   const matrixAnimation = createMatrixRain(matrixCanvas);
   
-  // Audio setup
-  const audioManager = createAudioManager();
+  // Use the global music manager instead of creating a new one
+  // const audioManager = createAudioManager();
   
   // Event listeners
   let isLoaded = false;
@@ -91,9 +91,15 @@ Whose truth will you believe?`;
   };
   
   // Click listener for start gate
-  const handleStartGateClick = () => {
+  const handleStartGateClick = (e) => {
+    console.log('Start gate clicked!', { isLoaded, hasContinued, crawlCompleted });
+    e.preventDefault();
+    e.stopPropagation();
     if (isLoaded && !hasContinued) {
+      console.log('Proceeding to game...');
       continueToGame();
+    } else {
+      console.log('Cannot proceed - not loaded or already continued');
     }
   };
   
@@ -108,26 +114,26 @@ Whose truth will you believe?`;
   // Add event listeners with capture to prevent conflicts
   document.addEventListener('keydown', handleKeyPress, true);
   startGate.addEventListener('click', handleStartGateClick);
+  startGate.addEventListener('mousedown', handleStartGateClick); // Backup mousedown event
   startGate.addEventListener('keydown', handleStartGateKeyPress);
   
-  // Try to start audio immediately (auto-play attempt)
-  console.log('Attempting immediate audio start...');
+  // Use global music manager - don't create new audio instances
+  console.log('Loading screen - checking global music state...');
   
-  // Try multiple times with different delays to maximize auto-play success
-  setTimeout(() => audioManager.startMusic(), 100);
-  setTimeout(() => audioManager.startMusic(), 500);
-  setTimeout(() => audioManager.startMusic(), 1000);
-  
-  // Add user interaction listener as fallback (required by browsers)
-  const startAudioOnInteraction = () => {
-    console.log('User interaction detected - attempting to start audio');
-    audioManager.startMusic();
-    document.removeEventListener('click', startAudioOnInteraction);
-    document.removeEventListener('keydown', startAudioOnInteraction);
-  };
-  
-  document.addEventListener('click', startAudioOnInteraction);
-  document.addEventListener('keydown', startAudioOnInteraction);
+  // Check if global music is already playing
+  if (window.GlobalMusicManager && window.GlobalMusicManager.isCurrentlyPlaying()) {
+    console.log('Global music already playing - continuing...');
+    // Music is already playing, don't start new audio
+  } else {
+    // Fallback: try to start global music if none is playing
+    console.log('No global music detected - attempting to start...');
+    if (window.GlobalMusicManager) {
+      window.GlobalMusicManager.start();
+    } else {
+      // Fallback to old system if global manager not available
+      setTimeout(() => audioManager.startMusic(), 100);
+    }
+  }
   
   // Prevent default form submission behavior
   document.addEventListener('submit', (e) => {
@@ -157,9 +163,8 @@ Whose truth will you believe?`;
     if (hasContinued) return;
     hasContinued = true;
     
-    // Stop the music before fading out
-    console.log('Stopping loading screen music...');
-    audioManager.stopMusic();
+    // Keep music playing through loading screen
+    console.log('Continuing to game - music will continue playing...');
     
     // Add fade out class
     loadingScreen.classList.add('fade-out');
@@ -171,9 +176,8 @@ Whose truth will you believe?`;
         matrixAnimation.stop();
       }
       
-      // Final cleanup of audio
-      console.log('Final audio cleanup...');
-      audioManager.stopMusic();
+      // Keep music playing - don't stop it here
+      console.log('Loading screen cleanup - music continues playing...');
       
       // Remove event listeners
       document.removeEventListener('keydown', handleKeyPress, true);
@@ -235,7 +239,8 @@ Whose truth will you believe?`;
       if (matrixAnimation.stop) {
         matrixAnimation.stop();
       }
-      audioManager.stopMusic();
+      // Don't stop the global music here - let it continue
+      // audioManager.stopMusic();
       loadingScreen.remove();
       document.removeEventListener('keydown', handleKeyPress, true);
       window.removeEventListener('game:assetsProgress', handleProgress);

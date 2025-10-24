@@ -268,30 +268,18 @@ export class WallCollisionManager {
    */
   findDoorById(id) {
     if (!this.scene) {
-      console.log(`[Debug] No scene available for door search: ${id}`);
       return null;
     }
     
     let foundDoor = null;
-    let foundObjects = [];
     
     // Use traverse to search the entire scene graph
     this.scene.traverse((object) => {
-      if (object.userData && object.userData.id === id) {
-        foundObjects.push({ object, userData: object.userData });
-        console.log(`[Debug] Found object with ID ${id}:`, object.userData);
-        if (object.userData.category === 'door') {
-          foundDoor = object;
-          console.log(`[Debug] Found DOOR object: ${id}`);
-          return; // Stop searching once found
-        }
+      if (object.userData && object.userData.id === id && object.userData.category === 'door') {
+        foundDoor = object;
+        return; // Stop searching once found
       }
     });
-    
-    if (!foundDoor) {
-      console.log(`[Debug] Door not found in scene: ${id}`);
-      console.log(`[Debug] Found ${foundObjects.length} objects with ID ${id}:`, foundObjects);
-    }
     
     return foundDoor;
   }

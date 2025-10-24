@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { setupModel } from './utils.js';
-import { addToInventory, getPlayerInventory } from './player.js'; // Inventory functions
+import { addToInventory, getPlayerInventory, registerOriginalModel } from './player.js'; // Inventory functions
 import { AI } from './ai.js'; // AI for feedback
 import { ScaleOfBalance } from './puzzles/ScaleOfBalance.js';
 import { CandleBeamPuzzle } from './puzzles/CandleBeamPuzzle.js';
@@ -199,6 +199,9 @@ export function createRoom2() {
       group.add(statue);
       pickableObjects.push(statue);
       roomObjects.liberty = statue;
+      
+      // Register the liberty model for dropped items
+      registerOriginalModel('liberty', statue);
   });
 
   // Bowling Pin
@@ -213,6 +216,9 @@ export function createRoom2() {
       group.add(pin);
       pickableObjects.push(pin);
       roomObjects['bowling_pin'] = pin;
+      
+      // Register the bowling pin model for dropped items
+      registerOriginalModel('bowling_pin', pin);
   });
 
   // Bowling Ball
@@ -227,6 +233,9 @@ export function createRoom2() {
       group.add(ball);
       pickableObjects.push(ball);
       roomObjects['bowling_ball'] = ball;
+      
+      // Register the bowling ball model for dropped items
+      registerOriginalModel('bowling_ball', ball);
   });
 
   // Book
@@ -242,6 +251,9 @@ export function createRoom2() {
       group.add(book);
       pickableObjects.push(book);
       roomObjects.book = book;
+      
+      // Register the book model for dropped items
+      registerOriginalModel('book', book);
   });
 
   // Hidden note: base + invisible ink
@@ -276,6 +288,9 @@ export function createRoom2() {
   candle.userData.isPickable = true;
   group.add(candle);
   pickableObjects.push(candle);
+  
+  // Register the candle model for dropped items
+  registerOriginalModel('candle', candle);
 
   // Glasses pickup (simple mesh)
   const glasses = new THREE.Group();
@@ -310,6 +325,9 @@ export function createRoom2() {
   glasses.userData.isPickable = true;
   group.add(glasses);
   pickableObjects.push(glasses);
+  
+  // Register the glasses model for dropped items
+  registerOriginalModel('glasses', glasses);
 
   // Hidden wall clues that show only with glasses selected
   // Create simple quads with emissive text-like look
