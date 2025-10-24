@@ -110,9 +110,7 @@ Meet the brilliant minds bringing this betrayal to life!
 - Shervaan Govinder
 - Abdullah Ali
 - Kovendan Raman
-- Jaishil Patel
-- Umayr Gadat
-- Muhammad Ahmed
+
 
 ---
 
