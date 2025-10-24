@@ -121,7 +121,10 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(35, 0.3, -6), size: new THREE.Vector3(1.0, 0.8, 0.6), type: 'console' },
       
       // Light fixture (position: 0, 4.0, 0) -> World: (29, 4.0, 0)
-      { position: new THREE.Vector3(29, 4.0, 0), size: new THREE.Vector3(2.0, 0.5, 2.0), type: 'lightBox' }
+      { position: new THREE.Vector3(29, 4.0, 0), size: new THREE.Vector3(2.0, 0.5, 2.0), type: 'lightBox' },
+      
+      // Laptop (position: -2, 0, -6) -> World: (27, 0.8, -6)
+      { position: new THREE.Vector3(27, 0.8, -6), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' }
     ],
     hallways: [
       // Hub connection
@@ -174,7 +177,10 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(-1.0, 0.22, 21.3), size: new THREE.Vector3(0.3, 0.2, 0.3), type: 'glasses' },
       
       // Light fixture (position: 0, 4.2, 0) -> World: (0, 4.2, 23.5)
-      { position: new THREE.Vector3(0, 4.2, 23.5), size: new THREE.Vector3(1.0, 0.5, 1.0), type: 'lightFixture' }
+      { position: new THREE.Vector3(0, 4.2, 23.5), size: new THREE.Vector3(1.0, 0.5, 1.0), type: 'lightFixture' },
+      
+      // Laptop (position: 3, 0, 2) -> World: (3, 0.8, 25.5)
+      { position: new THREE.Vector3(3, 0.8, 25.5), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' }
     ],
     hallways: [
       // Hub connection - Room 2 is at (0, 0, 23.5), so hallway is at z = 23.5 - 6 = 17.5
@@ -270,7 +276,10 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(4, 0.4, -24.5), size: new THREE.Vector3(1.0, 0.8, 0.6), type: 'console' },
       
       // Light fixture (position: 0, 4.0, 0) -> World: (0, 4.0, -26.5)
-      { position: new THREE.Vector3(0, 4.0, -26.5), size: new THREE.Vector3(1.0, 0.5, 1.0), type: 'lightFixture' }
+      { position: new THREE.Vector3(0, 4.0, -26.5), size: new THREE.Vector3(1.0, 0.5, 1.0), type: 'lightFixture' },
+      
+      // Laptop (position: 0, 0, -3) -> World: (0, 0.8, -29.5)
+      { position: new THREE.Vector3(0, 0.8, -29.5), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' }
     ],
     hallways: [
       // Hub connection - Room 4 is at (0, 0, -26.5), so hallway is at z = -26.5 + 9 = -17.5
