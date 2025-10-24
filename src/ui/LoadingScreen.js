@@ -73,8 +73,8 @@ Whose truth will you believe?`;
   // Matrix Rain Animation
   const matrixAnimation = createMatrixRain(matrixCanvas);
   
-  // Audio setup
-  const audioManager = createAudioManager();
+  // Use the global music manager instead of creating a new one
+  // const audioManager = createAudioManager();
   
   // Event listeners
   let isLoaded = false;
@@ -234,7 +234,8 @@ Whose truth will you believe?`;
       if (matrixAnimation.stop) {
         matrixAnimation.stop();
       }
-      audioManager.stopMusic();
+      // Don't stop the global music here - let it continue
+      // audioManager.stopMusic();
       loadingScreen.remove();
       document.removeEventListener('keydown', handleKeyPress, true);
       window.removeEventListener('game:assetsProgress', handleProgress);

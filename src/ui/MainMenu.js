@@ -76,7 +76,18 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   
   // Button click handlers
   const handleButtonClick = (e) => {
-    const action = e.target.getAttribute('data-action');
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Find the button element (handle clicks on spans inside buttons)
+    let button = e.target;
+    while (button && !button.hasAttribute('data-action')) {
+      button = button.parentElement;
+    }
+    
+    if (!button) return;
+    
+    const action = button.getAttribute('data-action');
     
     switch (action) {
       case 'start':
@@ -386,7 +397,7 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     const settings = {
       sensitivity: parseFloat(sensitivitySlider?.value || 1.0),
       enableMatrixSky: matrixSkyCheckbox?.checked !== false,
-      matrixSkySpeed: 0.002, // Keep constant speed (original game speed)
+      matrixSkySpeed: 0.01, // 2x faster than 0.005
       matrixSkyIntensity: 1.0
     };
     
@@ -411,7 +422,7 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     const defaultSettings = {
       sensitivity: 1.0,
       enableMatrixSky: true,
-      matrixSkySpeed: 0.002, // Keep constant speed (original game speed)
+      matrixSkySpeed: 0.01, // 2x faster than 0.005
       matrixSkyIntensity: 1.0
     };
     

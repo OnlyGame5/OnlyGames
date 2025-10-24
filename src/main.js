@@ -172,8 +172,8 @@ window.updateInteractionUI = function(text, type = '') {
     
     // Add type-specific styling
     if (type === 'door') {
-      interactionUI.style.borderColor = '#ff6600';
-      interactionUI.style.color = '#ff6600';
+      interactionUI.style.borderColor = '#00ff7f';
+      interactionUI.style.color = '#00ff7f';
     } else {
       interactionUI.style.borderColor = '#00ff00';
       interactionUI.style.color = '#00ff00';
@@ -787,6 +787,10 @@ function initializeMainMenu() {
     onStartGame: () => {
       console.log('Starting game from main menu...');
       loadSettingsFromMainMenu();
+      // Properly destroy the main menu before starting loading screen
+      if (mainMenuInstance && mainMenuInstance.destroy) {
+        mainMenuInstance.destroy();
+      }
       initializeGameWithLoading();
     },
     onSettings: () => {
@@ -806,41 +810,62 @@ function initializeMainMenu() {
 // Load settings from main menu when starting game
 function loadSettingsFromMainMenu() {
   try {
-    const settings = JSON.parse(localStorage.getItem('gameSettings') || '{}');
+    localStorage.removeItem('gameSettings');
     
-    // Update gameStore settings
+    // Set the correct default settings
+    const correctSettings = {
+      sensitivity: 1.0,
+      enableMatrixSky: true,
+      matrixSkySpeed: 0.01, // 2x faster than 0.005
+      matrixSkyIntensity: 1.0
+    };
+    
+    localStorage.setItem('gameSettings', JSON.stringify(correctSettings));
+    
+    // Update gameStore settings with correct values
     if (window.gameStore && window.gameStore.settings) {
-      if (settings.enableMatrixSky !== undefined) {
-        window.gameStore.settings.enableMatrixSky = settings.enableMatrixSky;
-      }
-      if (settings.matrixSkySpeed !== undefined) {
-        // Ensure we use the correct scale (gameStore expects 0.002 range)
-        window.gameStore.settings.matrixSkySpeed = settings.matrixSkySpeed;
-      }
-      if (settings.matrixSkyIntensity !== undefined) {
-        window.gameStore.settings.matrixSkyIntensity = settings.matrixSkyIntensity;
-      }
+      window.gameStore.settings.enableMatrixSky = correctSettings.enableMatrixSky;
+      window.gameStore.settings.matrixSkySpeed = correctSettings.matrixSkySpeed;
+      window.gameStore.settings.matrixSkyIntensity = correctSettings.matrixSkyIntensity;
     }
     
     // Update input system settings if available
-    if (window.Input && settings.sensitivity !== undefined) {
-      window.Input.setSettings({ sensitivity: settings.sensitivity });
+    if (window.Input && correctSettings.sensitivity !== undefined) {
+      window.Input.setSettings({ sensitivity: correctSettings.sensitivity });
     }
     
-    console.log('Settings loaded from main menu:', settings);
   } catch (error) {
     console.error('Failed to load settings from main menu:', error);
   }
 }
 
-// Stop any background music from main menu/loading screen
+// Stop any background music and 2D Matrix rain effects from main menu/loading screen
 function stopBackgroundMusic() {
-  console.log('Stopping background music for game start...');
+  console.log('Stopping background music and 2D Matrix effects for game start...');
   
   // Use global music manager to stop music
   if (window.GlobalMusicManager) {
     window.GlobalMusicManager.stop();
     console.log('Global music stopped via GlobalMusicManager');
+  }
+  
+  // Stop any 2D Matrix rain animations that might still be running
+  try {
+    // Find and remove any remaining Matrix rain canvases
+    const matrixCanvases = document.querySelectorAll('#matrix-rain, #main-menu-matrix-rain');
+    matrixCanvases.forEach(canvas => {
+      console.log('Removing remaining Matrix rain canvas:', canvas.id);
+      canvas.remove();
+    });
+    
+    // Also remove any remaining main menu or loading screen elements
+    const menuElements = document.querySelectorAll('.main-menu, .loading-screen');
+    menuElements.forEach(element => {
+      console.log('Removing remaining menu element:', element.className);
+      element.remove();
+    });
+  } catch (error) {
+    console.log('Error cleaning up 2D Matrix effects:', error);
   }
   
   // Fallback: Find and stop all audio elements
@@ -869,7 +894,7 @@ function stopBackgroundMusic() {
     console.log('Error stopping background music:', error);
   }
   
-  console.log('Background music stopped - game audio can now start');
+  console.log('Background music and 2D Matrix effects stopped - game audio can now start');
 }
 
 async function initializeGameWithLoading() {
@@ -878,6 +903,11 @@ async function initializeGameWithLoading() {
     onContinue: () => {
       // Hide the old loading screen
       loadingScreen.hide();
+      
+      // Properly destroy the loading screen before starting game
+      if (loadingScreenInstance && loadingScreenInstance.destroy) {
+        loadingScreenInstance.destroy();
+      }
       
       // Stop any background music from main menu/loading screen
       stopBackgroundMusic();
@@ -1248,8 +1278,11 @@ function animate(currentTime) {
     
     // Apply settings
     matrixSky.setEnabled(gameStore.settings.enableMatrixSky);
+    
+    
     matrixSky.setSpeed(gameStore.settings.matrixSkySpeed);
     matrixSky.setIntensity(gameStore.settings.matrixSkyIntensity);
+    
   }
   
   // Track whether the player is inside Room 3 across this frame (used later for stage progression)

@@ -363,6 +363,6 @@ export function updateHUDInstructions() {
     Press <strong>1-5</strong> to select inventory slots | 
     Press <strong>${formatKey(bindings.toggleView)}</strong> to toggle view | 
     Press <strong>${formatKey(bindings.openMenu)}</strong> to open menu | 
-    Click to lock mouse in first-person
+    Press <strong>J</strong> to toggle look mode
   `;
 }

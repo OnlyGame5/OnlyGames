@@ -124,6 +124,8 @@
     0 18px 40px rgba(0,0,0,.55);
   transition:transform .15s ease, box-shadow .25s ease, background .25s ease, color .2s ease;
   position:relative; overflow:hidden;
+  cursor:pointer;
+  user-select:none;
 }
 .menu-button::before{
   content:"";
@@ -138,6 +140,11 @@
   box-shadow:0 0 24px rgba(0,255,140,.25), 0 18px 40px rgba(0,0,0,.65);
   transform:translateY(-1px);
   color:#eafff2;
+}
+
+.menu-button:active{
+  transform:translateY(0);
+  box-shadow:0 0 12px rgba(0,255,140,.35), 0 8px 20px rgba(0,0,0,.55);
 }
 .menu-button:focus-visible{
   outline:none;
