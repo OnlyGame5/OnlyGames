@@ -22,7 +22,7 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   const title = document.createElement('div');
   title.className = 'game-title';
   title.innerHTML = `
-    <div class="title-main">THE APERTURE PROTOCOL</div>
+    <div class="title-main" data-text="THE APERTURE PROTOCOL">THE APERTURE PROTOCOL</div>
     <div class="title-subtitle">CLASSIFIED SIMULATION</div>
   `;
   menuContainer.appendChild(title);
@@ -34,29 +34,29 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   // Start Game button
   const startButton = document.createElement('button');
   startButton.className = 'menu-button primary';
-  startButton.textContent = 'START GAME';
   startButton.setAttribute('data-action', 'start');
+  startButton.innerHTML = '<span class="btn-label" data-text="START GAME">START GAME</span>';
   buttonsContainer.appendChild(startButton);
   
   // Settings button
   const settingsButton = document.createElement('button');
   settingsButton.className = 'menu-button';
-  settingsButton.textContent = 'SETTINGS';
   settingsButton.setAttribute('data-action', 'settings');
+  settingsButton.innerHTML = '<span class="btn-label" data-text="SETTINGS">SETTINGS</span>';
   buttonsContainer.appendChild(settingsButton);
   
   // Credits button
   const creditsButton = document.createElement('button');
   creditsButton.className = 'menu-button';
-  creditsButton.textContent = 'CREDITS';
   creditsButton.setAttribute('data-action', 'credits');
+  creditsButton.innerHTML = '<span class="btn-label" data-text="CREDITS">CREDITS</span>';
   buttonsContainer.appendChild(creditsButton);
   
   // Exit button
   const exitButton = document.createElement('button');
   exitButton.className = 'menu-button danger';
-  exitButton.textContent = 'EXIT GAME';
   exitButton.setAttribute('data-action', 'exit');
+  exitButton.innerHTML = '<span class="btn-label" data-text="EXIT GAME">EXIT GAME</span>';
   buttonsContainer.appendChild(exitButton);
   
   menuContainer.appendChild(buttonsContainer);
@@ -130,72 +130,117 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   buttonsContainer.addEventListener('click', handleButtonClick);
   document.addEventListener('keydown', handleKeyPress);
   
-  // Try to start audio immediately when main menu loads
-  console.log('Main menu loaded - attempting to start music immediately...');
+  // Use cursor manager to ensure cursor is visible in main menu
+  if (window.cursorManager) {
+    window.cursorManager.forceShowCursor();
+  }
   
-  // Try immediately
-  audioManager.startMusic();
+  // Enhanced music auto-start with better browser compatibility
+  let musicStarted = false;
+  let userHasInteracted = false;
   
-  // Try multiple times with different delays to maximize auto-play success
-  setTimeout(() => {
-    console.log('Attempting immediate music start (100ms)...');
-    audioManager.startMusic();
-  }, 100);
+  // Check if user has previously interacted with the site
+  const hasUserInteracted = localStorage.getItem('userHasInteracted') === 'true';
   
-  setTimeout(() => {
-    console.log('Attempting immediate music start (500ms)...');
-    audioManager.startMusic();
-  }, 500);
+  console.log('Main menu loaded - attempting to start music...');
+  console.log('User has previously interacted:', hasUserInteracted);
   
-  setTimeout(() => {
-    console.log('Attempting immediate music start (1000ms)...');
-    audioManager.startMusic();
-  }, 1000);
+  // Function to start music with error handling
+  const attemptMusicStart = async (context = 'unknown') => {
+    if (musicStarted) {
+      console.log('Music already started, skipping...');
+      return;
+    }
+    
+    console.log(`Attempting music start from: ${context}`);
+    
+    try {
+      const success = await window.GlobalMusicManager.start();
+      if (success) {
+        musicStarted = true;
+        console.log('Music successfully started!');
+        
+        // Mark that user has interacted for future visits
+        if (!hasUserInteracted) {
+          localStorage.setItem('userHasInteracted', 'true');
+          console.log('Marked user as having interacted');
+        }
+      } else {
+        console.log('Music failed to start, will retry on user interaction');
+      }
+    } catch (error) {
+      console.log('Music start error:', error.message);
+    }
+  };
+  
+  // Try to start music immediately if user has previously interacted
+  if (hasUserInteracted) {
+    attemptMusicStart('previous interaction');
+  } else {
+    // For first-time users, try immediately but expect it to fail
+    attemptMusicStart('first load');
+  }
+  
+  // Try multiple times with different delays
+  const retryDelays = [100, 300, 500, 1000, 2000];
+  retryDelays.forEach(delay => {
+    setTimeout(() => {
+      if (!musicStarted) {
+        attemptMusicStart(`retry ${delay}ms`);
+      }
+    }, delay);
+  });
   
   // Try when DOM is fully ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('DOM loaded - attempting music start...');
-      audioManager.startMusic();
+      attemptMusicStart('DOM loaded');
     });
   } else {
-    console.log('DOM already loaded - attempting music start...');
-    audioManager.startMusic();
+    attemptMusicStart('DOM already loaded');
   }
   
-  // Also try on window focus/load events
+  // Try on window events
   window.addEventListener('load', () => {
-    console.log('Window loaded - attempting music start...');
-    audioManager.startMusic();
+    attemptMusicStart('window loaded');
   });
   
   window.addEventListener('focus', () => {
-    console.log('Window focused - attempting music start...');
-    audioManager.startMusic();
+    attemptMusicStart('window focused');
   });
   
-  // Add user interaction listener as fallback (but don't remove it immediately)
-  const startAudioOnInteraction = () => {
-    console.log('User interaction detected - attempting to start music...');
-    audioManager.startMusic();
-    // Don't remove listeners immediately - keep them as fallback
+  // Enhanced user interaction detection
+  const startAudioOnInteraction = (event) => {
+    if (musicStarted) return;
+    
+    console.log('User interaction detected:', event.type);
+    userHasInteracted = true;
+    localStorage.setItem('userHasInteracted', 'true');
+    
+    // Try to start music immediately on any interaction
+    attemptMusicStart(`user interaction: ${event.type}`);
   };
   
   // Listen for ANY user interaction to start music
-  document.addEventListener('click', startAudioOnInteraction);
-  document.addEventListener('keydown', startAudioOnInteraction);
-  document.addEventListener('mousemove', startAudioOnInteraction);
-  document.addEventListener('touchstart', startAudioOnInteraction);
-  document.addEventListener('mousedown', startAudioOnInteraction);
-  document.addEventListener('keypress', startAudioOnInteraction);
+  const interactionEvents = ['click', 'keydown', 'mousemove', 'touchstart', 'mousedown', 'keypress', 'scroll', 'wheel'];
+  interactionEvents.forEach(eventType => {
+    document.addEventListener(eventType, startAudioOnInteraction, { once: false, passive: true });
+  });
   
-  // Also try to start music when the page becomes visible
+  // Try when page becomes visible
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      console.log('Page became visible - attempting music start...');
-      audioManager.startMusic();
+    if (!document.hidden && !musicStarted) {
+      attemptMusicStart('page visible');
     }
   });
+  
+  // Add a visual indicator if music hasn't started
+  setTimeout(() => {
+    if (!musicStarted) {
+      console.log('Music still not started - adding visual indicator');
+      // You could add a subtle visual cue here if needed
+    }
+  }, 3000);
   
   // Start game function
   function startGame() {
@@ -254,11 +299,6 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
               <label>Matrix Sky:</label>
               <input type="checkbox" id="menu-matrix-sky" checked />
             </div>
-            <div class="control-item">
-              <label>Matrix Speed:</label>
-              <input type="range" id="menu-matrix-speed" min="0.1" max="3.0" step="0.1" value="1.0" />
-              <span class="value-display" id="menu-matrix-speed-value">1.0</span>
-            </div>
           </div>
         </div>
         <div class="settings-buttons">
@@ -271,6 +311,11 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     
     document.body.appendChild(settingsOverlay);
     
+    // Use cursor manager to ensure cursor is visible in settings
+    if (window.cursorManager) {
+      window.cursorManager.setUIVisible(true);
+    }
+    
     // Load current settings
     loadSettings();
     
@@ -280,10 +325,18 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
       
       switch (action) {
         case 'close':
+          // Use cursor manager to hide cursor when closing settings
+          if (window.cursorManager) {
+            window.cursorManager.setUIVisible(false);
+          }
           settingsOverlay.remove();
           break;
         case 'apply':
           applySettings();
+          // Use cursor manager to hide cursor when applying settings
+          if (window.cursorManager) {
+            window.cursorManager.setUIVisible(false);
+          }
           settingsOverlay.remove();
           break;
         case 'reset':
@@ -296,18 +349,10 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     // Handle slider updates
     const sensitivitySlider = document.getElementById('menu-sensitivity');
     const sensitivityValue = document.getElementById('menu-sensitivity-value');
-    const matrixSpeedSlider = document.getElementById('menu-matrix-speed');
-    const matrixSpeedValue = document.getElementById('menu-matrix-speed-value');
     
     if (sensitivitySlider && sensitivityValue) {
       sensitivitySlider.addEventListener('input', (e) => {
         sensitivityValue.textContent = e.target.value;
-      });
-    }
-    
-    if (matrixSpeedSlider && matrixSpeedValue) {
-      matrixSpeedSlider.addEventListener('input', (e) => {
-        matrixSpeedValue.textContent = e.target.value;
       });
     }
   }
@@ -331,24 +376,17 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     if (matrixSkyCheckbox) {
       matrixSkyCheckbox.checked = settings.enableMatrixSky !== false;
     }
-    
-    if (matrixSpeedSlider && matrixSpeedValue) {
-      const speed = settings.matrixSkySpeed || 1.0;
-      matrixSpeedSlider.value = speed;
-      matrixSpeedValue.textContent = speed.toFixed(1);
-    }
   }
   
   // Apply settings
   function applySettings() {
     const sensitivitySlider = document.getElementById('menu-sensitivity');
     const matrixSkyCheckbox = document.getElementById('menu-matrix-sky');
-    const matrixSpeedSlider = document.getElementById('menu-matrix-speed');
     
     const settings = {
       sensitivity: parseFloat(sensitivitySlider?.value || 1.0),
       enableMatrixSky: matrixSkyCheckbox?.checked !== false,
-      matrixSkySpeed: parseFloat(matrixSpeedSlider?.value || 1.0),
+      matrixSkySpeed: 0.002, // Keep constant speed (original game speed)
       matrixSkyIntensity: 1.0
     };
     
@@ -373,7 +411,7 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     const defaultSettings = {
       sensitivity: 1.0,
       enableMatrixSky: true,
-      matrixSkySpeed: 1.0,
+      matrixSkySpeed: 0.002, // Keep constant speed (original game speed)
       matrixSkyIntensity: 1.0
     };
     
@@ -423,10 +461,19 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     
     document.body.appendChild(creditsOverlay);
     
+    // Use cursor manager to ensure cursor is visible in credits
+    if (window.cursorManager) {
+      window.cursorManager.setUIVisible(true);
+    }
+    
     // Handle credits events
     creditsOverlay.addEventListener('click', (e) => {
       const action = e.target.getAttribute('data-action');
       if (action === 'close') {
+        // Use cursor manager to hide cursor when closing credits
+        if (window.cursorManager) {
+          window.cursorManager.setUIVisible(false);
+        }
         creditsOverlay.remove();
       }
     });
@@ -480,65 +527,87 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
 /**
  * Global Music Manager - prevents multiple instances
  */
-window.GlobalMusicManager = window.GlobalMusicManager || {
-  audio: null,
-  isPlaying: false,
-  isInitialized: false,
-  
-  init() {
-    if (this.isInitialized) return;
-    console.log('Initializing global music manager');
-    this.audio = new Audio('./audio/l_theme_death_note.mp3');
-    this.audio.loop = true;
-    this.audio.volume = 0.3;
-    this.audio.preload = 'auto';
-    this.isInitialized = true;
+  window.GlobalMusicManager = window.GlobalMusicManager || {
+    audio: null,
+    isPlaying: false,
+    isInitialized: false,
+    autoplayBlocked: false,
     
-    this.audio.addEventListener('error', (e) => {
-      console.error('Global music could not be loaded:', e);
-    });
+    init() {
+      if (this.isInitialized) return;
+      console.log('Initializing global music manager');
+      this.audio = new Audio('./audio/l_theme_death_note.mp3');
+      this.audio.loop = true;
+      this.audio.volume = 0.3;
+      this.audio.preload = 'auto';
+      this.isInitialized = true;
+      
+      this.audio.addEventListener('error', (e) => {
+        console.error('Global music could not be loaded:', e);
+      });
+      
+      this.audio.addEventListener('canplaythrough', () => {
+        console.log('Global music ready');
+      });
+      
+      // Detect autoplay policy
+      this.audio.addEventListener('play', () => {
+        console.log('Global music play event fired');
+        this.isPlaying = true;
+        this.autoplayBlocked = false;
+      });
+      
+      this.audio.addEventListener('pause', () => {
+        console.log('Global music pause event fired');
+        this.isPlaying = false;
+      });
+    },
     
-    this.audio.addEventListener('canplaythrough', () => {
-      console.log('Global music ready');
-    });
-  },
-  
-  start() {
-    if (!this.isInitialized) this.init();
-    if (this.isPlaying) {
-      console.log('Music already playing globally');
-      return;
+    start() {
+      if (!this.isInitialized) this.init();
+      if (this.isPlaying) {
+        console.log('Music already playing globally');
+        return Promise.resolve(true);
+      }
+      
+      console.log('Starting global music...');
+      const playPromise = this.audio.play();
+      
+      if (playPromise !== undefined) {
+        return playPromise
+          .then(() => {
+            this.isPlaying = true;
+            this.autoplayBlocked = false;
+            console.log('Global music started successfully');
+            return true;
+          })
+          .catch((error) => {
+            this.autoplayBlocked = true;
+            console.log('Global music autoplay blocked:', error.message);
+            return false;
+          });
+      }
+      return Promise.resolve(false);
+    },
+    
+    stop() {
+      if (this.audio && this.isPlaying) {
+        console.log('Stopping global music...');
+        this.audio.pause();
+        this.audio.currentTime = 0;
+        this.audio.volume = 0;
+        this.isPlaying = false;
+      }
+    },
+    
+    isCurrentlyPlaying() {
+      return this.isPlaying && this.audio && !this.audio.paused;
+    },
+    
+    isAutoplayBlocked() {
+      return this.autoplayBlocked;
     }
-    
-    console.log('Starting global music...');
-    const playPromise = this.audio.play();
-    
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          this.isPlaying = true;
-          console.log('Global music started successfully');
-        })
-        .catch((error) => {
-          console.log('Global music autoplay blocked:', error.message);
-        });
-    }
-  },
-  
-  stop() {
-    if (this.audio && this.isPlaying) {
-      console.log('Stopping global music...');
-      this.audio.pause();
-      this.audio.currentTime = 0;
-      this.audio.volume = 0;
-      this.isPlaying = false;
-    }
-  },
-  
-  isCurrentlyPlaying() {
-    return this.isPlaying && this.audio && !this.audio.paused;
-  }
-};
+  };
 
 /**
  * Audio Manager for Main Menu Music

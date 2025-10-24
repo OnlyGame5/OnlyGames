@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory } from './player.js';
+import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory, toggleLookMode } from './player.js';
 import { AI } from './ai.js';
 import { WallCollisionManager } from './collision/WallCollisionManager.js';
 import { roomWallDefinitions } from './collision/roomWalls.js';
@@ -15,6 +15,10 @@ import { loadingScreen } from './loading.js';
 import { createLoadingScreen, dispatchLoadingProgress, dispatchLoadingComplete } from './ui/LoadingScreen.js';
 import { createMainMenu } from './ui/MainMenu.js';
 import { uiRoot } from './ui/UIRoot.js';
+import { cursorManager } from './ui/CursorManager.js';
+
+// Initialize global cursor manager
+window.cursorManager = cursorManager;
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { Minimap } from './minimap.js';
 import { FPSCounter } from './ui/FPSCounter.js';
@@ -810,6 +814,7 @@ function loadSettingsFromMainMenu() {
         window.gameStore.settings.enableMatrixSky = settings.enableMatrixSky;
       }
       if (settings.matrixSkySpeed !== undefined) {
+        // Ensure we use the correct scale (gameStore expects 0.002 range)
         window.gameStore.settings.matrixSkySpeed = settings.matrixSkySpeed;
       }
       if (settings.matrixSkyIntensity !== undefined) {
@@ -929,6 +934,11 @@ window.addEventListener('keydown', (e) => {
     AI.say(`Switched to ${viewMode} view. Use mouse to look around in first-person.`);
   }
   
+  // J key for look mode toggle
+  if (e.code === 'KeyJ') {
+    toggleLookMode();
+  }
+  
   // I key interaction handler for inventory inspection
   if (e.code === 'KeyI') {
     // Check if paper examination is open first
@@ -1009,18 +1019,15 @@ window.addEventListener('keydown', (e) => {
   
   // E key interaction handler
   if (e.code === getBindings().interact) {
-    console.log('E-key pressed! Key code:', e.code, 'getBindings().interact:', getBindings().interact);
     
     // Check if minigame is active - if so, don't process E-key interactions
     if (window.disablePlayerControls) {
-      console.log('Minigame is active, skipping E-key handling');
       return;
     }
     
     // Check if paper examination is open first
     const paperExamination = document.getElementById('paperExamination');
     if (paperExamination) {
-      console.log('Paper examination is open, skipping E-key handling');
       // Paper examination is open, let it handle the E-key to close
       return;
     }
@@ -1028,7 +1035,6 @@ window.addEventListener('keydown', (e) => {
     // Check for door interactions first
     if (window.currentDoorInteraction) {
       const doorInfo = window.currentDoorInteraction;
-      console.log('Door interaction detected:', doorInfo);
       
       if (doorInfo.isLocked) {
         AI.say('This door is locked. Complete the required tasks to unlock it.');
@@ -1053,13 +1059,6 @@ window.addEventListener('keydown', (e) => {
       return;
     }
     
-    console.log('Game state check:', { 
-      stage: gameState.stage, 
-      room0Exists: !!gameState.room0,
-      room1Exists: !!gameState.room1,
-      room2Exists: !!gameState.room2,
-      room3Exists: !!gameState.room3
-    });
     
     const activePlayer = leonardModel || player;
     

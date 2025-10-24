@@ -1,3 +1,202 @@
+/* =========================
+   🔋 Neon Theme Variables
+   ========================= */
+:root{
+  --neon:#00ff7f;
+  --neon-2:#32ffa6;
+  --neon-dim:#00c86b;
+  --danger:#ff3b3b;
+  --panel:#0c0f12;
+  --panel-2:#12161b;
+  --ink:#e6ffe6;
+  --blur:14px;
+}
+
+/* =========================
+   🖥️ Fullscreen: vignette + grain + flicker
+   ========================= */
+.main-menu{
+  background:
+    radial-gradient(1200px 800px at 50% 40%, rgba(0,255,130,.06), transparent 55%),
+    linear-gradient(135deg,#060707,#0b0f14 48%,#0a0f1a 55%,#050607 100%);
+  color:var(--ink);
+  isolation:isolate;
+}
+
+.main-menu::after{
+  content:"";
+  position:fixed; inset:0;
+  pointer-events:none; z-index:0;
+  background:
+    radial-gradient(1200px 800px at 50% 50%, transparent 55%, rgba(0,0,0,.55) 85%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 10 10'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' seed='3'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='table' tableValues='0 0 0 .06 0'/></feComponentTransfer></filter><rect width='10' height='10' filter='url(%23n)'/></svg>");
+  mix-blend-mode:soft-light;
+  animation:flicker 6s infinite steps(60,end);
+  opacity:.65;
+}
+@keyframes flicker{ 0%,100%{opacity:.6} 45%{opacity:.62} 50%{opacity:.7} 55%{opacity:.63} }
+
+/* =========================
+   🧊 Card: glass + neon rim + scanlines
+   ========================= */
+.menu-container{
+  background:linear-gradient(180deg, rgba(9,14,12,.8), rgba(9,14,12,.7));
+  border:1.5px solid var(--neon-dim);
+  border-radius:16px;
+  padding:48px 44px;
+  box-shadow:
+    0 0 0 1px rgba(0,255,140,.08) inset,
+    0 0 42px rgba(0,255,140,.14),
+    0 22px 60px rgba(0,0,0,.6);
+  backdrop-filter: blur(var(--blur)) saturate(110%);
+  position:relative;
+  overflow:hidden;
+}
+.menu-container::before{
+  content:"";
+  position:absolute; inset:-2px;
+  border-radius:18px;
+  padding:2px;
+  background:
+    conic-gradient(from 130deg,
+      transparent 0 10%,
+      rgba(0,255,140,.45) 15%,
+      transparent 30% 60%,
+      rgba(0,255,140,.35) 70%,
+      transparent 85% 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; 
+  mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite:exclude;
+  animation:rim 12s linear infinite;
+  pointer-events:none;
+  z-index:-1;
+}
+@keyframes rim{ to{ transform:rotate(1turn); } }
+.menu-container::after{
+  content:"";
+  position:absolute; inset:0;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.0) 0 1px, rgba(0,0,0,.07) 2px 3px);
+  opacity:.6; pointer-events:none;
+}
+
+/* =========================
+   🧢 Title: chromatic ghost + glow
+   ========================= */
+.game-title{ margin-bottom:42px }
+.title-main{
+  font-family:"Share Tech Mono","Courier New",monospace;
+  font-size: clamp(40px, 6vw, 64px);
+  letter-spacing: .18em;
+  color:var(--neon);
+  text-shadow: 0 0 22px rgba(0,255,130,.55), 0 0 60px rgba(0,255,130,.25);
+  position:relative; line-height:1.05;
+}
+.title-main::before,
+.title-main::after{
+  content:attr(data-text);
+  position:absolute; inset:0;
+  filter:blur(.3px);
+  mix-blend-mode:screen;
+  opacity:.45; pointer-events:none;
+}
+.title-main::before{ transform:translateX(1px); color:#00ffee }
+.title-main::after{  transform:translateX(-1px); color:#60ff60 }
+.title-subtitle{
+  color:#b7ffd8; opacity:.85; letter-spacing:.35em; text-transform:uppercase;
+}
+
+/* =========================
+   🕹️ Buttons: depth, gloss, glitch, focus ring
+   ========================= */
+.menu-buttons-container{ gap:18px }
+
+.menu-button{
+  width:min(92vw, 340px);
+  height:58px;
+  background:linear-gradient(180deg, #0e1418, #131a20);
+  border:1.5px solid var(--neon-dim);
+  color:var(--neon);
+  border-radius:10px;
+  letter-spacing:.25em; text-transform:uppercase;
+  box-shadow:
+    0 2px 0 rgba(0,0,0,.6) inset,
+    0 18px 40px rgba(0,0,0,.55);
+  transition:transform .15s ease, box-shadow .25s ease, background .25s ease, color .2s ease;
+  position:relative; overflow:hidden;
+}
+.menu-button::before{
+  content:"";
+  position:absolute; inset:-1px;
+  background:linear-gradient(110deg, transparent 30%, rgba(255,255,255,.08) 50%, transparent 70%);
+  transform:translateX(-120%);
+  transition:transform .6s ease;
+}
+.menu-button:hover::before{ transform:translateX(120%); }
+.menu-button:hover{
+  background:linear-gradient(180deg, #111a1f, #0e161b);
+  box-shadow:0 0 24px rgba(0,255,140,.25), 0 18px 40px rgba(0,0,0,.65);
+  transform:translateY(-1px);
+  color:#eafff2;
+}
+.menu-button:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 3px rgba(0,255,140,.35), 0 0 0 6px rgba(0,255,140,.15);
+}
+
+/* Primary & Danger */
+.menu-button.primary{
+  background:linear-gradient(180deg, var(--neon), var(--neon-2));
+  color:#00130a; border-color:transparent; text-shadow:none;
+}
+.menu-button.primary:hover{ box-shadow:0 0 26px rgba(0,255,140,.55), 0 22px 44px rgba(0,0,0,.65) }
+.menu-button.danger{ border-color:var(--danger); color:var(--danger) }
+.menu-button.danger:hover{
+  background:linear-gradient(180deg,#220b0b,#1a0a0a);
+  box-shadow:0 0 24px rgba(255,60,60,.35);
+  color:#fff;
+}
+
+/* Glitch label effect */
+.menu-button:hover .btn-label{ position:relative; }
+.menu-button:hover .btn-label::after,
+.menu-button:hover .btn-label::before{
+  content:attr(data-text);
+  position:absolute; inset:0;
+  opacity:.14; pointer-events:none;
+  animation:glitch .7s steps(8,end) both;
+}
+.menu-button:hover .btn-label::before{ transform:translateX(1px); color:#00ffee }
+.menu-button:hover .btn-label::after{  transform:translateX(-1px); color:#60ff60 }
+@keyframes glitch{
+  0%{ clip-path:inset(0 0 90% 0) }
+  20%{ clip-path:inset(40% 0 40% 0) }
+  40%{ clip-path:inset(85% 0 5% 0) }
+  60%{ clip-path:inset(10% 0 80% 0) }
+  80%{ clip-path:inset(50% 0 20% 0) }
+  100%{ clip-path:inset(0 0 0 0) }
+}
+
+/* Settings/Credits unify */
+.settings-panel, .credits-panel{
+  background:linear-gradient(180deg, var(--panel), var(--panel-2));
+  border-color:var(--neon-dim);
+  box-shadow:
+    0 0 0 1px rgba(0,255,140,.08) inset,
+    0 30px 80px rgba(0,0,0,.7),
+    0 0 36px rgba(0,255,140,.2);
+  backdrop-filter: blur(var(--blur)) saturate(110%);
+  border-radius:14px;
+}
+.settings-header h2, .credits-header h2{
+  text-shadow: 0 0 16px rgba(0,255,140,.6);
+}
+
+/* Motion safety */
+@media (prefers-reduced-motion: reduce){
+  *{ animation:none !important; transition:none !important }
+}
+
 /* Main Menu Styles */
 .main-menu {
   position: fixed;

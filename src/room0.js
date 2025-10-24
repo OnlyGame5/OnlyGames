@@ -807,7 +807,6 @@ export function createRoom0() {
     
     for (const currentDoor of doors) {
       const doorDistance = playerObject.position.distanceTo(currentDoor.position);
-      console.log(`Door ${currentDoor.userData.id}: distance=${doorDistance.toFixed(2)}, locked=${currentDoor.userData.locked}`);
       if (doorDistance < 3.0) { // Within 3 units of the door
         if (currentDoor.userData.locked) {
           // Special case for south door - show denial message
@@ -848,10 +847,7 @@ export function createRoom0() {
           }
         } else {
           // Door is unlocked, just toggle it
-          console.log(`Opening unlocked door: ${currentDoor.userData.id}`);
-          console.log('Door state before toggle:', currentDoor.userData.state);
           currentDoor.userData.toggle();
-          console.log('Door state after toggle:', currentDoor.userData.state);
           return true;
         }
       }

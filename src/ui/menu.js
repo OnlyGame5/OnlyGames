@@ -308,9 +308,16 @@ export function toggleMenu(force) {
     // Pause the game timer
     pauseTimer();
     
-    // Exit pointer lock
-    if (document.pointerLockElement) {
-      document.exitPointerLock();
+    // Use cursor manager to show cursor
+    if (window.cursorManager) {
+      window.cursorManager.setMenuOpen(true);
+    } else {
+      // Fallback to old system
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+      document.body.style.cursor = 'default !important';
+      document.documentElement.style.cursor = 'default !important';
     }
     
     // Hide crosshair
@@ -319,39 +326,6 @@ export function toggleMenu(force) {
       crosshair.style.display = 'none';
     }
     
-    // Force cursor to be visible and add CSS override
-    document.body.style.cursor = 'default !important';
-    document.documentElement.style.cursor = 'default !important';
-    
-    // Add CSS rule to force cursor visibility
-    const style = document.createElement('style');
-    style.id = 'menu-cursor-fix';
-    style.textContent = `
-      * {
-        cursor: default !important;
-      }
-      #game-menu * {
-        cursor: default !important;
-      }
-    `;
-    document.head.appendChild(style);
-    
-    // Add continuous cursor check
-    const cursorCheckInterval = setInterval(() => {
-      if (isMenuOpen()) {
-        document.body.style.cursor = 'default !important';
-        document.documentElement.style.cursor = 'default !important';
-        
-        // Also force cursor on any input elements
-        const inputs = document.querySelectorAll('input, button, select, textarea');
-        inputs.forEach(input => {
-          input.style.cursor = 'default !important';
-        });
-      } else {
-        clearInterval(cursorCheckInterval);
-      }
-    }, 100);
-    
   } else {
     menuElement.classList.remove('show');
     onPauseChange && onPauseChange(false);
@@ -359,15 +333,14 @@ export function toggleMenu(force) {
     // Resume the game timer
     resumeTimer();
     
-    // Remove cursor override
-    const cursorFix = document.getElementById('menu-cursor-fix');
-    if (cursorFix) {
-      cursorFix.remove();
+    // Use cursor manager to hide cursor
+    if (window.cursorManager) {
+      window.cursorManager.setMenuOpen(false);
+    } else {
+      // Fallback to old system
+      document.body.style.cursor = 'auto';
+      document.documentElement.style.cursor = 'auto';
     }
-    
-    // Restore cursor to auto (will be hidden again when pointer lock is active)
-    document.body.style.cursor = 'auto';
-    document.documentElement.style.cursor = 'auto';
   }
 }
 

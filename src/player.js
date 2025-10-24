@@ -363,6 +363,39 @@ export function toggleViewMode() {
   return isFirstPerson;
 }
 
+// Toggle look mode (pointer lock) with J key
+export function toggleLookMode() {
+  if (!isFirstPerson) {
+    console.log('Cannot toggle look mode in third-person view');
+    return;
+  }
+
+  // Check if UI is visible
+  const isUIVisible = window.isUIVisible || (window.cursorManager && window.cursorManager.isUIVisible);
+  const isMenuOpen = window.cursorManager && window.cursorManager.isMenuOpen;
+  
+  if (isUIVisible || isMenuOpen) {
+    console.log('Cannot toggle look mode when UI is visible');
+    return;
+  }
+
+  if (isMouseLocked) {
+    // Exit look mode
+    if (window.cursorManager) {
+      window.cursorManager.setLookModeActive(false);
+    }
+    document.exitPointerLock();
+    console.log('Exited look mode - cursor visible');
+  } else {
+    // Enter look mode
+    if (window.cursorManager) {
+      window.cursorManager.setLookModeActive(true);
+    }
+    document.body.requestPointerLock();
+    console.log('Entered look mode - cursor hidden');
+  }
+}
+
 /* ================================
    MODEL / ANIMATION LOADING
 =================================== */
@@ -517,6 +550,7 @@ export function setupPlayer(scene) {
       updateInventoryUI();
     }
 
+
     // Debug (optional)
     if (e.code === 'F1') debugAnimations();
     if (e.code === 'F4') debugLeonardMeshNames();
@@ -549,7 +583,11 @@ export function setupPlayer(scene) {
   // Click to lock pointer in first-person
   window.addEventListener('click', () => {
     // Only lock the controls if no UI is currently visible
-    if (isFirstPerson && !isMouseLocked && !window.isUIVisible) {
+    // Check both the old isUIVisible flag and the new cursor manager
+    const isUIVisible = window.isUIVisible || (window.cursorManager && window.cursorManager.isUIVisible);
+    const isMenuOpen = window.cursorManager && window.cursorManager.isMenuOpen;
+    
+    if (isFirstPerson && !isMouseLocked && !isUIVisible && !isMenuOpen) {
       document.body.requestPointerLock();
     }
   });
@@ -557,6 +595,12 @@ export function setupPlayer(scene) {
   // Pointer lock change
   document.addEventListener('pointerlockchange', () => {
     isMouseLocked = document.pointerLockElement === document.body;
+    
+    // Update cursor manager when pointer lock changes
+    if (window.cursorManager) {
+      window.cursorManager.setLookModeActive(isMouseLocked);
+    }
+    
     if (isMouseLocked && isFirstPerson) showCrosshair();
     else hideCrosshair();
   });

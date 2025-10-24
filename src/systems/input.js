@@ -7,7 +7,8 @@ export const DEFAULT_BINDINGS = {
   interact:    'KeyE',
   toggleView:  'KeyV',
   toggleLight: 'KeyL',
-  openMenu:    'KeyM'
+  openMenu:    'KeyM',
+  toggleLookMode: 'KeyJ'
 };
 
 // Global state

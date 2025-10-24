@@ -7,10 +7,12 @@ export class MatrixSky {
     this.mesh = null;
     this.material = null;
     this.uniforms = {
-      uTime: { value: 0.0 }
+      uTime: { value: 0.0 },
+      uFallSpeed: { value: 0.001 }
     };
     this.enabled = true;
     this.rotationSpeed = 0.002;
+    this.fallSpeed = 0.001;
     
     this.createMatrixSky();
   }
@@ -31,6 +33,7 @@ export class MatrixSky {
       `,
       fragmentShader: `
         uniform float uTime;
+        uniform float uFallSpeed;
         varying vec2 vUv;
         
         // Hash function for pseudo-random numbers
@@ -73,9 +76,8 @@ export class MatrixSky {
           // Random offset for each column
           float columnOffset = hash(column) * 15.0;
           
-          // Animate falling motion - much slower
-          float fallSpeed = 0.15; // Much slower falling
-          float yPos = fract(vUv.y + uTime * fallSpeed + columnOffset);
+          // Animate falling motion - use uniform for speed control
+          float yPos = fract(vUv.y + uTime * uFallSpeed + columnOffset);
           
           // Create small character cells
           float charHeight = 0.06; // Much smaller characters
@@ -94,7 +96,7 @@ export class MatrixSky {
           
           // Add bright head effect (leading digit) - slower
           float headSize = 0.08;
-          float headY = fract(vUv.y + uTime * fallSpeed * 1.2 + columnOffset);
+          float headY = fract(vUv.y + uTime * uFallSpeed * 1.2 + columnOffset);
           float head = step(0.0, headY) * step(headY, headSize);
           head *= showColumn;
           
@@ -166,6 +168,14 @@ export class MatrixSky {
 
   setSpeed(speed) {
     this.rotationSpeed = speed;
+    // Use the provided speed parameter for the shader
+    this.fallSpeed = speed;
+    if (this.material && this.material.uniforms.uFallSpeed) {
+      this.material.uniforms.uFallSpeed.value = this.fallSpeed;
+      console.log('MatrixSky: setSpeed called, uFallSpeed set to:', this.fallSpeed);
+    } else {
+      console.log('MatrixSky: setSpeed called but material or uniform not found');
+    }
   }
 
   setIntensity(intensity) {

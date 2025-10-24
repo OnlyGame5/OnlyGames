@@ -50,7 +50,6 @@ export function createFuturisticDoor(options = {}) {
     },
     setLocked: (v) => { doorGroup.userData.locked = v; },
     openDoor: () => { 
-      console.log('Door opening triggered!', doorGroup.userData.state);
       doorGroup.userData.state.targetOpenAmount = 1; 
     },
     closeDoor: () => { doorGroup.userData.state.targetOpenAmount = 0; },
