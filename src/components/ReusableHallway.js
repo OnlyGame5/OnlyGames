@@ -232,9 +232,12 @@ export function createReusableHallway(options = {}) {
   hallwayCeiling.name = 'hallway-ceiling';
   hallway.add(hallwayCeiling);
 
-  // Performance optimization: Remove individual hallway lighting to eliminate lag
-  // Hallways will rely on global scene lighting instead
-  // This eliminates multiple light sources that were causing performance issues
+  // Add minimal ambient lighting for visibility (5% intensity)
+  if (config.addLighting) {
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.05); // 5% ambient lighting
+    ambientLight.name = 'hallway-ambient';
+    hallway.add(ambientLight);
+  }
 
   // Add invisible collision walls for proper collision detection
   const wallThickness = 0.1;

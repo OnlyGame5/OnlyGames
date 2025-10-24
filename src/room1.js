@@ -469,50 +469,7 @@ export function createRoom1() {
   // group.add(lights.spot);
   // group.add(lights.spot.target);
 
-  // Add swivel cameras
-  function addSwivelCameras() {
-    // Camera 1 (corner)
-    const camera1 = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.1, 0.3, 8),
-      new THREE.MeshStandardMaterial({
-        color: 0x1a1a1a,
-        metalness: 0.8,
-        roughness: 0.2
-      })
-    );
-    camera1.position.set(-7, 3.5, -7);
-    camera1.rotation.z = Math.PI / 4; // Angled
-    camera1.castShadow = true;
-    group.add(camera1);
-    
-    // Camera 2 (wall mounted)
-    const camera2 = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.08, 0.2, 8),
-      new THREE.MeshStandardMaterial({
-        color: 0x2a2a2a,
-        metalness: 0.9,
-        roughness: 0.1
-      })
-    );
-    camera2.position.set(8.5, 3, 0);
-    camera2.rotation.y = Math.PI / 2;
-    camera2.castShadow = true;
-    group.add(camera2);
-    
-    // Camera 3 (ceiling mounted)
-    const camera3 = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 0.12, 0.4, 8),
-      new THREE.MeshStandardMaterial({
-        color: 0x1a1a1a,
-        metalness: 0.7,
-        roughness: 0.3
-      })
-    );
-    camera3.position.set(0, 4.1, 0);
-    camera3.castShadow = true;
-    group.add(camera3);
-  }
-  addSwivelCameras();
+  // Swivel cameras removed - they were floating black cylinder objects
 
   // Wire Panel System
   const wirePanel = createWirePanel({ order: ['R','G','B','Y'], useGLBModel: true });
