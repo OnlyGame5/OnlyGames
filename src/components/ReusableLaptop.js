@@ -122,6 +122,14 @@ function createDefaultLaptopInterface(roomId) {
       background: #00ff7f;
       color: #051018;
     }
+    
+    /* Custom cursor styling for laptop UI */
+    .laptop-ui-active {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
+    }
+    .laptop-ui-active * {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
+    }
   `;
   
   uiContainer.innerHTML = `
@@ -144,8 +152,9 @@ function createDefaultLaptopInterface(roomId) {
     window.camera.controls.enabled = false;
   }
   
-  // Show cursor
+  // Show cursor with laptop UI styling
   document.body.style.cursor = 'default';
+  document.body.classList.add('laptop-ui-active');
 }
 
 // Global function to close laptop interface
@@ -160,8 +169,9 @@ window.closeLaptopInterface = function(interfaceId) {
     window.camera.controls.enabled = true;
   }
   
-  // Hide cursor
+  // Hide cursor and remove laptop UI styling
   document.body.style.cursor = 'none';
+  document.body.classList.remove('laptop-ui-active');
 };
 
 // Preset configurations with custom HTML interfaces
@@ -286,6 +296,14 @@ function createRoom1LaptopInterface(roomId) {
       background: #00ff7f;
       color: #051018;
     }
+    
+    /* Custom cursor styling for laptop UI */
+    .laptop-ui-active {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
+    }
+    .laptop-ui-active * {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
+    }
   `;
   
   uiContainer.innerHTML = `
@@ -313,8 +331,9 @@ function createRoom1LaptopInterface(roomId) {
     window.camera.controls.enabled = false;
   }
   
-  // Show cursor
+  // Show cursor with laptop UI styling
   document.body.style.cursor = 'default';
+  document.body.classList.add('laptop-ui-active');
 }
 
 function createRoom2LaptopInterface(roomId) {
@@ -393,6 +412,14 @@ function createRoom2LaptopInterface(roomId) {
       background: #ff6b35;
       color: #1a0a0a;
     }
+    
+    /* Custom cursor styling for laptop UI */
+    .laptop-ui-active {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%23ff6b35" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%23ff6b35"/></svg>'), auto !important;
+    }
+    .laptop-ui-active * {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%23ff6b35" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%23ff6b35"/></svg>'), auto !important;
+    }
   `;
   
   uiContainer.innerHTML = `
@@ -421,8 +448,9 @@ function createRoom2LaptopInterface(roomId) {
     window.camera.controls.enabled = false;
   }
   
-  // Show cursor
+  // Show cursor with laptop UI styling
   document.body.style.cursor = 'default';
+  document.body.classList.add('laptop-ui-active');
 }
 
 function createRoom3LaptopInterface(roomId) {
@@ -501,6 +529,14 @@ function createRoom3LaptopInterface(roomId) {
       background: #00ffff;
       color: #0a0a2e;
     }
+    
+    /* Custom cursor styling for laptop UI */
+    .laptop-ui-active {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ffff" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ffff"/></svg>'), auto !important;
+    }
+    .laptop-ui-active * {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ffff" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ffff"/></svg>'), auto !important;
+    }
   `;
   
   uiContainer.innerHTML = `
@@ -534,8 +570,9 @@ function createRoom3LaptopInterface(roomId) {
     window.camera.controls.enabled = false;
   }
   
-  // Show cursor
+  // Show cursor with laptop UI styling
   document.body.style.cursor = 'default';
+  document.body.classList.add('laptop-ui-active');
 }
 
 function createRoom4LaptopInterface(roomId) {
@@ -606,6 +643,14 @@ function createRoom4LaptopInterface(roomId) {
       background: #9d4edd;
       color: #1a0a2e;
     }
+    
+    /* Custom cursor styling for laptop UI */
+    .laptop-ui-active {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%239d4edd" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%239d4edd"/></svg>'), auto !important;
+    }
+    .laptop-ui-active * {
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%239d4edd" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%239d4edd"/></svg>'), auto !important;
+    }
   `;
   
   uiContainer.innerHTML = `
@@ -634,8 +679,9 @@ function createRoom4LaptopInterface(roomId) {
     window.camera.controls.enabled = false;
   }
   
-  // Show cursor
+  // Show cursor with laptop UI styling
   document.body.style.cursor = 'default';
+  document.body.classList.add('laptop-ui-active');
 }
 
 // Global functions for room-specific interactions
@@ -678,11 +724,11 @@ window.runPurgeProtocol = function(interfaceId) {
 function createPedestal(parentGroup) {
   // Pedestal base
   const pedestalBaseMat = new THREE.MeshStandardMaterial({ 
-    color: 0x3a3a3a, // Brighter base
+    color: 0x6a6a6a, // Much brighter base
     metalness: 0.2, 
-    roughness: 0.5,
-    emissive: 0x111111, // Subtle emissive glow
-    emissiveIntensity: 0.05
+    roughness: 0.3,
+    emissive: 0x333333, // Bright emissive glow
+    emissiveIntensity: 0.2
   });
   const pedestalBase = new THREE.Mesh(
     new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32),
@@ -695,11 +741,11 @@ function createPedestal(parentGroup) {
 
   // Pedestal column
   const pedestalMat = new THREE.MeshStandardMaterial({ 
-    color: 0x2a2a2a, // Brighter column
-    metalness: 0.6, // Reduced metalness
-    roughness: 0.3, // Reduced roughness
-    emissive: 0x111111, // Subtle emissive glow
-    emissiveIntensity: 0.1
+    color: 0x5a5a5a, // Much brighter column
+    metalness: 0.6, // Good metalness for reflection
+    roughness: 0.2, // Low roughness for more reflection
+    emissive: 0x444444, // Bright emissive glow
+    emissiveIntensity: 0.25
   });
   const pedestal = new THREE.Mesh(
     new THREE.CylinderGeometry(0.3, 0.3, 0.8, 32),
@@ -714,11 +760,11 @@ function createPedestal(parentGroup) {
 function createLaptopWorkstation(parentGroup, screenTexture, screenContent) {
   // Table/Platform
   const tableMat = new THREE.MeshStandardMaterial({ 
-    color: 0x3a3a3a, // Brighter table
-    metalness: 0.2, // Reduced metalness
-    roughness: 0.5, // Reduced roughness
-    emissive: 0x111111, // Subtle emissive glow
-    emissiveIntensity: 0.05
+    color: 0x6a6a6a, // Much brighter table
+    metalness: 0.3, // Good metalness for reflection
+    roughness: 0.2, // Low roughness for more reflection
+    emissive: 0x333333, // Bright emissive glow
+    emissiveIntensity: 0.2
   });
   const table = new THREE.Mesh(
     new THREE.BoxGeometry(1.2, 0.8, 1.2), 
@@ -736,11 +782,11 @@ function createLaptopWorkstation(parentGroup, screenTexture, screenContent) {
 
   // Laptop base (keyboard)
   const baseMat = new THREE.MeshStandardMaterial({ 
-    color: 0x2a2a2a, // Slightly brighter
-    metalness: 0.6, // Reduced metalness
-    roughness: 0.3, // Reduced roughness for more reflection
-    emissive: 0x111111, // Very subtle emissive glow
-    emissiveIntensity: 0.1
+    color: 0x4a4a4a, // Much brighter
+    metalness: 0.7, // Good metalness for reflection
+    roughness: 0.1, // Very low roughness for more reflection
+    emissive: 0x555555, // Bright emissive glow
+    emissiveIntensity: 0.3
   });
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(0.6, 0.05, 0.4), 
@@ -755,11 +801,11 @@ function createLaptopWorkstation(parentGroup, screenTexture, screenContent) {
 
   // Screen
   const screenMat = new THREE.MeshStandardMaterial({ 
-    color: 0x1a1a1a, // Slightly brighter
-    metalness: 0.7, // Reduced metalness
-    roughness: 0.2, // Reduced roughness for more reflection
-    emissive: 0x222222, // Subtle emissive glow
-    emissiveIntensity: 0.2
+    color: 0x3a3a3a, // Much brighter
+    metalness: 0.8, // High metalness for good reflection
+    roughness: 0.05, // Very low roughness for maximum reflection
+    emissive: 0x666666, // Very bright emissive glow
+    emissiveIntensity: 0.4
   });
   const screenHeight = 0.4;
   const screen = new THREE.Mesh(
@@ -789,9 +835,9 @@ function createDisplayScreen(screen, screenTexture, screenContent) {
   
   const displayMat = new THREE.MeshStandardMaterial({
     map: displayTexture,
-    emissive: 0x404040, // Darker base emissive color
+    emissive: 0x808080, // Much brighter base emissive color
     emissiveMap: displayTexture,
-    emissiveIntensity: 0.6, // Increased for better visibility
+    emissiveIntensity: 1.0, // Maximum for best visibility
     toneMapped: false, // Keep false for emissive materials
     transparent: false,
     side: THREE.FrontSide
