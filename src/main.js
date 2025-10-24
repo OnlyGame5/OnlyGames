@@ -317,6 +317,28 @@ truthFilterText.style.cssText = `
 truthFilterText.innerHTML = 'TRUTH FILTER ACTIVE<br><span style="font-size: 11px; color: #88ff88;">Gamma Protocol Engaged</span>';
 document.body.appendChild(truthFilterText);
 
+// Game countdown display
+const gameCountdownDisplay = document.createElement('div');
+gameCountdownDisplay.id = 'game-countdown-display';
+gameCountdownDisplay.style.cssText = `
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  color: #00ff00;
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 12px 16px;
+  border: 2px solid #00ff00;
+  border-radius: 6px;
+  z-index: 10000;
+  font-weight: bold;
+  text-shadow: 0 0 5px #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+`;
+gameCountdownDisplay.innerHTML = 'TIME REMAINING<br><span id="countdown-timer">20:00</span>';
+document.body.appendChild(gameCountdownDisplay);
+
 // Truth filter timer system
 let truthFilterTimer = null;
 let truthFilterStartTime = null;
