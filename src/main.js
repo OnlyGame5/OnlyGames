@@ -13,6 +13,7 @@ import { initInput, isDown as inputIsDown, getBindings } from './systems/input.j
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
 import { loadingScreen } from './loading.js';
 import { createLoadingScreen, dispatchLoadingProgress, dispatchLoadingComplete } from './ui/LoadingScreen.js';
+import { createMainMenu } from './ui/MainMenu.js';
 import { uiRoot } from './ui/UIRoot.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { Minimap } from './minimap.js';
@@ -773,8 +774,98 @@ async function initGame() {
   }
 }
 
-// Initialize the game with new loading screen
-initializeGameWithLoading();
+// Initialize the game with main menu first
+initializeMainMenu();
+
+function initializeMainMenu() {
+  // Create the main menu
+  const mainMenuInstance = createMainMenu({
+    onStartGame: () => {
+      console.log('Starting game from main menu...');
+      loadSettingsFromMainMenu();
+      initializeGameWithLoading();
+    },
+    onSettings: () => {
+      console.log('Settings clicked - handled by main menu');
+    },
+    onCredits: () => {
+      console.log('Credits clicked - handled by main menu');
+    },
+    onExit: () => {
+      console.log('Exit game clicked');
+      // Close the browser tab/window
+      window.close();
+    }
+  });
+}
+
+// Load settings from main menu when starting game
+function loadSettingsFromMainMenu() {
+  try {
+    const settings = JSON.parse(localStorage.getItem('gameSettings') || '{}');
+    
+    // Update gameStore settings
+    if (window.gameStore && window.gameStore.settings) {
+      if (settings.enableMatrixSky !== undefined) {
+        window.gameStore.settings.enableMatrixSky = settings.enableMatrixSky;
+      }
+      if (settings.matrixSkySpeed !== undefined) {
+        window.gameStore.settings.matrixSkySpeed = settings.matrixSkySpeed;
+      }
+      if (settings.matrixSkyIntensity !== undefined) {
+        window.gameStore.settings.matrixSkyIntensity = settings.matrixSkyIntensity;
+      }
+    }
+    
+    // Update input system settings if available
+    if (window.Input && settings.sensitivity !== undefined) {
+      window.Input.setSettings({ sensitivity: settings.sensitivity });
+    }
+    
+    console.log('Settings loaded from main menu:', settings);
+  } catch (error) {
+    console.error('Failed to load settings from main menu:', error);
+  }
+}
+
+// Stop any background music from main menu/loading screen
+function stopBackgroundMusic() {
+  console.log('Stopping background music for game start...');
+  
+  // Use global music manager to stop music
+  if (window.GlobalMusicManager) {
+    window.GlobalMusicManager.stop();
+    console.log('Global music stopped via GlobalMusicManager');
+  }
+  
+  // Fallback: Find and stop all audio elements
+  const audioElements = document.querySelectorAll('audio');
+  audioElements.forEach(audio => {
+    if (!audio.paused) {
+      console.log('Stopping audio element:', audio.src);
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = 0;
+    }
+  });
+  
+  // Also try to stop any audio created by the menu systems
+  try {
+    // Stop any audio that might be playing from main menu or loading screen
+    const allAudio = document.querySelectorAll('audio, video');
+    allAudio.forEach(media => {
+      if (!media.paused) {
+        media.pause();
+        media.currentTime = 0;
+        console.log('Stopped media element:', media.tagName, media.src);
+      }
+    });
+  } catch (error) {
+    console.log('Error stopping background music:', error);
+  }
+  
+  console.log('Background music stopped - game audio can now start');
+}
 
 async function initializeGameWithLoading() {
   // Create the new Matrix-style loading screen
@@ -782,6 +873,9 @@ async function initializeGameWithLoading() {
     onContinue: () => {
       // Hide the old loading screen
       loadingScreen.hide();
+      
+      // Stop any background music from main menu/loading screen
+      stopBackgroundMusic();
       
       // Initialize input and start the game
       initInput();

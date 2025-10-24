@@ -110,24 +110,23 @@ Whose truth will you believe?`;
   startGate.addEventListener('click', handleStartGateClick);
   startGate.addEventListener('keydown', handleStartGateKeyPress);
   
-  // Try to start audio immediately (auto-play attempt)
-  console.log('Attempting immediate audio start...');
+  // Use global music manager - don't create new audio instances
+  console.log('Loading screen - checking global music state...');
   
-  // Try multiple times with different delays to maximize auto-play success
-  setTimeout(() => audioManager.startMusic(), 100);
-  setTimeout(() => audioManager.startMusic(), 500);
-  setTimeout(() => audioManager.startMusic(), 1000);
-  
-  // Add user interaction listener as fallback (required by browsers)
-  const startAudioOnInteraction = () => {
-    console.log('User interaction detected - attempting to start audio');
-    audioManager.startMusic();
-    document.removeEventListener('click', startAudioOnInteraction);
-    document.removeEventListener('keydown', startAudioOnInteraction);
-  };
-  
-  document.addEventListener('click', startAudioOnInteraction);
-  document.addEventListener('keydown', startAudioOnInteraction);
+  // Check if global music is already playing
+  if (window.GlobalMusicManager && window.GlobalMusicManager.isCurrentlyPlaying()) {
+    console.log('Global music already playing - continuing...');
+    // Music is already playing, don't start new audio
+  } else {
+    // Fallback: try to start global music if none is playing
+    console.log('No global music detected - attempting to start...');
+    if (window.GlobalMusicManager) {
+      window.GlobalMusicManager.start();
+    } else {
+      // Fallback to old system if global manager not available
+      setTimeout(() => audioManager.startMusic(), 100);
+    }
+  }
   
   // Prevent default form submission behavior
   document.addEventListener('submit', (e) => {
@@ -157,9 +156,9 @@ Whose truth will you believe?`;
     if (hasContinued) return;
     hasContinued = true;
     
-    // Stop the music before fading out
-    console.log('Stopping loading screen music...');
-    audioManager.stopMusic();
+    // DON'T stop the music here - let the game handle it
+    console.log('Continuing to game - music will be stopped by game...');
+    // audioManager.stopMusic(); // Removed this line
     
     // Add fade out class
     loadingScreen.classList.add('fade-out');
@@ -171,9 +170,9 @@ Whose truth will you believe?`;
         matrixAnimation.stop();
       }
       
-      // Final cleanup of audio
-      console.log('Final audio cleanup...');
-      audioManager.stopMusic();
+      // DON'T stop audio here - let the game handle it
+      console.log('Loading screen cleanup - audio will be handled by game...');
+      // audioManager.stopMusic(); // Removed this line
       
       // Remove event listeners
       document.removeEventListener('keydown', handleKeyPress, true);
