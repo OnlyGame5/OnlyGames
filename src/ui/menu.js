@@ -361,6 +361,7 @@ export function updateHUDInstructions() {
     Press <strong>${formatKey(bindings.interact)}</strong> near objects to interact | 
     Press <strong>I</strong> to inspect items in inventory | 
     Press <strong>1-5</strong> to select inventory slots | 
+    Press <strong>${formatKey(bindings.dropItem)}</strong> to drop selected item | 
     Press <strong>${formatKey(bindings.toggleView)}</strong> to toggle view | 
     Press <strong>${formatKey(bindings.openMenu)}</strong> to open menu | 
     Press <strong>J</strong> to toggle look mode

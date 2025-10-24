@@ -249,7 +249,7 @@ function createItemMesh(item) {
             // Enhance the material if it's a standard material
             if (child.material) {
               child.material.emissive = new THREE.Color(0xffaa00);
-              child.material.emissiveIntensity = 0.3;
+              child.material.emissiveIntensity = 0.5; // Increased intensity for visibility
               child.material.metalness = 0.8;
               child.material.roughness = 0.2;
             }
@@ -790,6 +790,694 @@ export function attachCameraThirdPerson(camera, player) {
 export function attachCamera(camera, player) {
   if (isFirstPerson) attachCameraFirstPerson(camera, player);
   else attachCameraThirdPerson(camera, player);
+}
+
+/* ================================
+   DROPPED ITEMS SYSTEM
+=================================== */
+let droppedItems = []; // Array to track dropped items in the world
+let droppedItemsGroup = null; // THREE.Group to hold all dropped item meshes
+
+// Global model registry for all pickable items
+let globalModelRegistry = {
+  'stage0-key': null,
+  'book': null,
+  'liberty': null,
+  'bowling_ball': null,
+  'bowling_pin': null,
+  'candle': null,
+  'glasses': null
+};
+
+// Function to register models globally
+export function registerGlobalModel(itemName, model) {
+  if (globalModelRegistry.hasOwnProperty(itemName)) {
+    globalModelRegistry[itemName] = model;
+    console.log(`Registered global model for ${itemName}`);
+  } else {
+    console.log(`Warning: ${itemName} is not in the global model registry`);
+  }
+}
+
+// Legacy function for backward compatibility
+export function registerOriginalModel(itemName, model) {
+  registerGlobalModel(itemName, model);
+}
+
+// Global model loader - loads all pickable item models at game startup
+export async function loadGlobalPickableModels() {
+  console.log('Loading global pickable models...');
+  
+  const loader = new THREE.GLTFLoader();
+  const modelPromises = [];
+  
+  // Load all pickable item models with timeout
+  const modelPaths = {
+    'stage0-key': '/models/key.glb',
+    'book': '/models/book.glb',
+    'liberty': '/models/statue_of_liberty.glb',
+    'bowling_ball': '/models/bowling_ball.glb',
+    'bowling_pin': '/models/bowling_pin.glb',
+    'candle': '/models/candle.glb',
+    'glasses': '/models/glasses.glb'
+  };
+  
+  for (const [itemName, path] of Object.entries(modelPaths)) {
+    const promise = new Promise((resolve) => {
+      // Add timeout to prevent hanging
+      const timeout = setTimeout(() => {
+        console.warn(`Timeout loading global model for ${itemName}`);
+        resolve();
+      }, 5000); // 5 second timeout
+      
+      loader.load(path, (gltf) => {
+        clearTimeout(timeout);
+        globalModelRegistry[itemName] = gltf.scene;
+        console.log(`Loaded global model for ${itemName}`);
+        resolve();
+      }, undefined, (error) => {
+        clearTimeout(timeout);
+        console.warn(`Failed to load global model for ${itemName}:`, error);
+        resolve(); // Continue even if one model fails
+      });
+    });
+    modelPromises.push(promise);
+  }
+  
+  // Use Promise.allSettled to ensure we don't fail if some models don't load
+  const results = await Promise.allSettled(modelPromises);
+  const loadedModels = Object.keys(globalModelRegistry).filter(key => globalModelRegistry[key] !== null);
+  console.log('Global pickable models loaded:', loadedModels);
+  console.log('Model loading results:', results.map((result, index) => ({ 
+    model: Object.keys(modelPaths)[index], 
+    status: result.status 
+  })));
+}
+
+// Initialize dropped items group
+function initDroppedItemsGroup() {
+  if (!droppedItemsGroup) {
+    droppedItemsGroup = new THREE.Group();
+    droppedItemsGroup.name = 'droppedItems';
+  }
+  
+  // Always ensure the group is in the scene
+  if (window.scene && !window.scene.children.includes(droppedItemsGroup)) {
+    window.scene.add(droppedItemsGroup);
+    console.log('Dropped items group added to scene');
+  }
+  
+  return droppedItemsGroup;
+}
+
+// Ensure dropped items group is always in the scene (call this during room transitions)
+export function ensureDroppedItemsInScene() {
+  if (droppedItemsGroup && window.scene) {
+    if (!window.scene.children.includes(droppedItemsGroup)) {
+      window.scene.add(droppedItemsGroup);
+      console.log('Re-attached dropped items group to scene');
+    }
+    
+    // Force dropped items to be visible (especially in Room 1)
+    if (droppedItems.length > 0) {
+      droppedItems.forEach((item) => {
+        if (item.mesh) {
+          // Force the main mesh to be visible
+          item.mesh.visible = true;
+          
+          // Force all child meshes to be visible
+          if (item.mesh.traverse) {
+            item.mesh.traverse((child) => {
+              if (child.isMesh) {
+                child.visible = true;
+                if (child.material) {
+                  child.material.visible = true;
+                  // Ensure emissive intensity is maintained
+                  if (child.material.emissiveIntensity !== undefined) {
+                    child.material.emissiveIntensity = Math.max(0.3, child.material.emissiveIntensity);
+                  }
+                }
+              }
+            });
+          }
+        }
+      });
+    }
+    
+    // Debug: Log dropped items status (only once per second to avoid spam)
+    if (droppedItems.length > 0 && Math.random() < 0.01) { // 1% chance per frame
+      console.log(`Dropped items status: ${droppedItems.length} items in group, ${droppedItemsGroup.children.length} children in scene`);
+      console.log('Scene children count:', window.scene.children.length);
+      console.log('Dropped items group in scene:', window.scene.children.includes(droppedItemsGroup));
+      droppedItems.forEach((item, index) => {
+        console.log(`Dropped item ${index}: ${item.item.name} at position:`, item.mesh.position);
+        console.log(`Item visible: ${item.mesh.visible}, parent: ${item.mesh.parent ? item.mesh.parent.name : 'none'}`);
+        console.log(`Item world position:`, item.mesh.getWorldPosition(new THREE.Vector3()));
+        
+        // Check if the item is affected by Room 1's lighting
+        if (item.mesh.traverse) {
+          item.mesh.traverse((child) => {
+            if (child.isMesh && child.material) {
+              console.log(`Child material emissive:`, child.material.emissive);
+              console.log(`Child material emissiveIntensity:`, child.material.emissiveIntensity);
+            }
+          });
+        }
+      });
+    }
+  }
+}
+
+// Drop item from inventory
+function dropSelectedItem(player) {
+  const selectedItem = playerInventory.getSelectedItem();
+  if (!selectedItem) {
+    AI.say("I don't have anything selected to drop.");
+    return false;
+  }
+
+  // Remove from inventory
+  if (playerInventory.removeItem(selectedItem.name)) {
+    // Create dropped item in world
+    const droppedItem = createDroppedItemMesh(selectedItem, player);
+    if (droppedItem) {
+      // Add to tracking arrays
+      droppedItems.push({
+        item: selectedItem,
+        mesh: droppedItem,
+        position: droppedItem.position.clone()
+      });
+      
+      // Add to scene
+      const group = initDroppedItemsGroup();
+      group.add(droppedItem);
+      
+      console.log(`Dropped ${selectedItem.name} at position:`, droppedItem.position);
+      console.log('Dropped items group children count:', group.children.length);
+      console.log('Dropped item mesh details:', {
+        visible: droppedItem.visible,
+        position: droppedItem.position,
+        userData: droppedItem.userData,
+        parent: droppedItem.parent ? droppedItem.parent.name : 'none'
+      });
+      AI.say(`Dropped ${selectedItem.description || selectedItem.name}.`);
+      updateInventoryUI();
+      return true;
+    }
+  }
+  return false;
+}
+
+// Create 3D mesh for dropped item
+function createDroppedItemMesh(item, player) {
+  console.log('createDroppedItemMesh called for:', item.name);
+  let mesh = null;
+  
+  // Get the player's forward direction
+  const forward = new THREE.Vector3(0, 0, -1);
+  if (window.camera) {
+    forward.applyQuaternion(window.camera.quaternion);
+  }
+  
+  // Position item 1.5 units in front of player
+  const dropPosition = player.position.clone().add(forward.multiplyScalar(1.5));
+  dropPosition.y = 0.1; // Place slightly above floor level
+  
+  switch (item.name) {
+    case 'stage0-key':
+      // Try to get the original key model from our global registry
+      console.log('Creating dropped key, global model available:', !!globalModelRegistry['stage0-key']);
+      if (globalModelRegistry['stage0-key']) {
+        // Clone the original key model
+        mesh = globalModelRegistry['stage0-key'].clone();
+        
+        // Position the key
+        mesh.position.copy(dropPosition);
+        
+        // Ensure it has proper materials and shadows
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            
+            // Enhance the material if it's a standard material
+            if (child.material) {
+              child.material.emissive = new THREE.Color(0xffaa00);
+              child.material.emissiveIntensity = 0.5; // Increased intensity for visibility
+              child.material.metalness = 0.8;
+              child.material.roughness = 0.2;
+            }
+          }
+        });
+        
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple key if original model not available
+        console.log('Using fallback key model - original model not available');
+        const keyGroup = new THREE.Group();
+        
+        // Key blade
+        const keyBlade = new THREE.Mesh(
+          new THREE.BoxGeometry(0.1, 0.8, 0.4),
+          new THREE.MeshStandardMaterial({ 
+            color: 0xffff00,
+            metalness: 0.8,
+            roughness: 0.2
+          })
+        );
+        keyBlade.position.set(0, 0.2, 0);
+        keyGroup.add(keyBlade);
+        
+        // Key handle
+        const keyHandle = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8),
+          new THREE.MeshStandardMaterial({ 
+            color: 0xffff00,
+            metalness: 0.8,
+            roughness: 0.2
+          })
+        );
+        keyHandle.position.set(0, -0.2, 0);
+        keyGroup.add(keyHandle);
+        
+        keyGroup.position.copy(dropPosition);
+        keyGroup.userData.itemName = item.name;
+        keyGroup.userData.itemDescription = item.description;
+        keyGroup.userData.isDroppedItem = true;
+        
+        // Add subtle glow effect
+        keyGroup.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        mesh = keyGroup;
+      }
+      break;
+      
+    case 'book':
+      // Try to get the original book model from our global registry
+      if (globalModelRegistry['book']) {
+        // Clone the original book model
+        mesh = globalModelRegistry['book'].clone();
+        
+        // Position the book
+        mesh.position.copy(dropPosition);
+        
+        // Ensure it has proper materials and shadows
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple book if original model not available
+        const bookGroup = new THREE.Group();
+        const book = new THREE.Mesh(
+          new THREE.BoxGeometry(0.2, 0.3, 0.05),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513,
+            metalness: 0.1,
+            roughness: 0.8
+          })
+        );
+        book.castShadow = true;
+        book.receiveShadow = true;
+        bookGroup.add(book);
+        
+        bookGroup.position.copy(dropPosition);
+        bookGroup.userData.itemName = item.name;
+        bookGroup.userData.itemDescription = item.description;
+        bookGroup.userData.isDroppedItem = true;
+        
+        mesh = bookGroup;
+      }
+      break;
+      
+    case 'liberty':
+      // Try to get the original liberty model from our stored models
+      if (globalModelRegistry['liberty']) {
+        // Clone the original liberty model
+        mesh = globalModelRegistry['liberty'].clone();
+        
+        // Position the liberty statue
+        mesh.position.copy(dropPosition);
+        
+        // Ensure it has proper materials and shadows
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple liberty if original model not available
+        const libertyGroup = new THREE.Group();
+        const liberty = new THREE.Mesh(
+          new THREE.ConeGeometry(0.2, 0.4, 8),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513,
+            metalness: 0.3,
+            roughness: 0.7
+          })
+        );
+        liberty.castShadow = true;
+        liberty.receiveShadow = true;
+        libertyGroup.add(liberty);
+        
+        libertyGroup.position.copy(dropPosition);
+        libertyGroup.userData.itemName = item.name;
+        libertyGroup.userData.itemDescription = item.description;
+        libertyGroup.userData.isDroppedItem = true;
+        
+        mesh = libertyGroup;
+      }
+      break;
+      
+    case 'bowling_ball':
+      // Try to get the original bowling ball model from our stored models
+      if (globalModelRegistry['bowling_ball']) {
+        // Clone the original bowling ball model
+        mesh = globalModelRegistry['bowling_ball'].clone();
+        
+        // Position the bowling ball
+        mesh.position.copy(dropPosition);
+        
+        // Ensure it has proper materials and shadows
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple bowling ball if original model not available
+        const ballGroup = new THREE.Group();
+        const ball = new THREE.Mesh(
+          new THREE.SphereGeometry(0.15, 16, 16),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x000000,
+            metalness: 0.1,
+            roughness: 0.3
+          })
+        );
+        ball.castShadow = true;
+        ball.receiveShadow = true;
+        ballGroup.add(ball);
+        
+        ballGroup.position.copy(dropPosition);
+        ballGroup.userData.itemName = item.name;
+        ballGroup.userData.itemDescription = item.description;
+        ballGroup.userData.isDroppedItem = true;
+        
+        mesh = ballGroup;
+      }
+      break;
+      
+    case 'bowling_pin':
+      // Try to get the original bowling pin model from our stored models
+      if (globalModelRegistry['bowling_pin']) {
+        // Clone the original bowling pin model
+        mesh = globalModelRegistry['bowling_pin'].clone();
+        
+        // Position the bowling pin
+        mesh.position.copy(dropPosition);
+        
+        // Ensure it has proper materials and shadows
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple bowling pin if original model not available
+        const pinGroup = new THREE.Group();
+        const pin = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.05, 0.08, 0.3, 8),
+          new THREE.MeshStandardMaterial({ 
+            color: 0xFFFFFF,
+            metalness: 0.1,
+            roughness: 0.4
+          })
+        );
+        pin.castShadow = true;
+        pin.receiveShadow = true;
+        pinGroup.add(pin);
+        
+        pinGroup.position.copy(dropPosition);
+        pinGroup.userData.itemName = item.name;
+        pinGroup.userData.itemDescription = item.description;
+        pinGroup.userData.isDroppedItem = true;
+        
+        mesh = pinGroup;
+      }
+      break;
+      
+    case 'candle':
+      // Try to get the original candle model from our stored models
+      if (globalModelRegistry['candle']) {
+        // Clone the original candle model
+        mesh = globalModelRegistry['candle'].clone();
+        
+        // Position the candle
+        mesh.position.copy(dropPosition);
+        
+        // Ensure it has proper materials and shadows
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple candle if original model not available
+        const candleGroup = new THREE.Group();
+        const candle = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513,
+            metalness: 0.1,
+            roughness: 0.8
+          })
+        );
+        candle.castShadow = true;
+        candle.receiveShadow = true;
+        candleGroup.add(candle);
+        
+        candleGroup.position.copy(dropPosition);
+        candleGroup.userData.itemName = item.name;
+        candleGroup.userData.itemDescription = item.description;
+        candleGroup.userData.isDroppedItem = true;
+        
+        mesh = candleGroup;
+      }
+      break;
+      
+    case 'glasses':
+      // Try to get the original glasses model from our stored models
+      if (globalModelRegistry['glasses']) {
+        // Clone the original glasses model
+        mesh = globalModelRegistry['glasses'].clone();
+        
+        // Position the glasses
+        mesh.position.copy(dropPosition);
+        
+        // Ensure it has proper materials and shadows
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple glasses if original model not available
+        const glassesGroup = new THREE.Group();
+        const glasses = new THREE.Mesh(
+          new THREE.BoxGeometry(0.2, 0.1, 0.05),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x000000,
+            metalness: 0.8,
+            roughness: 0.2
+          })
+        );
+        glasses.castShadow = true;
+        glasses.receiveShadow = true;
+        glassesGroup.add(glasses);
+        
+        glassesGroup.position.copy(dropPosition);
+        glassesGroup.userData.itemName = item.name;
+        glassesGroup.userData.itemDescription = item.description;
+        glassesGroup.userData.isDroppedItem = true;
+        
+        mesh = glassesGroup;
+      }
+      break;
+      
+    // Add cases for other item types as needed
+    default:
+      // Generic dropped item
+      const genericGroup = new THREE.Group();
+      const box = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 0.3, 0.3),
+        new THREE.MeshStandardMaterial({ 
+          color: 0x888888,
+          metalness: 0.3,
+          roughness: 0.7
+        })
+      );
+      box.castShadow = true;
+      box.receiveShadow = true;
+      genericGroup.add(box);
+      
+      genericGroup.position.copy(dropPosition);
+      genericGroup.userData.itemName = item.name;
+      genericGroup.userData.itemDescription = item.description;
+      genericGroup.userData.isDroppedItem = true;
+      
+      mesh = genericGroup;
+      break;
+  }
+  
+  console.log('Created dropped item mesh:', mesh ? 'success' : 'failed');
+  if (mesh) {
+    console.log('Mesh position:', mesh.position);
+    console.log('Mesh visible:', mesh.visible);
+    console.log('Mesh userData:', mesh.userData);
+    console.log('Player position when dropping:', player.position);
+    console.log('Drop position calculated:', dropPosition);
+  }
+  
+  return mesh;
+}
+
+// Check if player is looking at a dropped item
+function getDroppedItemUnderCrosshair(camera) {
+  if (!droppedItemsGroup || droppedItems.length === 0) {
+    console.log('No dropped items to check');
+    return null;
+  }
+  
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2(0, 0); // Center of screen (crosshair)
+  raycaster.setFromCamera(mouse, camera);
+  
+  const droppedMeshes = droppedItems.map(dropped => dropped.mesh);
+  const intersects = raycaster.intersectObjects(droppedMeshes, true);
+  
+  console.log(`Raycasting dropped items: ${droppedMeshes.length} items, ${intersects.length} intersections`);
+  
+  // Only show detailed raycasting info occasionally to avoid spam
+  if (Math.random() < 0.1) { // 10% chance
+    console.log('Raycaster origin:', raycaster.ray.origin);
+    console.log('Raycaster direction:', raycaster.ray.direction);
+    console.log('Dropped meshes positions:', droppedMeshes.map(mesh => mesh.position));
+  }
+  
+  if (intersects.length > 0) {
+    // Find the root dropped item
+    let hitObject = intersects[0].object;
+    while (hitObject.parent && !hitObject.userData.isDroppedItem) {
+      hitObject = hitObject.parent;
+    }
+    
+    if (hitObject.userData.isDroppedItem) {
+      console.log('Found dropped item:', hitObject.userData.itemName);
+      return hitObject;
+    }
+  }
+  
+  return null;
+}
+
+// Pick up a dropped item
+function pickupDroppedItem(droppedMesh) {
+  if (!droppedMesh.userData.isDroppedItem) return false;
+  
+  const itemName = droppedMesh.userData.itemName;
+  const itemDescription = droppedMesh.userData.itemDescription;
+  
+  // Try to add to inventory
+  if (addToInventory({ name: itemName, description: itemDescription })) {
+    // Remove from dropped items tracking
+    const index = droppedItems.findIndex(dropped => dropped.mesh === droppedMesh);
+    if (index !== -1) {
+      droppedItems.splice(index, 1);
+    }
+    
+    // Remove from scene
+    if (droppedMesh.parent) {
+      droppedMesh.parent.remove(droppedMesh);
+    }
+    
+    AI.say(`Picked up ${itemDescription || itemName}.`);
+    updateInventoryUI();
+    return true;
+  } else {
+    AI.say("My inventory is full.");
+    return false;
+  }
+}
+
+// Enhanced E-key interaction handler for dropped items
+export function handleDroppedItemInteraction(camera) {
+  if (window.disablePlayerControls) return false;
+  
+  const droppedItem = getDroppedItemUnderCrosshair(camera);
+  if (droppedItem) {
+    console.log('Dropped item detected under crosshair:', droppedItem.userData.itemName);
+    return pickupDroppedItem(droppedItem);
+  }
+  
+  return false;
+}
+
+// R key handler for dropping items
+export function handleDropItem(player) {
+  if (window.disablePlayerControls) return false;
+  
+  return dropSelectedItem(player);
+}
+
+// Clean up dropped items (call when changing rooms/scenes)
+export function clearDroppedItems() {
+  if (droppedItemsGroup) {
+    droppedItems.forEach(dropped => {
+      if (dropped.mesh.parent) {
+        dropped.mesh.parent.remove(dropped.mesh);
+      }
+    });
+    droppedItems = [];
+  }
 }
 
 /* ================================

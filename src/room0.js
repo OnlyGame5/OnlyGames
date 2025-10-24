@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { addToInventory, hasInInventory, removeFromInventory } from './player.js';
+import { addToInventory, hasInInventory, removeFromInventory, registerOriginalModel } from './player.js';
 import { makeBrickMaterialForPanel, makeTiles108Floor, makeMetal030MaterialForCylinderFlexible, makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import {
   setupRendererColorPipeline,
@@ -396,6 +396,9 @@ export function createRoom0() {
     
     // Add to the room group
     group.add(key);
+    
+    // Register the key model for dropped items
+    registerOriginalModel('stage0-key', key);
     
     console.log('Custom key model loaded successfully!');
   }, (progress) => {

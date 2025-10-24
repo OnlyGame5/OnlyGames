@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory, toggleLookMode } from './player.js';
+import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory, toggleLookMode, handleDroppedItemInteraction, handleDropItem, ensureDroppedItemsInScene, loadGlobalPickableModels } from './player.js';
 import { AI } from './ai.js';
 import { WallCollisionManager } from './collision/WallCollisionManager.js';
 import { roomWallDefinitions } from './collision/roomWalls.js';
@@ -77,6 +77,10 @@ globalPoint2.position.set(20, 10, 20);
 globalPoint2.castShadow = false;
 globalPoint2.name = 'global-point-2';
 scene.add(globalPoint2);
+
+// --- Initialize Dropped Items System ---
+// Make scene globally available for dropped items system
+window.scene = scene;
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 4, 10);
@@ -531,7 +535,7 @@ async function initGame() {
     createFadeOverlay();
     
     // Track loading progress for new loading screen
-    let totalItems = 8; // leonard(1) + rooms(5) + models(2) - security camera removed
+    let totalItems = 9; // leonard(1) + rooms(5) + models(2) + global models(1) - security camera removed
     let loadedItems = 0;
     
     function updateProgress(itemCount = 1) {
@@ -549,11 +553,23 @@ async function initGame() {
     updateProgress(1); // Leonard loaded
     console.log('Leonard loaded successfully!');
     
+    // Load global pickable models in background (completely non-blocking)
+    setTimeout(() => {
+      loadGlobalPickableModels().then(() => {
+        console.log('Global pickable models loaded successfully!');
+      }).catch((error) => {
+        console.warn('Some global models failed to load, continuing with fallbacks:', error);
+      });
+    }, 1000); // Start loading after 1 second delay
+    updateProgress(1); // Global models loading started
+    
     // Make leonardModel globally accessible for minimap and other systems
     window.leonardModel = leonardModel;
     window.player = player; // Also make player globally accessible
     window.camera = camera; // Make camera globally accessible for minimap
     window.isInFirstPerson = isInFirstPerson; // Make view mode function globally accessible
+    window.toggleLookMode = toggleLookMode; // Make look mode function globally accessible
+    window.ensureDroppedItemsInScene = ensureDroppedItemsInScene; // Make dropped items function globally accessible
     window.levelManager = levelManager; // Make LevelManager globally accessible for room transitions
     
     // Create all rooms (Room 0 serves as the hub)
@@ -920,6 +936,14 @@ async function initializeGameWithLoading() {
         window.AI.onSpawn();
       }
       
+      // Auto-enter look mode when game starts
+      setTimeout(() => {
+        if (window.toggleLookMode && isInFirstPerson()) {
+          console.log('Auto-entering look mode on game start...');
+          window.toggleLookMode();
+        }
+      }, 1000); // Small delay to ensure everything is initialized
+      
       // Start the animation loop
       animate(0);
       
@@ -935,6 +959,13 @@ async function initializeGameWithLoading() {
 // Stage 0: Input handling for different stages
 window.addEventListener('click', (e) => {
   // Handle mouse clicks for interactions in both first-person (with locked pointer) and third-person modes
+  
+  // First, check for dropped item interactions (highest priority)
+  if (handleDroppedItemInteraction(camera)) {
+    console.log('Dropped item clicked and picked up');
+    return;
+  }
+  
   if (gameState.stage === 0) {
     // Stage 0: Handle Stage 0 interactions (key, door)
     handleStage0Click(e, camera, scene, gameState.room0);
@@ -1047,6 +1078,16 @@ window.addEventListener('keydown', (e) => {
     }
   }
   
+  // R key for dropping items
+  if (e.code === getBindings().dropItem) {
+    if (window.disablePlayerControls) return;
+    
+    const activePlayer = leonardModel || player;
+    if (handleDropItem(activePlayer)) {
+      console.log('Item dropped');
+    }
+  }
+  
   // E key interaction handler
   if (e.code === getBindings().interact) {
     
@@ -1062,7 +1103,14 @@ window.addEventListener('keydown', (e) => {
       return;
     }
     
-    // Check for door interactions first
+    // Check for dropped items first (highest priority)
+    const activePlayer = leonardModel || player;
+    if (handleDroppedItemInteraction(camera)) {
+      console.log('Dropped item interaction handled');
+      return;
+    }
+    
+    // Check for door interactions second
     if (window.currentDoorInteraction) {
       const doorInfo = window.currentDoorInteraction;
       
@@ -1088,9 +1136,6 @@ window.addEventListener('keydown', (e) => {
       }
       return;
     }
-    
-    
-    const activePlayer = leonardModel || player;
     
     // Always try Room 1 first if it exists (regardless of stage)
     if (gameState.room1 && gameState.room1.handleEKeyInteraction) {
@@ -1297,6 +1342,9 @@ function animate(currentTime) {
   
   // Update fade-in effect
   updateFadeEffect();
+  
+  // Ensure dropped items are always in the scene
+  ensureDroppedItemsInScene();
   
   // Get the active player object (Leonard model or fallback box)
   const activePlayer = leonardModel || player;

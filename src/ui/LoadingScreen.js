@@ -91,9 +91,15 @@ Whose truth will you believe?`;
   };
   
   // Click listener for start gate
-  const handleStartGateClick = () => {
+  const handleStartGateClick = (e) => {
+    console.log('Start gate clicked!', { isLoaded, hasContinued, crawlCompleted });
+    e.preventDefault();
+    e.stopPropagation();
     if (isLoaded && !hasContinued) {
+      console.log('Proceeding to game...');
       continueToGame();
+    } else {
+      console.log('Cannot proceed - not loaded or already continued');
     }
   };
   
@@ -108,6 +114,7 @@ Whose truth will you believe?`;
   // Add event listeners with capture to prevent conflicts
   document.addEventListener('keydown', handleKeyPress, true);
   startGate.addEventListener('click', handleStartGateClick);
+  startGate.addEventListener('mousedown', handleStartGateClick); // Backup mousedown event
   startGate.addEventListener('keydown', handleStartGateKeyPress);
   
   // Use global music manager - don't create new audio instances
@@ -156,9 +163,8 @@ Whose truth will you believe?`;
     if (hasContinued) return;
     hasContinued = true;
     
-    // DON'T stop the music here - let the game handle it
-    console.log('Continuing to game - music will be stopped by game...');
-    // audioManager.stopMusic(); // Removed this line
+    // Keep music playing through loading screen
+    console.log('Continuing to game - music will continue playing...');
     
     // Add fade out class
     loadingScreen.classList.add('fade-out');
@@ -170,9 +176,8 @@ Whose truth will you believe?`;
         matrixAnimation.stop();
       }
       
-      // DON'T stop audio here - let the game handle it
-      console.log('Loading screen cleanup - audio will be handled by game...');
-      // audioManager.stopMusic(); // Removed this line
+      // Keep music playing - don't stop it here
+      console.log('Loading screen cleanup - music continues playing...');
       
       // Remove event listeners
       document.removeEventListener('keydown', handleKeyPress, true);
