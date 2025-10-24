@@ -13,6 +13,7 @@ import {
 import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling } from './materials/room1Materials.js';
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
+import { createReusableLaptop, LaptopPresets } from './components/ReusableLaptop.js';
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -788,6 +789,14 @@ export function createRoom1() {
 
     // Store reference for interaction
     state.safeObject = safeModel;
+    
+    // Add laptop to Room 1
+    const laptop = createReusableLaptop({
+      ...LaptopPresets.room1,
+      position: new THREE.Vector3(-2, 0, -6), // Position near the back wall, left side
+      rotation: Math.PI / 2 // Face towards the center of the room
+    });
+    group.add(laptop);
   }, undefined, (err) => {
     console.error('Failed to load safe.glb', err);
   });
@@ -1048,6 +1057,25 @@ export function createRoom1() {
   // E-key interaction for room1
   function handleEKeyInteraction(playerObject) {
     console.log('Room 1 E-key handler called with player at:', playerObject.position.clone());
+    
+    // Check laptop interaction first
+    console.log('Checking laptop interaction...');
+    const laptop = group.getObjectByName('reusable-laptop');
+    if (laptop) {
+      const laptopWorldPos = new THREE.Vector3();
+      laptop.getWorldPosition(laptopWorldPos);
+      const distanceToLaptop = playerObject.position.distanceTo(laptopWorldPos);
+      
+      console.log('Laptop distance:', distanceToLaptop, 'threshold: 3.0');
+      
+      if (distanceToLaptop < 3.0) {
+        console.log('Laptop interaction handled');
+        if (laptop.userData && laptop.userData.onInteract) {
+          laptop.userData.onInteract();
+        }
+        return true;
+      }
+    }
     
     // Check wire panel first
     console.log('Checking wire panel interaction...');

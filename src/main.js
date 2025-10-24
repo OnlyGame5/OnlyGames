@@ -27,6 +27,338 @@ import { gameStore } from './state/gameStore.js';
 import { createFuturisticDoor } from './game/props/FuturisticDoor.js';
 import { MatrixSky } from './scene/MatrixSky.js';
 
+// --- CHEAT CONSOLE SYSTEM ---
+function createCheatConsole() {
+  let isVisible = false;
+  let inputBuffer = '';
+  let commandHistory = [];
+  let historyIndex = -1;
+  
+  // Create console UI
+  const consoleDiv = document.createElement('div');
+  consoleDiv.id = 'cheat-console';
+  consoleDiv.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
+  `;
+  
+  const outputDiv = document.createElement('div');
+  outputDiv.style.cssText = `
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid #00ff00;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: rgba(0, 20, 0, 0.9);
+  `;
+  
+  const inputDiv = document.createElement('div');
+  inputDiv.style.cssText = `
+    display: flex;
+    align-items: center;
+    border: 1px solid #00ff00;
+    background: rgba(0, 20, 0, 0.9);
+    padding: 5px;
+  `;
+  
+  const promptSpan = document.createElement('span');
+  promptSpan.textContent = 'CHEAT> ';
+  promptSpan.style.color = '#00ff00';
+  
+  const inputField = document.createElement('input');
+  inputField.type = 'text';
+  inputField.style.cssText = `
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    outline: none;
+  `;
+  
+  inputDiv.appendChild(promptSpan);
+  inputDiv.appendChild(inputField);
+  consoleDiv.appendChild(outputDiv);
+  consoleDiv.appendChild(inputDiv);
+  document.body.appendChild(consoleDiv);
+  
+  // Add welcome message
+  addOutput('=== CHEAT CONSOLE ===');
+  addOutput('Available commands:');
+  addOutput('  opendoors - Open all doors and bypass collision');
+  addOutput('  closedoors - Close all doors and restore collision');
+  addOutput('  noclip - Toggle noclip mode (pass through walls)');
+  addOutput('  godmode - Toggle god mode (invincible)');
+  addOutput('  teleport <room> - Teleport to room (room0, room1, room2, room3, room4)');
+  addOutput('  give <item> - Give item to player');
+  addOutput('  clear - Clear console output');
+  addOutput('  help - Show this help');
+  addOutput('Press ~ to close console');
+  addOutput('');
+  
+  function addOutput(text) {
+    const line = document.createElement('div');
+    line.textContent = text;
+    line.style.marginBottom = '2px';
+    outputDiv.appendChild(line);
+    outputDiv.scrollTop = outputDiv.scrollHeight;
+  }
+  
+  function executeCommand(command) {
+    const parts = command.trim().toLowerCase().split(' ');
+    const cmd = parts[0];
+    const args = parts.slice(1);
+    
+    switch (cmd) {
+      case 'opendoors':
+        openAllDoors();
+        addOutput('All doors opened and collision bypassed!');
+        break;
+        
+      case 'closedoors':
+        closeAllDoors();
+        addOutput('All doors closed and collision restored!');
+        break;
+        
+      case 'noclip':
+        toggleNoclip();
+        break;
+        
+      case 'godmode':
+        toggleGodMode();
+        break;
+        
+      case 'teleport':
+        if (args.length > 0) {
+          teleportToRoom(args[0]);
+        } else {
+          addOutput('Usage: teleport <room>');
+        }
+        break;
+        
+      case 'give':
+        if (args.length > 0) {
+          giveItem(args[0]);
+        } else {
+          addOutput('Usage: give <item>');
+        }
+        break;
+        
+      case 'clear':
+        outputDiv.innerHTML = '';
+        addOutput('Console cleared.');
+        break;
+        
+      case 'resetlighting':
+        resetLighting();
+        addOutput('Lighting reset to default values');
+        break;
+        
+      case 'help':
+        addOutput('Available commands:');
+        addOutput('  opendoors - Open all doors and bypass collision');
+        addOutput('  closedoors - Close all doors and restore collision');
+        addOutput('  noclip - Toggle noclip mode (pass through walls)');
+        addOutput('  godmode - Toggle god mode (invincible)');
+        addOutput('  teleport <room> - Teleport to room (room0, room1, room2, room3, room4)');
+        addOutput('  give <item> - Give item to player');
+        addOutput('  resetlighting - Reset lighting to default values');
+        addOutput('  clear - Clear console output');
+        addOutput('  help - Show this help');
+        break;
+        
+      default:
+        addOutput(`Unknown command: ${cmd}. Type 'help' for available commands.`);
+    }
+  }
+  
+  function openAllDoors() {
+    // Find all doors in the scene and open them
+    scene.traverse((object) => {
+      if (object.userData && object.userData.category === 'door') {
+        // Unlock and open the door
+        object.userData.setLocked(false);
+        object.userData.openDoor();
+      }
+    });
+    
+    // Enable collision bypass
+    if (window.wallCollisionManager) {
+      window.wallCollisionManager.cheatMode = true;
+    }
+    
+    // Set global cheat flag
+    window.cheatMode = true;
+  }
+  
+  function closeAllDoors() {
+    // Find all doors in the scene and close them
+    scene.traverse((object) => {
+      if (object.userData && object.userData.category === 'door') {
+        object.userData.closeDoor();
+      }
+    });
+    
+    // Disable collision bypass
+    if (window.wallCollisionManager) {
+      window.wallCollisionManager.cheatMode = false;
+    }
+    
+    // Clear global cheat flag
+    window.cheatMode = false;
+  }
+  
+  function toggleNoclip() {
+    if (window.noclipMode) {
+      window.noclipMode = false;
+      addOutput('Noclip mode disabled');
+    } else {
+      window.noclipMode = true;
+      addOutput('Noclip mode enabled - you can pass through walls');
+    }
+  }
+  
+  function toggleGodMode() {
+    if (window.godMode) {
+      window.godMode = false;
+      addOutput('God mode disabled');
+    } else {
+      window.godMode = true;
+      addOutput('God mode enabled - you are invincible');
+    }
+  }
+  
+  function teleportToRoom(roomName) {
+    const activePlayer = window.leonardModel || window.player;
+    if (!activePlayer) {
+      addOutput('Player not found!');
+      return;
+    }
+    
+    const positions = {
+      'room0': { x: 0, y: 0, z: 0 },
+      'room1': { x: 30, y: 0, z: 0 },
+      'room2': { x: 0, y: 0, z: 20 },
+      'room3': { x: -30, y: 0, z: 0 },
+      'room4': { x: 0, y: 0, z: -20 }
+    };
+    
+    if (positions[roomName]) {
+      activePlayer.position.set(positions[roomName].x, positions[roomName].y, positions[roomName].z);
+      addOutput(`Teleported to ${roomName}`);
+    } else {
+      addOutput(`Unknown room: ${roomName}. Available: room0, room1, room2, room3, room4`);
+    }
+  }
+  
+  function giveItem(itemName) {
+    const items = {
+      'key': { name: 'master-key', description: 'A master key that opens all doors', type: 'key' },
+      'note': { name: 'cheat-note', description: 'A note from the cheat console', type: 'note' },
+      'book': { name: 'cheat-book', description: 'A book of cheat codes', type: 'book' }
+    };
+    
+    if (items[itemName]) {
+      if (window.addToInventory) {
+        window.addToInventory(items[itemName]);
+        addOutput(`Added ${items[itemName].name} to inventory`);
+      } else {
+        addOutput('Inventory system not available');
+      }
+    } else {
+      addOutput(`Unknown item: ${itemName}. Available: key, note, book`);
+    }
+  }
+  
+  function resetLighting() {
+    // Reset player light
+    if (window.playerLight) {
+      window.playerLight.intensity = 1.2;
+      window.playerLight.distance = 12;
+      window.playerLight.decay = 1.5;
+    }
+    
+    // Reset renderer tone mapping
+    if (window.renderer) {
+      window.renderer.toneMappingExposure = 0.9;
+    }
+    
+    // Reset any room-specific lighting
+    if (window.gameState && window.gameState.room1 && window.gameState.room1.setRoom1Lights) {
+      window.gameState.room1.setRoom1Lights(true);
+    }
+  }
+  
+  // Event handlers
+  inputField.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const command = inputField.value.trim();
+      if (command) {
+        addOutput(`CHEAT> ${command}`);
+        executeCommand(command);
+        commandHistory.push(command);
+        historyIndex = commandHistory.length;
+        inputField.value = '';
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (historyIndex > 0) {
+        historyIndex--;
+        inputField.value = commandHistory[historyIndex] || '';
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (historyIndex < commandHistory.length - 1) {
+        historyIndex++;
+        inputField.value = commandHistory[historyIndex] || '';
+      } else {
+        historyIndex = commandHistory.length;
+        inputField.value = '';
+      }
+    } else if (e.key === 'Escape') {
+      toggle();
+    }
+  });
+  
+  // Prevent console from closing when clicking inside
+  consoleDiv.addEventListener('click', (e) => {
+    e.stopPropagation();
+  });
+  
+  // Close console when clicking outside
+  document.addEventListener('click', (e) => {
+    if (isVisible && !consoleDiv.contains(e.target)) {
+      toggle();
+    }
+  });
+  
+  function toggle() {
+    isVisible = !isVisible;
+    consoleDiv.style.display = isVisible ? 'flex' : 'none';
+    if (isVisible) {
+      inputField.focus();
+    }
+  }
+  
+  return {
+    toggle,
+    addOutput,
+    executeCommand
+  };
+}
 
 // --- Scene, Camera, Renderer ---
 const scene = new THREE.Scene();
@@ -1108,6 +1440,17 @@ window.addEventListener('keydown', (e) => {
     if (handleDropItem(activePlayer)) {
       console.log('Item dropped');
     }
+  }
+  
+  // CHEAT CODE SYSTEM
+  // Tilde key (~) for cheat console
+  if (e.code === 'Backquote' || e.code === 'Quote') {
+    e.preventDefault();
+    if (!window.cheatConsole) {
+      window.cheatConsole = createCheatConsole();
+    }
+    window.cheatConsole.toggle();
+    return;
   }
   
   // E key interaction handler
