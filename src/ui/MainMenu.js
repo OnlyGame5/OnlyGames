@@ -27,6 +27,28 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   `;
   menuContainer.appendChild(title);
   
+  // Difficulty selection container
+  const difficultyContainer = document.createElement('div');
+  difficultyContainer.className = 'difficulty-container';
+  difficultyContainer.innerHTML = `
+    <div class="difficulty-title">SELECT DIFFICULTY</div>
+    <div class="difficulty-options">
+      <button class="difficulty-btn" data-difficulty="easy">
+        <span class="difficulty-name">EASY</span>
+        <span class="difficulty-desc">No Time Limit</span>
+      </button>
+      <button class="difficulty-btn selected" data-difficulty="normal">
+        <span class="difficulty-name">NORMAL</span>
+        <span class="difficulty-desc">20 Minutes</span>
+      </button>
+      <button class="difficulty-btn" data-difficulty="hard">
+        <span class="difficulty-name">HARD</span>
+        <span class="difficulty-desc">10 Minutes</span>
+      </button>
+    </div>
+  `;
+  menuContainer.appendChild(difficultyContainer);
+
   // Menu buttons container
   const buttonsContainer = document.createElement('div');
   buttonsContainer.className = 'menu-buttons-container';
@@ -73,6 +95,30 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   
   // Event listeners
   let hasExited = false;
+  let selectedDifficulty = 'normal'; // Default difficulty
+  
+  // Difficulty selection handler
+  const handleDifficultyClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const button = e.target.closest('.difficulty-btn');
+    if (!button) return;
+    
+    // Remove selected class from all buttons
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+      btn.classList.remove('selected');
+    });
+    
+    // Add selected class to clicked button
+    button.classList.add('selected');
+    
+    // Store selected difficulty
+    selectedDifficulty = button.getAttribute('data-difficulty');
+    localStorage.setItem('gameDifficulty', selectedDifficulty);
+    
+    console.log('Selected difficulty:', selectedDifficulty);
+  };
   
   // Button click handlers
   const handleButtonClick = (e) => {
@@ -93,7 +139,8 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
       case 'start':
         if (onStartGame && !hasExited) {
           hasExited = true;
-          startGame();
+          // Pass difficulty to start game
+          startGame(selectedDifficulty);
         }
         break;
       case 'settings':
@@ -137,8 +184,22 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     }
   };
   
+  // Load saved difficulty
+  const savedDifficulty = localStorage.getItem('gameDifficulty');
+  if (savedDifficulty) {
+    selectedDifficulty = savedDifficulty;
+    // Update UI to show saved difficulty
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+      btn.classList.remove('selected');
+      if (btn.getAttribute('data-difficulty') === savedDifficulty) {
+        btn.classList.add('selected');
+      }
+    });
+  }
+  
   // Add event listeners
   buttonsContainer.addEventListener('click', handleButtonClick);
+  difficultyContainer.addEventListener('click', handleDifficultyClick);
   document.addEventListener('keydown', handleKeyPress);
   
   // Use cursor manager to ensure cursor is visible in main menu

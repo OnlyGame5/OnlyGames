@@ -48,9 +48,142 @@
     0 0 0 1px rgba(0,255,140,.08) inset,
     0 0 42px rgba(0,255,140,.14),
     0 22px 60px rgba(0,0,0,.6);
-  backdrop-filter: blur(var(--blur)) saturate(110%);
-  position:relative;
-  overflow:hidden;
+}
+
+/* =========================
+   🎯 Difficulty Selection
+   ========================= */
+.difficulty-container {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.difficulty-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--neon);
+  margin-bottom: 20px;
+  text-shadow: 0 0 8px var(--neon);
+  letter-spacing: 1px;
+}
+
+.difficulty-options {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.difficulty-btn {
+  background: linear-gradient(135deg, rgba(12, 15, 18, 0.8), rgba(18, 22, 27, 0.9));
+  border: 1.5px solid var(--neon-dim);
+  border-radius: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 120px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.difficulty-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 255, 127, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.difficulty-btn:hover::before {
+  left: 100%;
+}
+
+.difficulty-btn:hover {
+  border-color: var(--neon);
+  box-shadow: 0 0 20px rgba(0, 255, 127, 0.3);
+  transform: translateY(-2px);
+}
+
+.difficulty-btn.selected {
+  border-color: var(--neon);
+  background: linear-gradient(135deg, rgba(0, 255, 127, 0.25), rgba(0, 255, 127, 0.15));
+  box-shadow: 
+    0 0 30px rgba(0, 255, 127, 0.6),
+    0 0 60px rgba(0, 255, 127, 0.3),
+    inset 0 0 20px rgba(0, 255, 127, 0.1);
+  transform: scale(1.05);
+  animation: selectedPulse 2s ease-in-out infinite;
+}
+
+@keyframes selectedPulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 30px rgba(0, 255, 127, 0.6),
+      0 0 60px rgba(0, 255, 127, 0.3),
+      inset 0 0 20px rgba(0, 255, 127, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 40px rgba(0, 255, 127, 0.8),
+      0 0 80px rgba(0, 255, 127, 0.5),
+      inset 0 0 30px rgba(0, 255, 127, 0.2);
+  }
+}
+
+.difficulty-name {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--neon);
+  margin-bottom: 4px;
+  text-shadow: 0 0 6px var(--neon);
+  transition: all 0.3s ease;
+}
+
+.difficulty-btn.selected .difficulty-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 
+    0 0 10px var(--neon),
+    0 0 20px var(--neon),
+    0 0 30px var(--neon);
+  animation: textGlow 2s ease-in-out infinite;
+}
+
+@keyframes textGlow {
+  0%, 100% {
+    text-shadow: 
+      0 0 10px var(--neon),
+      0 0 20px var(--neon),
+      0 0 30px var(--neon);
+  }
+  50% {
+    text-shadow: 
+      0 0 15px var(--neon),
+      0 0 30px var(--neon),
+      0 0 45px var(--neon);
+  }
+}
+
+.difficulty-desc {
+  display: block;
+  font-size: 12px;
+  color: var(--neon-dim);
+  opacity: 0.8;
+  transition: all 0.3s ease;
+}
+
+.difficulty-btn.selected .difficulty-desc {
+  font-size: 13px;
+  color: var(--neon);
+  opacity: 1;
+  text-shadow: 0 0 8px var(--neon);
+  font-weight: 600;
 }
 .menu-container::before{
   content:"";
