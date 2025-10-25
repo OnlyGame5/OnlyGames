@@ -747,12 +747,22 @@ export function createRoom1() {
     // Store reference for interaction
     state.safeObject = safeModel;
     
-    // Add laptop to Room 1
-    const laptop = createReusableLaptop({
-      ...LaptopPresets.room1,
-      position: new THREE.Vector3(-2, 0, -6), // Position near the back wall, left side
-      rotation: Math.PI / 2 // Face towards the center of the room
+    // Add table for the laptop
+    const tableMat = new THREE.MeshStandardMaterial({ 
+      color: 0x2a2a2a, 
+      metalness: 0.3, 
+      roughness: 0.7 
     });
+    const table = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.2), tableMat);
+    table.position.set(0, 0.4, 0); // Position at the center of the room
+    table.castShadow = true;
+    table.receiveShadow = true;
+    group.add(table);
+    
+    // Add custom laptop to Room 1 (Gammas Laptop) on the table
+    const laptop = createRoom3StyleLaptop();
+    laptop.position.set(0, 0.8, 0); // Position on top of the table
+    laptop.rotation.y = Math.PI / 2 + Math.PI; // Face 180 degrees from original direction
     group.add(laptop);
   }, undefined, (err) => {
     console.error('Failed to load safe.glb', err);
@@ -1015,18 +1025,18 @@ export function createRoom1() {
   function handleEKeyInteraction(playerObject) {
     console.log('Room 1 E-key handler called with player at:', playerObject.position.clone());
     
-    // Check laptop interaction first
-    console.log('Checking laptop interaction...');
-    const laptop = group.getObjectByName('reusable-laptop');
+    // Check Room 3 style laptop interaction first
+    console.log('Checking Room 3 style laptop interaction...');
+    const laptop = group.getObjectByName('room3-style-laptop');
     if (laptop) {
       const laptopWorldPos = new THREE.Vector3();
       laptop.getWorldPosition(laptopWorldPos);
       const distanceToLaptop = playerObject.position.distanceTo(laptopWorldPos);
       
-      console.log('Laptop distance:', distanceToLaptop, 'threshold: 3.0');
+      console.log('Room 3 style laptop distance:', distanceToLaptop, 'threshold: 3.0');
       
       if (distanceToLaptop < 3.0) {
-        console.log('Laptop interaction handled');
+        console.log('Room 3 style laptop interaction handled');
         if (laptop.userData && laptop.userData.onInteract) {
           laptop.userData.onInteract();
         }
@@ -1730,6 +1740,251 @@ export function createRoom1() {
     }
   }
   
+  // Create Room 3 Style Laptop (standalone implementation)
+  function createRoom3StyleLaptop() {
+    const laptopGroup = new THREE.Group();
+    laptopGroup.name = 'room3-style-laptop';
+    
+    // Laptop base
+    const baseMat = new THREE.MeshStandardMaterial({ 
+      color: 0x1a1a1a, 
+      metalness: 0.8, 
+      roughness: 0.4 
+    });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), baseMat);
+    laptopGroup.add(base);
+    
+    // Screen
+    const screenMat = new THREE.MeshStandardMaterial({ 
+      color: 0x0a0a0a, 
+      metalness: 0.9, 
+      roughness: 0.3 
+    });
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.05), screenMat);
+    screen.position.set(0, 0.2, -0.2);
+    laptopGroup.add(screen);
+    
+    // Display screen
+    const displayGeometry = new THREE.PlaneGeometry(0.55, 0.35);
+    const displayMat = new THREE.MeshStandardMaterial({
+      color: 0x00ff7f,
+      emissive: 0x00ff7f,
+      emissiveIntensity: 0.3,
+      toneMapped: false
+    });
+    const display = new THREE.Mesh(displayGeometry, displayMat);
+    display.position.set(0, 0.2, -0.175);
+    display.name = 'display';
+    laptopGroup.add(display);
+    
+    // Add interaction data
+    laptopGroup.userData = { 
+      type: 'room3-style-laptop',
+      onInteract: showRoom3StyleLaptopInterface
+    };
+    
+    return laptopGroup;
+  }
+  
+  // Room 3 Style Laptop Interface
+  function showRoom3StyleLaptopInterface() {
+    const interfaceId = 'room3-style-laptop-interface';
+    
+    // Remove existing interface
+    const existingInterface = document.getElementById(interfaceId);
+    if (existingInterface) {
+      existingInterface.remove();
+    }
+
+    const uiContainer = document.createElement('div');
+    uiContainer.id = interfaceId;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+      #${interfaceId} {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #0a192f;
+        z-index: 10000;
+        font-family: 'Courier New', 'Consolas', monospace;
+        overflow: hidden;
+      }
+
+      /* Desktop icons styles */
+      #desktop-icons {
+        position: absolute;
+        top: 40px;
+        left: 40px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 20px;
+        z-index: 1;
+      }
+
+      .icon {
+        width: 90px;
+        color: #fff;
+        text-align: center;
+        font-size: 12px;
+        font-family: 'Courier New', 'Consolas', monospace;
+        word-wrap: break-word;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .icon:hover {
+        background: rgba(0, 255, 127, 0.1);
+        border-radius: 4px;
+      }
+
+      .icon img {
+        width: 50px;
+        height: 50px;
+        margin-bottom: 5px;
+        opacity: 0.7;
+      }
+
+      /* A simple, cosmetic taskbar at the bottom */
+      .laptop-taskbar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 40px;
+        background: rgba(5, 15, 30, 0.9);
+        border-top: 1px solid #00ff7f;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+      }
+      
+      .taskbar-close-btn {
+        background: transparent;
+        border: 1px solid #00ff7f;
+        color: #00ff7f;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-family: 'Courier New', 'Consolas', monospace;
+        font-size: 12px;
+        transition: all 0.2s;
+      }
+      
+      .taskbar-close-btn:hover {
+        background: #00ff7f;
+        color: #051018;
+      }
+      
+      /* Custom cursor styling for UI */
+      .laptop-ui-active {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
+      }
+      .laptop-ui-active * {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
+      }
+      
+      /* Sticky note styles */
+      .sticky-note {
+        position: absolute;
+        top: 40px;
+        right: 40px;
+        width: 200px;
+        height: 150px;
+        padding: 15px;
+        background: #ffc;
+        color: #333;
+        font-family: 'Comic Sans MS', 'Chalkduster', 'cursive';
+        font-size: 16px;
+        box-shadow: 5px 5px 10px rgba(0,0,0,0.3);
+        transform: rotate(4deg);
+        z-index: 1001;
+      }
+    `;
+    
+    uiContainer.innerHTML = `
+      <div id="desktop-icons">
+        <div class="icon" onclick="openGammaDecryptor()">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V6h5.17l2 2H20v10z'/></svg>" alt="Drive Icon">
+          <span>gamma_decryptor</span>
+        </div>
+        <div class="icon" onclick="openSystemLogs()">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z'/></svg>" alt="Log Icon">
+          <span>system_logs</span>
+        </div>
+        <div class="icon" onclick="openNetworkStatus()">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M6 18h12v-2H6v2zM6 9v2h12V9H6zm0-5v2h12V4H6z'/></svg>" alt="Network Icon">
+          <span>network_status</span>
+        </div>
+        <div class="icon" onclick="openRecycleBin()">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/></svg>" alt="Trash Icon">
+          <span>recycle_bin</span>
+        </div>
+      </div>
+
+      <div class="laptop-taskbar">
+        <button class="taskbar-close-btn" onclick="closeRoom3StyleLaptop()">CLOSE</button>
+      </div>
+      <div class="sticky-note">
+        <!-- Blank sticky note for future text -->
+      </div>
+    `;
+    
+    document.body.appendChild(style);
+    document.body.appendChild(uiContainer);
+    
+    // Disable camera controls
+    if (window.camera && window.camera.controls) {
+      window.camera.controls.enabled = false;
+    }
+    
+    // Show cursor with laptop UI styling
+    document.body.style.cursor = 'default';
+    document.body.classList.add('laptop-ui-active');
+  }
+  
+  // Global functions for Room 3 Style Laptop interactions
+  window.openGammaDecryptor = function() {
+    if (window.AI) {
+      window.AI.say("Opening Gamma Decryptor... Access denied. This application requires special clearance.");
+    }
+  };
+  
+  window.openSystemLogs = function() {
+    if (window.AI) {
+      window.AI.say("Accessing system logs... Last entry: 'Facility systems operating within normal parameters. All containment protocols active.'");
+    }
+  };
+  
+  window.openNetworkStatus = function() {
+    if (window.AI) {
+      window.AI.say("Network status: All connections stable. No anomalies detected in the facility's communication systems.");
+    }
+  };
+  
+  window.openRecycleBin = function() {
+    if (window.AI) {
+      window.AI.say("Recycle bin is empty. All deleted files have been permanently removed from the system.");
+    }
+  };
+  
+  window.closeRoom3StyleLaptop = function() {
+    const interfaceElement = document.getElementById('room3-style-laptop-interface');
+    if (interfaceElement) {
+      interfaceElement.remove();
+    }
+    
+    // Re-enable camera controls
+    if (window.camera && window.camera.controls) {
+      window.camera.controls.enabled = true;
+    }
+    
+    // Hide cursor and remove laptop UI styling
+    document.body.style.cursor = 'none';
+    document.body.classList.remove('laptop-ui-active');
+  };
+
   // Dispose method for cleanup
   function dispose() {
     // Import dispose helper
