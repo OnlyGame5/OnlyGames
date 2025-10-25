@@ -120,19 +120,9 @@ Whose truth will you believe?`;
   // Use global music manager - don't create new audio instances
   console.log('Loading screen - checking global music state...');
   
-  // Check if global music is already playing
-  if (window.GlobalMusicManager && window.GlobalMusicManager.isCurrentlyPlaying()) {
-    console.log('Global music already playing - continuing...');
-    // Music is already playing, don't start new audio
-  } else {
-    // Fallback: try to start global music if none is playing
-    console.log('No global music detected - attempting to start...');
-    if (window.GlobalMusicManager) {
-      window.GlobalMusicManager.start();
-    } else {
-      // Fallback to old system if global manager not available
-      setTimeout(() => audioManager.startMusic(), 100);
-    }
+  // Ensure the global background music is started (will auto-start on first interaction if blocked)
+  if (window.GlobalMusicManager) {
+    window.GlobalMusicManager.ensureStarted();
   }
   
   // Prevent default form submission behavior
@@ -163,8 +153,9 @@ Whose truth will you believe?`;
     if (hasContinued) return;
     hasContinued = true;
     
-    // Keep music playing through loading screen
-    console.log('Continuing to game - music will continue playing...');
+    // Keep music playing - DO NOT STOP HERE
+    // Music will be stopped when the game actually starts (in main.js)
+    console.log('Continuing to game - music continues playing...');
     
     // Add fade out class
     loadingScreen.classList.add('fade-out');
@@ -176,8 +167,9 @@ Whose truth will you believe?`;
         matrixAnimation.stop();
       }
       
-      // Keep music playing - don't stop it here
-      console.log('Loading screen cleanup - music continues playing...');
+      // Keep music playing - DO NOT stop it here
+      // The music will be stopped in main.js when user clicks to start game
+      console.log('Loading screen cleanup complete - music still playing...');
       
       // Remove event listeners
       document.removeEventListener('keydown', handleKeyPress, true);
@@ -187,7 +179,7 @@ Whose truth will you believe?`;
       // Remove DOM elements
       loadingScreen.remove();
       
-      // Call continuation callback
+      // Call continuation callback - this will trigger music stop in main.js
       if (onContinue) {
         onContinue();
       }

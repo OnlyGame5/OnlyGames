@@ -13,6 +13,7 @@ import { initInput, isDown as inputIsDown, getBindings } from './systems/input.j
 import { initMenu, toggleMenu, updateHUDInstructions } from './ui/menu.js';
 import { loadingScreen } from './loading.js';
 import { createLoadingScreen, dispatchLoadingProgress, dispatchLoadingComplete } from './ui/LoadingScreen.js';
+import './audio/GlobalMusicManager.js';
 import { createMainMenu } from './ui/MainMenu.js';
 import { uiRoot } from './ui/UIRoot.js';
 import { cursorManager } from './ui/CursorManager.js';
@@ -1279,7 +1280,8 @@ async function initializeGameWithLoading() {
         loadingScreenInstance.destroy();
       }
       
-      // Stop any background music from main menu/loading screen
+      // CRITICAL: Stop music ONLY here, when user clicks to start the game
+      // Music plays through: Main Menu -> Loading Screen -> User clicks "Start Gate" -> Music stops here
       stopBackgroundMusic();
       
       // Initialize input and start the game
@@ -1301,7 +1303,7 @@ async function initializeGameWithLoading() {
       // Start the animation loop
       animate(0);
       
-      console.log('Game started with new loading screen!');
+      console.log('Game started - background music stopped, game audio active!');
     }
   });
   

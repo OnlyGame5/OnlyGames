@@ -1,10 +1,13 @@
 import './MainMenu.css';
+import '../audio/GlobalMusicManager.js';
 
 /**
  * Matrix-style Main Menu with falling numbers background
  * Creates a fullscreen overlay with code rain background and menu options
  */
 export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
+  console.log('🎵 createMainMenu called - Setting up music auto-start...');
+  
   // Create the main menu container
   const mainMenu = document.createElement('div');
   mainMenu.className = 'main-menu';
@@ -90,8 +93,10 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   // Matrix Rain Animation
   const matrixAnimation = createMatrixRain(matrixCanvas);
   
-  // Audio setup
-  const audioManager = createAudioManager();
+  // Ensure global background music is started (no stopping here)
+  if (window.GlobalMusicManager) {
+    window.GlobalMusicManager.ensureStarted();
+  }
   
   // Event listeners
   let hasExited = false;
@@ -207,119 +212,18 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     window.cursorManager.forceShowCursor();
   }
   
-  // Enhanced music auto-start with better browser compatibility
-  let musicStarted = false;
-  let userHasInteracted = false;
-  
-  // Check if user has previously interacted with the site
-  const hasUserInteracted = localStorage.getItem('userHasInteracted') === 'true';
-  
-  console.log('Main menu loaded - attempting to start music...');
-  console.log('User has previously interacted:', hasUserInteracted);
-  
-  // Function to start music with error handling
-  const attemptMusicStart = async (context = 'unknown') => {
-    if (musicStarted) {
-      console.log('Music already started, skipping...');
-      return;
-    }
-    
-    console.log(`Attempting music start from: ${context}`);
-    
-    try {
-      const success = await window.GlobalMusicManager.start();
-      if (success) {
-        musicStarted = true;
-        console.log('Music successfully started!');
-        
-        // Mark that user has interacted for future visits
-        if (!hasUserInteracted) {
-          localStorage.setItem('userHasInteracted', 'true');
-          console.log('Marked user as having interacted');
-        }
-      } else {
-        console.log('Music failed to start, will retry on user interaction');
-      }
-    } catch (error) {
-      console.log('Music start error:', error.message);
-    }
-  };
-  
-  // Try to start music immediately if user has previously interacted
-  if (hasUserInteracted) {
-    attemptMusicStart('previous interaction');
-  } else {
-    // For first-time users, try immediately but expect it to fail
-    attemptMusicStart('first load');
+  // Keep background music managed globally; ensure it's started once.
+  if (window.GlobalMusicManager) {
+    window.GlobalMusicManager.ensureStarted();
   }
-  
-  // Try multiple times with different delays
-  const retryDelays = [100, 300, 500, 1000, 2000];
-  retryDelays.forEach(delay => {
-    setTimeout(() => {
-      if (!musicStarted) {
-        attemptMusicStart(`retry ${delay}ms`);
-      }
-    }, delay);
-  });
-  
-  // Try when DOM is fully ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      attemptMusicStart('DOM loaded');
-    });
-  } else {
-    attemptMusicStart('DOM already loaded');
-  }
-  
-  // Try on window events
-  window.addEventListener('load', () => {
-    attemptMusicStart('window loaded');
-  });
-  
-  window.addEventListener('focus', () => {
-    attemptMusicStart('window focused');
-  });
-  
-  // Enhanced user interaction detection
-  const startAudioOnInteraction = (event) => {
-    if (musicStarted) return;
-    
-    console.log('User interaction detected:', event.type);
-    userHasInteracted = true;
-    localStorage.setItem('userHasInteracted', 'true');
-    
-    // Try to start music immediately on any interaction
-    attemptMusicStart(`user interaction: ${event.type}`);
-  };
-  
-  // Listen for ANY user interaction to start music
-  const interactionEvents = ['click', 'keydown', 'mousemove', 'touchstart', 'mousedown', 'keypress', 'scroll', 'wheel'];
-  interactionEvents.forEach(eventType => {
-    document.addEventListener(eventType, startAudioOnInteraction, { once: false, passive: true });
-  });
-  
-  // Try when page becomes visible
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !musicStarted) {
-      attemptMusicStart('page visible');
-    }
-  });
-  
-  // Add a visual indicator if music hasn't started
-  setTimeout(() => {
-    if (!musicStarted) {
-      console.log('Music still not started - adding visual indicator');
-      // You could add a subtle visual cue here if needed
-    }
-  }, 3000);
   
   // Start game function
   function startGame() {
     console.log('Starting game from main menu...');
     
     // DON'T stop the music here - let it continue to loading screen
-    // audioManager.stopMusic(); // Removed this line
+    // Music will only be stopped when the user clicks to start the game (in main.js)
+    console.log('Main menu -> Loading screen: Music continues playing...');
     
     // Add fade out class
     mainMenu.classList.add('fade-out');
@@ -338,7 +242,7 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
       // Remove DOM elements
       mainMenu.remove();
       
-      // Call start game callback
+      // Call start game callback - music continues playing
       if (onStartGame) {
         onStartGame();
       }
@@ -556,7 +460,9 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     console.log('Exiting game...');
     
     // Stop the music only when exiting
-    audioManager.stopMusic();
+    if (window.GlobalMusicManager) {
+      window.GlobalMusicManager.stop();
+    }
     
     // Add fade out class
     mainMenu.classList.add('fade-out');
@@ -588,7 +494,7 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
       if (matrixAnimation.stop) {
         matrixAnimation.stop();
       }
-      audioManager.stopMusic();
+      // Do NOT stop music on destroy when transitioning to loading screen
       mainMenu.remove();
       buttonsContainer.removeEventListener('click', handleButtonClick);
       document.removeEventListener('keydown', handleKeyPress);
@@ -597,101 +503,9 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
 }
 
 /**
- * Global Music Manager - prevents multiple instances
- */
-  window.GlobalMusicManager = window.GlobalMusicManager || {
-    audio: null,
-    isPlaying: false,
-    isInitialized: false,
-    autoplayBlocked: false,
-    
-    init() {
-      if (this.isInitialized) return;
-      console.log('Initializing global music manager');
-      this.audio = new Audio('./audio/l_theme_death_note.mp3');
-      this.audio.loop = true;
-      this.audio.volume = 0.3;
-      this.audio.preload = 'auto';
-      this.isInitialized = true;
-      
-      this.audio.addEventListener('error', (e) => {
-        console.error('Global music could not be loaded:', e);
-      });
-      
-      this.audio.addEventListener('canplaythrough', () => {
-        console.log('Global music ready');
-      });
-      
-      // Detect autoplay policy
-      this.audio.addEventListener('play', () => {
-        console.log('Global music play event fired');
-        this.isPlaying = true;
-        this.autoplayBlocked = false;
-      });
-      
-      this.audio.addEventListener('pause', () => {
-        console.log('Global music pause event fired');
-        this.isPlaying = false;
-      });
-    },
-    
-    start() {
-      if (!this.isInitialized) this.init();
-      if (this.isPlaying) {
-        console.log('Music already playing globally');
-        return Promise.resolve(true);
-      }
-      
-      console.log('Starting global music...');
-      const playPromise = this.audio.play();
-      
-      if (playPromise !== undefined) {
-        return playPromise
-          .then(() => {
-            this.isPlaying = true;
-            this.autoplayBlocked = false;
-            console.log('Global music started successfully');
-            return true;
-          })
-          .catch((error) => {
-            this.autoplayBlocked = true;
-            console.log('Global music autoplay blocked:', error.message);
-            return false;
-          });
-      }
-      return Promise.resolve(false);
-    },
-    
-    stop() {
-      if (this.audio && this.isPlaying) {
-        console.log('Stopping global music...');
-        this.audio.pause();
-        this.audio.currentTime = 0;
-        this.audio.volume = 0;
-        this.isPlaying = false;
-      }
-    },
-    
-    isCurrentlyPlaying() {
-      return this.isPlaying && this.audio && !this.audio.paused;
-    },
-    
-    isAutoplayBlocked() {
-      return this.autoplayBlocked;
-    }
-  };
-
-/**
  * Audio Manager for Main Menu Music
  */
-function createAudioManager() {
-  // Use global music manager instead of creating new instances
-  return {
-    startMusic: () => window.GlobalMusicManager.start(),
-    stopMusic: () => window.GlobalMusicManager.stop(),
-    isPlaying: () => window.GlobalMusicManager.isCurrentlyPlaying()
-  };
-}
+// No per-screen audio manager; music is controlled globally via GlobalMusicManager
 
 /**
  * Creates the Matrix code rain animation for main menu
