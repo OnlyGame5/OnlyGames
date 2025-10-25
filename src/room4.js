@@ -130,35 +130,141 @@ export function createRoom4() {
   console.log('NEXUS panel mounted to group');
   console.log('Panel final position:', nexusPanel.group.position);
   console.log('Panel final rotation:', nexusPanel.group.rotation);
+  
+  // Make nexusPanel globally accessible for laptop interface
+  window.room4NexusPanel = nexusPanel;
 
   // Remove any leftover lights
   removeExistingLights(group);
 
-  // Add Room 1 style lighting system
-  const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+  // Enhanced lighting system for Room 4 - Brighter overall
+  const ambientLight = new THREE.AmbientLight(0x404040, 0.8); // Increased ambient light
   ambientLight.name = 'ambient-light';
   group.add(ambientLight);
 
-  const ceilingLight = new THREE.PointLight(0xffffff, 1.5, 25);
+  // Main ceiling light - brighter and with green tint
+  const ceilingLight = new THREE.PointLight(0xffffff, 2.5, 35); // Increased intensity and range
   ceilingLight.position.set(0, 4, 0);
   ceilingLight.name = 'ceiling-light';
   ceilingLight.castShadow = true;
-  ceilingLight.shadow.mapSize.width = 512;
-  ceilingLight.shadow.mapSize.height = 512;
+  ceilingLight.shadow.mapSize.width = 1024; // Higher resolution shadows
+  ceilingLight.shadow.mapSize.height = 1024;
   ceilingLight.shadow.camera.near = 0.1;
-  ceilingLight.shadow.camera.far = 25;
+  ceilingLight.shadow.camera.far = 35;
   group.add(ceilingLight);
 
-  // Add optimized fill lights for better illumination
-  const fillLight1 = new THREE.PointLight(0xffffff, 0.4, 15);
+  // Enhanced fill lights for better illumination
+  const fillLight1 = new THREE.PointLight(0xffffff, 1.0, 25); // Increased intensity and range
   fillLight1.position.set(-6, 3, -6);
   fillLight1.castShadow = false;
   group.add(fillLight1);
 
-  const fillLight2 = new THREE.PointLight(0xffffff, 0.4, 15);
+  const fillLight2 = new THREE.PointLight(0xffffff, 1.0, 25); // Increased intensity and range
   fillLight2.position.set(6, 3, 6);
   fillLight2.castShadow = false;
   group.add(fillLight2);
+
+  // Add a focused light on the laptop area
+  const laptopLight = new THREE.PointLight(0x00ff88, 1.5, 18); // Brighter green light focused on laptop
+  laptopLight.position.set(0, 2, -3);
+  laptopLight.name = 'laptop-light';
+  laptopLight.castShadow = true;
+  laptopLight.shadow.mapSize.width = 512;
+  laptopLight.shadow.mapSize.height = 512;
+  laptopLight.shadow.camera.near = 0.1;
+  laptopLight.shadow.camera.far = 18;
+  group.add(laptopLight);
+
+  // Add a subtle rim light for the laptop pedestal
+  const rimLight = new THREE.PointLight(0x00ff88, 0.8, 10); // Brighter rim light
+  rimLight.position.set(0, 1, -2);
+  rimLight.name = 'rim-light';
+  rimLight.castShadow = false;
+  group.add(rimLight);
+
+  // Add a holographic green spot light beaming from the skybox
+  const spotLight = new THREE.SpotLight(0x00ff88, 4.0, 30, Math.PI / 8, 0.05, 0.3); // More intense, longer range
+  spotLight.position.set(0, 10, -1); // Positioned even higher for dramatic effect
+  spotLight.target.position.set(0, 0, -3); // Target the laptop position
+  spotLight.castShadow = true;
+  spotLight.shadow.mapSize.width = 2048; // Higher resolution for crisp shadows
+  spotLight.shadow.mapSize.height = 2048;
+  spotLight.shadow.camera.near = 0.1;
+  spotLight.shadow.camera.far = 30;
+  spotLight.shadow.bias = -0.0001; // Reduce shadow acne
+  spotLight.name = 'holographic-spotlight';
+  group.add(spotLight);
+  group.add(spotLight.target); // Add the target to the group
+
+  // Add a secondary spot light for volumetric effect
+  const volumetricLight = new THREE.SpotLight(0x00ff88, 2.0, 25, Math.PI / 3, 0.1, 0.6);
+  volumetricLight.position.set(0, 8, -1); // Slightly lower and wider
+  volumetricLight.target.position.set(0, 0, -3);
+  volumetricLight.castShadow = false; // No shadows for volumetric effect
+  volumetricLight.name = 'volumetric-light';
+  group.add(volumetricLight);
+  group.add(volumetricLight.target);
+
+  // Add a third light for atmospheric glow
+  const atmosphericLight = new THREE.PointLight(0x00ff88, 1.2, 20);
+  atmosphericLight.position.set(0, 5, -2);
+  atmosphericLight.castShadow = false;
+  atmosphericLight.name = 'atmospheric-glow';
+  group.add(atmosphericLight);
+
+  // Create a single holographic beam - MASSIVE diameter for skybox effect
+  const beamGeometry = new THREE.ConeGeometry(2.5, 12, 20, 1, true); // Even larger radius (2.5) and height (12)
+  const beamMaterial = new THREE.MeshBasicMaterial({
+    color: 0x00ff88,
+    transparent: true,
+    opacity: 0.25, // Dimmer for skybox effect
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending
+  });
+  const beamMesh = new THREE.Mesh(beamGeometry, beamMaterial);
+  beamMesh.position.set(0, 6, -3); // Positioned higher for skybox effect
+  beamMesh.rotation.x = 0; // No rotation - cone points down by default
+  beamMesh.name = 'holographic-beam';
+  group.add(beamMesh);
+
+  // Add holographic particles for beam visibility - MASSIVE beam area
+  const particleGeometry = new THREE.BufferGeometry();
+  const particleCount = 200; // Even more particles for massive beam
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+  
+  for (let i = 0; i < particleCount; i++) {
+    const i3 = i * 3;
+    // Position particles within the massive beam area
+    const height = Math.random() * 10 + 1; // Y: from ceiling down to laptop (1 to 11)
+    const radius = (height / 12) * 2.5; // Radius decreases with height (cone shape) - matches beam
+    const angle = Math.random() * Math.PI * 2; // Random angle around the beam
+    
+    positions[i3] = Math.cos(angle) * radius * Math.random(); // X: within beam radius
+    positions[i3 + 1] = height; // Y: along beam height
+    positions[i3 + 2] = -3 + Math.sin(angle) * radius * Math.random(); // Z: within beam radius
+    
+    // Green color for all particles
+    colors[i3] = 0.0; // R
+    colors[i3 + 1] = 1.0; // G
+    colors[i3 + 2] = 0.53; // B (0x00ff88)
+  }
+  
+  particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  
+  const particleMaterial = new THREE.PointsMaterial({
+    size: 0.05, // Slightly smaller particles for skybox effect
+    transparent: true,
+    opacity: 0.6, // Dimmer particles for skybox effect
+    vertexColors: true,
+    blending: THREE.AdditiveBlending
+  });
+  
+  const particles = new THREE.Points(particleGeometry, particleMaterial);
+  particles.position.set(0, 0, 0); // No offset needed since particles are positioned correctly
+  particles.name = 'holographic-particles';
+  group.add(particles);
 
   // Add laptop to Room 4
   const laptop = createReusableLaptop({
@@ -294,6 +400,13 @@ export function createRoom4() {
       // Update nexus panel animation
       if (nexusPanel) {
         nexusPanel.update(delta);
+      }
+      
+      // Update laptop screen activation
+      const laptop = group.getObjectByName('reusable-laptop');
+      if (laptop && laptop.userData && laptop.userData.update) {
+        const player = window.leonardModel || window.player;
+        laptop.userData.update(delta, player);
       }
     },
     checkWallCollisions: (player) => {

@@ -254,31 +254,7 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(4.5, 2, -17.5), size: new THREE.Vector3(9, 4, 0.5) }
     ],
     objects: [
-      // Nexus panel (position: 0, 0, -7.5) -> World: (0, 0.5, -34.0)
-      { position: new THREE.Vector3(0, 0.5, -34.0), size: new THREE.Vector3(2.0, 1.0, 1.5), type: 'nexusPanel' },
-      
-      // Floating binary console (position: -3, 0, -5) -> World: (-3, 0.5, -31.5)
-      { position: new THREE.Vector3(-3, 0.5, -31.5), size: new THREE.Vector3(1.5, 1.0, 1.0), type: 'binaryConsole' },
-      
-      // Floating binary console 2 (position: 3, 0, -5) -> World: (3, 0.5, -31.5)
-      { position: new THREE.Vector3(3, 0.5, -31.5), size: new THREE.Vector3(1.5, 1.0, 1.0), type: 'binaryConsole' },
-      
-      // Sci-fi table (position: 0, 0, -2) -> World: (0, 0.5, -28.5)
-      { position: new THREE.Vector3(0, 0.5, -28.5), size: new THREE.Vector3(2.0, 1.0, 1.5), type: 'table' },
-      
-      // Sci-fi tablet (position: 0, 0, -1) -> World: (0, 0.3, -27.5)
-      { position: new THREE.Vector3(0, 0.3, -27.5), size: new THREE.Vector3(1.0, 0.6, 0.8), type: 'tablet' },
-      
-      // Console 1 (position: -4, 0, 2) -> World: (-4, 0.4, -24.5)
-      { position: new THREE.Vector3(-4, 0.4, -24.5), size: new THREE.Vector3(1.0, 0.8, 0.6), type: 'console' },
-      
-      // Console 2 (position: 4, 0, 2) -> World: (4, 0.4, -24.5)
-      { position: new THREE.Vector3(4, 0.4, -24.5), size: new THREE.Vector3(1.0, 0.8, 0.6), type: 'console' },
-      
-      // Light fixture (position: 0, 4.0, 0) -> World: (0, 4.0, -26.5)
-      { position: new THREE.Vector3(0, 4.0, -26.5), size: new THREE.Vector3(1.0, 0.5, 1.0), type: 'lightFixture' },
-      
-      // Laptop (position: 0, 0, -3) -> World: (0, 0.8, -29.5)
+      // Laptop workstation (position: 0, 0, -3) -> World: (0, 0.8, -29.5)
       { position: new THREE.Vector3(0, 0.8, -29.5), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' }
     ],
     hallways: [

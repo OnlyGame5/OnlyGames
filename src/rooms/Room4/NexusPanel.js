@@ -360,6 +360,9 @@ export class NexusPanel {
     // Mark as revealed
     this.revealedLetters[letter] = true;
     
+    // Update the panel display to show the new letter and update colors
+    this._updatePanelDisplay();
+    
     // Trigger flicker effect
     this._triggerFlickerEffect();
     
@@ -375,6 +378,13 @@ export class NexusPanel {
   _updatePanelDisplay() {
     if (!this.panelText) return;
 
+    // Update outer panel color based on completion status
+    const isComplete = this._isComplete();
+    if (this.panel && this.panel.material) {
+      this.panel.material.color.setHex(isComplete ? 0x00ff88 : 0xff0000);
+      this.panel.material.needsUpdate = true;
+    }
+
     // Create new canvas with updated letters - larger for better visibility
     const canvas = document.createElement('canvas');
     canvas.width = 640;
@@ -382,7 +392,6 @@ export class NexusPanel {
     const ctx = canvas.getContext('2d');
     
     // Clear canvas with background color (green when complete, red otherwise)
-    const isComplete = this._isComplete();
     ctx.fillStyle = isComplete ? '#00ff88' : '#ff0000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
