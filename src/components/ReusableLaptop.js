@@ -763,9 +763,9 @@ function createRoom4LaptopInterface(roomId) {
     content = `
       <div class="room4-instruction">
         <h3 style="color: #9d4edd; margin-top: 0;">🔍 MISSION BRIEFING</h3>
-        <p><strong>Objective:</strong> Access the NEXUS system to complete Room 4.</p>
-        <p><strong>Step 1:</strong> Locate the Binary Decoder panel on the north wall of this room.</p>
-        <p><strong>Step 2:</strong> Interact with the Binary Decoder to solve the puzzle and reveal the hidden password.</p>
+        <p><strong>Objective:</strong> Access the NEXUS system to complete the final test.</p>
+        <p><strong>Step 1:</strong> You'll notice the binary streams floating throughout the room. The password you need is encoded within these streams, they contain the key to accessing the decoder panel.</p>
+        <p><strong>Step 2:</strong> Locate the Binary Decoder panel on the north wall of this room. Interact with the Decoder to solve the puzzle and reveal the hidden password.</p>
         <p><strong>Step 3:</strong> Return to this laptop and enter the password to access the NEXUS system.</p>
         <p style="color: #ffaa00;"><strong>Hint:</strong> The password is a 5-letter word that appears when you complete the binary decoder puzzle.</p>
       </div>
@@ -774,9 +774,9 @@ function createRoom4LaptopInterface(roomId) {
   
   uiContainer.innerHTML = `
     <div class="room4-laptop">
-      <div class="room4-title">🌌 NEXUS TERMINAL - ROOM 4</div>
+      <div class="room4-title">🌌 NEXUS TERMINAL</div>
       <div class="room4-content">
-        <p>Welcome to the Nexus Terminal. This system controls the core of the facility.</p>
+        <p>Welcome to the Terminal. This system controls the core of the facility.</p>
         <p>Access Level: <span style="color: #9d4edd;">ADMINISTRATOR</span></p>
         <p>System Status: <span style="color: #00ff7f;">ONLINE</span></p>
         ${content}

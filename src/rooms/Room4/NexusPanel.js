@@ -27,9 +27,10 @@ export class NexusPanel {
       'S': false
     };
     
-    // Track incorrect attempts
+    // Track incorrect attempts for failure system
     this.incorrectAttempts = 0;
-    this.maxAttempts = 10;
+    this.maxAttempts = 3; // Reduced to 3 attempts before failure
+    this.hasFailed = false;
     
     // Panel state
     this.panelOpen = false;
@@ -435,13 +436,13 @@ export class NexusPanel {
    */
   _handleIncorrectInput() {
     this.incorrectAttempts++;
-    this.binaryDisplay.textContent = `WRONG! Attempts: ${this.incorrectAttempts}/${this.maxAttempts}`;
+    const remainingAttempts = this.maxAttempts - this.incorrectAttempts;
+    this.binaryDisplay.textContent = `WRONG! Attempts remaining: ${remainingAttempts}`;
     
     // Check if max attempts reached
     if (this.incorrectAttempts >= this.maxAttempts) {
-      this.binaryDisplay.textContent = 'MAX ATTEMPTS REACHED! Panel locked.';
-      this.binaryInput.disabled = true;
-      document.getElementById('submitBtn').disabled = true;
+      this.hasFailed = true;
+      this._triggerGameFailure();
     }
   }
 
@@ -691,6 +692,127 @@ export class NexusPanel {
     this.binaryInput.value = '';
     this.binaryDisplay.textContent = 'Enter 8-bit binary:';
     this._updatePanelDisplay();
+  }
+
+  /**
+   * Trigger game failure when max attempts reached
+   */
+  _triggerGameFailure() {
+    console.log('Binary decoder failure triggered');
+    
+    // Hide the binary decoder panel
+    this.hide();
+    
+    // Show failure screen
+    this._showGameFailureScreen();
+    
+    // Trigger AI dialogue for failure
+    if (window.AI) {
+      window.AI.deliverDialogue('ACT_I.ROOM_4_BINARY_FAILURE');
+    }
+  }
+
+  /**
+   * Show game failure screen with restart/exit options
+   */
+  _showGameFailureScreen() {
+    // Create failure overlay
+    const failureOverlay = document.createElement('div');
+    failureOverlay.id = 'binary-failure-overlay';
+    failureOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 20000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Courier New', monospace;
+    `;
+    
+    failureOverlay.innerHTML = `
+      <div style="
+        background: #1a1a1a;
+        border: 2px solid #ff0000;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        max-width: 600px;
+        box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+      ">
+        <h1 style="color: #ff0000; font-size: 36px; margin: 0 0 20px 0; text-shadow: 0 0 10px #ff0000;">
+          DECODER FAILURE
+        </h1>
+        <p style="color: #ff6666; font-size: 18px; margin: 0 0 30px 0;">
+          Multiple incorrect binary sequences detected.<br>
+          The decoder has been permanently locked.
+        </p>
+        <div style="
+          background: rgba(255, 0, 0, 0.2);
+          border: 1px solid #ff0000;
+          border-radius: 4px;
+          padding: 15px;
+          margin: 20px 0;
+          color: #ffaaaa;
+          font-size: 14px;
+        ">
+          <div style="font-weight: bold; margin-bottom: 10px;">SYSTEM NOTIFICATION</div>
+          <div>Decoder Status: LOCKED</div>
+          <div>Failure Count: ${this.maxAttempts}</div>
+          <div>Reason: Excessive incorrect attempts</div>
+        </div>
+        <div style="display: flex; gap: 20px; justify-content: center;">
+          <button id="binary-failure-restart-btn" style="
+            background: #cc0000;
+            color: white;
+            border: 1px solid #ff0000;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: background 0.3s ease;
+          " onmouseover="this.style.background='#ff0000'" onmouseout="this.style.background='#cc0000'">
+            Restart Game
+          </button>
+          <button id="binary-failure-exit-btn" style="
+            background: #333333;
+            color: white;
+            border: 1px solid #666666;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: background 0.3s ease;
+          " onmouseover="this.style.background='#555555'" onmouseout="this.style.background='#333333'">
+            Exit Game
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(failureOverlay);
+    
+    // Add event listeners
+    document.getElementById('binary-failure-restart-btn').addEventListener('click', () => {
+      failureOverlay.remove();
+      // Use existing exitToMainMenu function
+      if (window.exitToMainMenu) {
+        window.exitToMainMenu();
+      }
+    });
+    
+    document.getElementById('binary-failure-exit-btn').addEventListener('click', () => {
+      failureOverlay.remove();
+      // Use existing exitGame function
+      if (window.exitGame) {
+        window.exitGame();
+      }
+    });
   }
 
   /**
