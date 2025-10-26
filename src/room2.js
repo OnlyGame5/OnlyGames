@@ -481,12 +481,12 @@ export function createRoom2() {
             const meta = root.userData.itemMeta || {};
             const item = { name: pickupId, description: displayName, ...meta };
             if (addToInventory(item)) {
-              AI.say(`Picked up: ${displayName}`);
+              AI.showInteractionFeedback(`Picked up: ${displayName}`);
               if (root.parent) root.parent.remove(root);
               const idx = pickableObjects.indexOf(root);
               if (idx >= 0) pickableObjects.splice(idx, 1);
             } else {
-              AI.say('My inventory is full.');
+              AI.showInteractionFeedback('My inventory is full.');
             }
             return true;
           }

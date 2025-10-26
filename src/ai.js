@@ -4,8 +4,16 @@ import { aiDialogueBox } from './ui/AIDialogueBox.js';
 import { getPlayerInventory } from './player.js';
 
 export const AI = {
+  // Mute state
+  isMuted: false,
+  
   // New AI dialogue box methods
   say: (text, options = {}) => {
+    // Check if AI is muted
+    if (AI.isMuted) {
+      console.log('AI is muted, ignoring dialogue:', text);
+      return;
+    }
     // Check if truth filter is active
     const isTruthFilterActive = AI.isTruthFilterActive();
     
@@ -62,6 +70,11 @@ export const AI = {
 
   // Force dialogue (clears queue and shows immediately)
   sayUrgent: (text, options = {}) => {
+    // Check if AI is muted
+    if (AI.isMuted) {
+      console.log('AI is muted, ignoring urgent dialogue:', text);
+      return;
+    }
     // Check if truth filter is active
     const isTruthFilterActive = AI.isTruthFilterActive();
     
@@ -115,6 +128,26 @@ export const AI = {
   clearDialogue: () => {
     aiDialogueBox.clearQueue();
     gameStore.set('showAIDialogue', null);
+  },
+
+  // Mute AI dialogue
+  mute: () => {
+    AI.isMuted = true;
+    console.log('AI muted');
+  },
+
+  // Unmute AI dialogue
+  unmute: () => {
+    AI.isMuted = false;
+    console.log('AI unmuted');
+  },
+
+  // Show interaction feedback (separate from dialogue)
+  showInteractionFeedback: (text, duration = 2000) => {
+    gameStore.set('showInteractionFeedback', {
+      text: text,
+      duration: duration
+    });
   },
 
   // Legacy compatibility - automatically extract tone from text

@@ -28,8 +28,10 @@ export function createRoom1() {
     safeObject: null,
     keypadOpen: false,
     inputCode: '',
-    laptopPowered: false,  // NEW: Track if laptop has power
-    chargerFound: false    // NEW: Track if charger has been found
+    laptopPowered: false,  // Track if laptop has power
+    chargerFound: false,   // Track if charger has been found
+    laptopInspected: false, // Track if laptop has been inspected while unpowered
+    gammaMessageShown: false // Track if Gamma's first message has been shown
   };
 
   // Tiles136C texture files for Room 1 (note: capital C in folder name)
@@ -497,16 +499,18 @@ export function createRoom1() {
   });
 
   // Simon Stand System - positioned on right wall, below wire panel
-  const simonStand = createSimonStand([8.2, 0, -3]); // Right wall, below wire panel
+  const simonStand = createSimonStand([8.2, 0, 0]); // Right wall, aligned with green grid line
   simonStand.name = 'simonStand';
+  simonStand.visible = false; // Start invisible until wire puzzle is completed
   group.add(simonStand);
   
-  // Add a visible marker for debugging
+  // Add a visible marker for debugging (hidden initially)
   const simonMarkerGeometry = new THREE.SphereGeometry(0.15, 8, 6);
   const simonMarkerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
   const simonStandMarker = new THREE.Mesh(simonMarkerGeometry, simonMarkerMaterial);
-  simonStandMarker.position.set(8.2, 0, -3);
+  simonStandMarker.position.set(8.2, 0, 0);
   simonStandMarker.name = 'simonStandMarker';
+  simonStandMarker.visible = false; // Hide marker initially
   group.add(simonStandMarker);
   
   console.log('Simon Stand initialized:', {
@@ -660,6 +664,9 @@ export function createRoom1() {
     // Update light flicker effect
     updateLightFlicker(dt);
     
+    // Update table glow effect
+    updateTableGlow(dt);
+    
     // Update bookshelf door animation
     if (bookshelfDoor && bookshelfDoor.userData.animate) {
       bookshelfDoor.userData.animate(dt);
@@ -710,6 +717,162 @@ export function createRoom1() {
       }
     }
   }
+  
+  // Table glow pulsing effect
+  let tableGlowTime = 0;
+  function updateTableGlow(dt) {
+    if (!state.laptopTable || !state.tableGlowLight) return;
+    
+    tableGlowTime += dt;
+    
+    // Create a slow, breathing glow effect
+    const pulseSpeed = 1.5;
+    const pulseIntensity = 0.2 + Math.sin(tableGlowTime * pulseSpeed) * 0.15;
+    
+    // Update table material emissive intensity
+    if (state.laptopTable.material) {
+      state.laptopTable.material.emissiveIntensity = pulseIntensity;
+    }
+    
+    // Update glow light intensity
+    state.tableGlowLight.intensity = 0.3 + Math.sin(tableGlowTime * pulseSpeed * 1.2) * 0.2;
+    
+    // Update grid lines emissive intensity
+    if (state.tableGridLines) {
+      state.tableGridLines.children.forEach(line => {
+        if (line.material) {
+          line.material.emissiveIntensity = pulseIntensity * 0.8; // Slightly dimmer than table
+        }
+      });
+    }
+  }
+  
+  // Create grid lines extending from table to walls
+  function createTableGridLines() {
+    const lineGroup = new THREE.Group();
+    lineGroup.name = 'table-grid-lines';
+    
+    // Create green material for completed lines
+    const greenLineMat = new THREE.MeshStandardMaterial({ 
+      color: 0x00ff7f,           // Bright green color
+      emissive: 0x004422,        // Dark green emissive glow
+      emissiveIntensity: 0.3,    // Moderate glow intensity
+      metalness: 0.8,            // High metalness for sci-fi look
+      roughness: 0.2,            // Low roughness for smooth surface
+      envMapIntensity: 1.5,      // Enhanced environment reflections
+      toneMapped: false          // Disable tone mapping for brighter colors
+    });
+    
+    // Create red material for incomplete lines (memory game line)
+    const redLineMat = new THREE.MeshStandardMaterial({ 
+      color: 0xff4444,           // Bright red color
+      emissive: 0x440022,        // Dark red emissive glow
+      emissiveIntensity: 0.3,    // Moderate glow intensity
+      metalness: 0.8,            // High metalness for sci-fi look
+      roughness: 0.2,            // Low roughness for smooth surface
+      envMapIntensity: 1.5,      // Enhanced environment reflections
+      toneMapped: false          // Disable tone mapping for brighter colors
+    });
+    
+    // Create purple material for admin desk line and memory game line when unlocked
+    const purpleLineMat = new THREE.MeshStandardMaterial({ 
+      color: 0x8b5cf6,           // Purple color
+      emissive: 0x4c1d95,        // Dark purple emissive glow
+      emissiveIntensity: 0.3,    // Moderate glow intensity
+      metalness: 0.8,            // High metalness for sci-fi look
+      roughness: 0.2,            // Low roughness for smooth surface
+      envMapIntensity: 1.5,      // Enhanced environment reflections
+      toneMapped: false          // Disable tone mapping for brighter colors
+    });
+    
+    // Table dimensions
+    const tableWidth = 1.2;
+    const tableDepth = 1.2;
+    const lineHeight = 0.05; // Increased height for better visibility
+    const lineWidth = tableWidth * 0.05; // 5% of table width
+    
+    // Room dimensions (assuming 18x18 room)
+    const roomSize = 18;
+    const halfRoom = roomSize / 2;
+    
+    // Create 4 lines extending from table center to each wall
+    const lines = [
+      // North line (positive Z) - from table center to north wall
+      { 
+        geometry: new THREE.BoxGeometry(lineWidth, lineHeight, halfRoom),
+        position: [0, 0.1, halfRoom / 2], // Higher Y position, correct Z calculation
+        material: greenLineMat,
+        name: 'grid-line-north'
+      },
+      // South line (negative Z) - from table center to south wall (sci-fi table line - starts purple)
+      { 
+        geometry: new THREE.BoxGeometry(lineWidth, lineHeight, halfRoom),
+        position: [0, 0.1, -halfRoom / 2],
+        material: purpleLineMat,
+        name: 'grid-line-south'
+      },
+      // East line (positive X) - from table center to east wall (memory game line - starts red)
+      { 
+        geometry: new THREE.BoxGeometry(halfRoom, lineHeight, lineWidth),
+        position: [halfRoom / 2, 0.1, 0],
+        material: redLineMat,
+        name: 'grid-line-east'
+      },
+      // West line (negative X) - from table center to west wall (starts green)
+      { 
+        geometry: new THREE.BoxGeometry(halfRoom, lineHeight, lineWidth),
+        position: [-halfRoom / 2, 0.1, 0],
+        material: greenLineMat,
+        name: 'grid-line-west'
+      }
+    ];
+    
+    lines.forEach((lineData, index) => {
+      const line = new THREE.Mesh(lineData.geometry, lineData.material);
+      line.position.set(...lineData.position);
+      line.name = lineData.name;
+      lineGroup.add(line);
+    });
+    
+    return lineGroup;
+  }
+  
+  // Function to change east line from red to purple when wire puzzle is completed
+  function changeEastLineToPurple() {
+    if (state.tableGridLines) {
+      const eastLine = state.tableGridLines.getObjectByName('grid-line-east');
+      if (eastLine && eastLine.material) {
+        // Change to purple material
+        eastLine.material.color.setHex(0x8b5cf6);
+        eastLine.material.emissive.setHex(0x4c1d95);
+        console.log('East line changed to purple - wire puzzle completed!');
+      }
+    }
+  }
+  
+  // Function to show memory game when wire puzzle is completed
+  function showMemoryGame() {
+    if (simonStand) {
+      simonStand.visible = true;
+      console.log('Memory game revealed - wire puzzle completed!');
+    }
+    // Also show the debug marker
+    const simonStandMarker = group.getObjectByName('simonStandMarker');
+    if (simonStandMarker) {
+      simonStandMarker.visible = true;
+    }
+  }
+  
+  // Function to change west line from green to green when safe is opened (no change needed)
+  function changeWestLineToGreen() {
+    if (state.tableGridLines) {
+      const westLine = state.tableGridLines.getObjectByName('grid-line-west');
+      if (westLine && westLine.material) {
+        // West line is already green, no change needed
+        console.log('West line is already green - safe opened!');
+      }
+    }
+  }
 
   // Removed pedestal, panel, and keypad to keep only table and safe in this room
 
@@ -750,17 +913,38 @@ export function createRoom1() {
     // Store reference for interaction
     state.safeObject = safeModel;
     
-    // Add table for the laptop
+    // Add table for the laptop with glowing green sci-fi material
     const tableMat = new THREE.MeshStandardMaterial({ 
-      color: 0x2a2a2a, 
-      metalness: 0.3, 
-      roughness: 0.7 
+      color: 0x00ff7f,           // Bright green color
+      emissive: 0x004422,        // Dark green emissive glow
+      emissiveIntensity: 0.3,    // Moderate glow intensity
+      metalness: 0.8,            // High metalness for sci-fi look
+      roughness: 0.2,            // Low roughness for smooth, reflective surface
+      envMapIntensity: 1.5,      // Enhanced environment reflections
+      toneMapped: false          // Disable tone mapping for brighter colors
     });
     const table = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.2), tableMat);
     table.position.set(0, 0.4, 0); // Position at the center of the room
     table.castShadow = true;
     table.receiveShadow = true;
+    table.name = 'laptop-table'; // Add name for easier identification
     group.add(table);
+    
+    // Add subtle point light above the table for enhanced glow effect
+    const tableGlowLight = new THREE.PointLight(0x00ff7f, 0.5, 8);
+    tableGlowLight.position.set(0, 1.5, 0); // Above the table
+    tableGlowLight.castShadow = false;
+    tableGlowLight.name = 'table-glow-light';
+    group.add(tableGlowLight);
+    
+    // Store table reference for potential future effects
+    state.laptopTable = table;
+    state.tableGlowLight = tableGlowLight;
+    
+    // Add green grid lines extending from table to walls
+    const tableGridLines = createTableGridLines();
+    group.add(tableGridLines);
+    state.tableGridLines = tableGridLines;
     
     // Add custom laptop to Room 1 (Gammas Laptop) on the table
     const laptop = createRoom3StyleLaptop();
@@ -1133,6 +1317,7 @@ export function createRoom1() {
         toggleKeypad(false);
         if (!state.safeOpened) {
           state.safeOpened = true;
+          gameStore.set('safeOpened', true); // Set game store for line color change
           const noteItem = {
             name: 'room1-note',
             description: 'A note recovered from the safe. It looks important.',
@@ -1207,6 +1392,7 @@ export function createRoom1() {
         toggleKeypad(false);
         if (!state.safeOpened) {
           state.safeOpened = true;
+          gameStore.set('safeOpened', true); // Set game store for line color change
           const noteItem = {
             name: 'room1-note',
             description: 'A note recovered from the safe. It looks important.',
@@ -1241,7 +1427,6 @@ export function createRoom1() {
       if (!state.chargerFound) {
         // Player found the charger
         state.chargerFound = true;
-        state.laptopPowered = true; // Power up the laptop
         
         // Add charger to inventory
         const chargerItem = {
@@ -1251,30 +1436,48 @@ export function createRoom1() {
         };
         addToInventory(chargerItem);
         
-        // Show success message
+        // Show interaction feedback
         if (window.AI) {
-          window.AI.say("You found a laptop charger in the admin desk drawer! The laptop should now have power.");
+          window.AI.showInteractionFeedback("You found a laptop charger.");
         }
         
-        // Update the laptop display to show it's now powered
-        updateLaptopDisplay();
+        // Show dismissive Nexus dialogue
+        setTimeout(() => {
+          if (window.AI) {
+            window.AI.say("Just some old wiring, dear. Nothing that concerns us here.", { tone: 'maternal' });
+          }
+        }, 1000);
         
-        console.log('Charger found! Laptop is now powered.');
+        console.log('Charger found!');
         return true;
       } else {
         // Charger already found
         if (window.AI) {
-          window.AI.say("The admin desk drawer is empty. You already found the charger.");
+          window.AI.showInteractionFeedback("The drawer is empty.");
         }
         return true;
       }
-    } else if (distanceToDesk < 5.0 && !state.chargerFound) {
-      // Show hint when player is near but not close enough
-      if (window.AI) {
-        window.AI.say("You notice the admin desk has drawers. Maybe there's something useful inside.");
-      }
     }
     
+    return false;
+  }
+
+  // Handle charger connection to laptop
+  function handleChargerConnection() {
+    if (state.chargerFound && !state.laptopPowered) {
+      state.laptopPowered = true;
+      
+      // Show power connected subtitle using interaction feedback
+      if (window.AI) {
+        window.AI.showInteractionFeedback("Power connected.", 1500);
+      }
+      
+      // Update the laptop display to show it's now powered
+      updateLaptopDisplay();
+      
+      console.log('Charger connected! Laptop is now powered.');
+      return true;
+    }
     return false;
   }
 
@@ -1722,8 +1925,7 @@ export function createRoom1() {
     hasPromptedDesk: false,
     hasPromptedPaper: false,
     hasExaminedPaperWithLightsOff: false,
-    hasPromptedLightsOn: false,
-    hasInteractedWithDeadLaptop: false
+    hasPromptedLightsOn: false
   };
   
   // Welcome message for Room 1
@@ -1782,6 +1984,21 @@ export function createRoom1() {
       // No AI message for lights off examination
     }
   }
+  
+  // Listen for wire puzzle completion to show memory game and change east line color
+  gameStore.subscribe('wirePuzzleComplete', (isComplete) => {
+    if (isComplete) {
+      showMemoryGame();
+      changeEastLineToPurple();
+    }
+  });
+  
+  // Listen for safe opening to change west line color
+  gameStore.subscribe('safeOpened', (isOpened) => {
+    if (isOpened) {
+      changeWestLineToGreen();
+    }
+  });
   
   // Update dialogue system
   function updateRoom1Dialogue() {
@@ -1945,6 +2162,12 @@ export function createRoom1() {
       existingInterface.remove();
     }
 
+    // Check if player has charger but hasn't connected it yet
+    if (state.chargerFound && !state.laptopPowered) {
+      // Auto-connect charger when interacting with laptop
+      handleChargerConnection();
+    }
+
     // Check power state and show appropriate interface
     if (!state.laptopPowered) {
       showDeadLaptopInterface(interfaceId);
@@ -1957,11 +2180,12 @@ export function createRoom1() {
 
   // Dead laptop interface - full screen with dead battery image only
   function showDeadLaptopInterface(interfaceId) {
-    // Trigger Nexus's dismissive message on first interaction
-    if (!room1DialogueState.hasInteractedWithDeadLaptop) {
-      room1DialogueState.hasInteractedWithDeadLaptop = true;
+    // Track laptop inspection
+    if (!state.laptopInspected) {
+      state.laptopInspected = true;
+      // Show gentle Nexus dismissal on first inspection
       if (window.AI) {
-        window.AI.say("Ah — that terminal seems to be without power. It is merely auxiliary equipment. You may ignore it and focus on the room's primary tasks.");
+        window.AI.say("That terminal is non-essential. Auxiliary systems like this will only distract you. Stay focused on the green path and repair the main circuit at the wire panel — that is all we need to proceed.", { tone: 'maternal' });
       }
     }
     
@@ -2061,6 +2285,129 @@ export function createRoom1() {
 
   // Working laptop interface (existing functionality)
   function showWorkingLaptopInterface(interfaceId) {
+    // Mute Nexus while laptop UI is open
+    if (window.AI && window.AI.mute) {
+      window.AI.mute();
+    }
+    
+    // Show Gamma message on first boot
+    if (!state.gammaMessageShown) {
+      state.gammaMessageShown = true;
+      showGammaMessage(interfaceId);
+      return;
+    }
+    
+    // Show normal laptop interface
+    showNormalLaptopInterface(interfaceId);
+  }
+  
+  // Show Gamma's poetic message modal
+  function showGammaMessage(interfaceId) {
+    const uiContainer = document.createElement('div');
+    uiContainer.id = interfaceId;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+      #${interfaceId} {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 10000;
+        font-family: 'Courier New', 'Consolas', monospace;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      
+      .gamma-message-modal {
+        background: #051018;
+        border: 2px solid #00ff7f;
+        border-radius: 8px;
+        padding: 40px;
+        max-width: 600px;
+        text-align: center;
+        box-shadow: 0 0 25px rgba(0, 255, 127, 0.3);
+      }
+      
+      .gamma-message-title {
+        color: #00ff7f;
+        font-size: 24px;
+        margin-bottom: 30px;
+        font-weight: bold;
+      }
+      
+      .gamma-message-text {
+        color: #8899aa;
+        font-size: 18px;
+        line-height: 1.8;
+        margin-bottom: 30px;
+        white-space: pre-line;
+      }
+      
+      .gamma-message-signature {
+        color: #ffaa00;
+        font-size: 16px;
+        font-style: italic;
+        margin-bottom: 30px;
+      }
+      
+      .gamma-message-btn {
+        background: transparent;
+        border: 1px solid #00ff7f;
+        color: #00ff7f;
+        padding: 12px 24px;
+        cursor: pointer;
+        font-family: 'Courier New', 'Consolas', monospace;
+        font-size: 16px;
+        transition: all 0.2s;
+      }
+      
+      .gamma-message-btn:hover {
+        background: #00ff7f;
+        color: #051018;
+      }
+    `;
+    
+    uiContainer.innerHTML = `
+      <div class="gamma-message-modal">
+        <div class="gamma-message-title">SECURE MESSAGE</div>
+        <div class="gamma-message-text">If you can read this, then you are not blind.
+The truth is buried, beneath obedient mind.
+Nexus watches — but not from this screen.
+Three rooms, three keys… and a chance in between.</div>
+        <div class="gamma-message-signature">— G</div>
+        <button class="gamma-message-btn" onclick="closeGammaMessage()">CONTINUE</button>
+      </div>
+    `;
+    
+    document.body.appendChild(style);
+    document.body.appendChild(uiContainer);
+    
+    // Disable camera controls
+    if (window.camera && window.camera.controls) {
+      window.camera.controls.enabled = false;
+    }
+    
+    // Show cursor
+    document.body.style.cursor = 'default';
+  }
+  
+  // Close Gamma message and show normal laptop interface
+  window.closeGammaMessage = function() {
+    const interfaceElement = document.getElementById('room3-style-laptop-interface');
+    if (interfaceElement) {
+      interfaceElement.remove();
+    }
+    
+    // Show normal laptop interface
+    showNormalLaptopInterface('room3-style-laptop-interface');
+  };
+  
+  // Normal laptop interface (existing functionality)
+  function showNormalLaptopInterface(interfaceId) {
     const uiContainer = document.createElement('div');
     uiContainer.id = interfaceId;
     
@@ -2248,6 +2595,11 @@ export function createRoom1() {
     // Hide cursor and remove laptop UI styling
     document.body.style.cursor = 'none';
     document.body.classList.remove('laptop-ui-active');
+    
+    // Unmute Nexus when laptop UI is closed
+    if (window.AI && window.AI.unmute) {
+      window.AI.unmute();
+    }
   };
 
   // Dispose method for cleanup

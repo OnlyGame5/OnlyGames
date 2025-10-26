@@ -9,7 +9,7 @@ export const NEXUS_DIALOGUE = {
       MOTOR_ONLINE: "Your motor functions are now online. Please, approach the door."
     },
 
-    ROOM_1_ENTRY: "This is the first proving ground. The objective is simple: solve the challenges presented and open the path forward. I will assist you.",
+    ROOM_1_ENTRY: "This first chamber is simple, Delta. The power grid was damaged by a previous subject, but we can restore it easily. Just follow my guidance and focus on the wire panel ahead. The rest of this room is only leftover debris — nothing you need for this test.",
 
     GRAFFITI_OBSERVATION: "Crude. The previous subject expressed themselves with... artistic vandalism. Please disregard any corrupted data you may find in the environment. It is irrelevant to your success.",
 
