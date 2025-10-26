@@ -21,7 +21,9 @@ export function createWirePanel(opts = {}) {
     firstMistakeMade: false, // Track if first mistake has occurred
     timeoutActive: false,    // Track if timeout is active
     timeoutDuration: 30,      // Timeout duration in seconds
-    timeoutRemaining: 0       // Remaining timeout time
+    timeoutRemaining: 0,     // Remaining timeout time
+    audioContext: null,      // Web Audio API context
+    sounds: {}               // Sound effect references
   };
 
   // Create popup UI
@@ -329,6 +331,9 @@ export function createWirePanel(opts = {}) {
       e.stopPropagation();
     });
 
+    // Add keyboard accessibility
+    overlay.addEventListener('keydown', handleKeyboardInput);
+
     return overlay;
   }
 
@@ -397,6 +402,12 @@ export function createWirePanel(opts = {}) {
     // Pulse maintenance LED while dragging
     setMaintenanceLED(0.6);
     
+    // Play drag start sound
+    playSound('dragStart');
+    
+    // Trigger haptic feedback
+    triggerHapticFeedback('light');
+    
     console.log('Started dragging:', colorData.id);
   }
 
@@ -407,6 +418,9 @@ export function createWirePanel(opts = {}) {
     // Update drag wire position
     state.dragElement.style.left = e.clientX + 'px';
     state.dragElement.style.top = e.clientY + 'px';
+    
+    // Update connection preview
+    updateConnectionPreview(e.clientX, e.clientY);
   }
 
   // Handle mouse up (end drag)
@@ -443,6 +457,12 @@ export function createWirePanel(opts = {}) {
     
     // Turn off maintenance LED
     setMaintenanceLED(0.1);
+    
+    // Play drag end sound
+    playSound('dragEnd');
+    
+    // Clear connection preview
+    clearConnectionPreview();
   }
 
   // Handle port mouse up (for rewiring)
@@ -526,6 +546,12 @@ export function createWirePanel(opts = {}) {
     // Green flash for successful connection
     updateStatusStrip('#00ff00', 0.6);
     
+    // Play connection sound
+    playSound('connection');
+    
+    // Trigger haptic feedback
+    triggerHapticFeedback('medium');
+    
     // Check if solved
     if (state.input.length === state.order.length) {
       state.solved = true;
@@ -537,6 +563,12 @@ export function createWirePanel(opts = {}) {
       // Turn on power LED bright green for success
       setPowerLED(1.0);
       setFaultLED(0.1); // Turn off fault LED
+      
+      // Play success sound
+      playSound('success');
+      
+      // Trigger success haptic feedback
+      triggerHapticFeedback('success');
       
       // Show success popup
       showValidationPopup('success', 'CIRCUIT COMPLETE', 'Congratulations! The wire panel has been successfully configured. The door is now unlocked.');
@@ -584,6 +616,12 @@ export function createWirePanel(opts = {}) {
       // Flash fault LED during timeout
       setFaultLED(0.8, true);
       
+      // Play timeout sound
+      playSound('timeout');
+      
+      // Trigger error haptic feedback
+      triggerHapticFeedback('error');
+      
     } else {
       // Subsequent mistakes - immediate reset
       updateStatusStrip('#ff0000', 0.8);
@@ -592,6 +630,12 @@ export function createWirePanel(opts = {}) {
       // Brief fault LED flash
       setFaultLED(0.6);
       setTimeout(() => setFaultLED(0.1), 500);
+      
+      // Play error sound
+      playSound('error');
+      
+      // Trigger error haptic feedback
+      triggerHapticFeedback('error');
     }
     
     if (window.AI) {
@@ -695,6 +739,168 @@ export function createWirePanel(opts = {}) {
     setPowerLED(0.1);
     setFaultLED(0.1);
     setMaintenanceLED(0.1);
+  }
+
+  // Audio System Functions
+  function initAudioSystem() {
+    try {
+      state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      createSoundEffects();
+    } catch (error) {
+      console.log('Audio not supported:', error);
+    }
+  }
+
+  function createSoundEffects() {
+    if (!state.audioContext) return;
+
+    // Create different sound effects using Web Audio API
+    state.sounds = {
+      dragStart: () => playTone(800, 0.1, 'sine'),      // High beep for drag start
+      dragEnd: () => playTone(400, 0.15, 'sine'),       // Lower beep for drag end
+      success: () => playTone(600, 0.3, 'sine'),        // Success tone
+      error: () => playTone(200, 0.4, 'sawtooth'),      // Error buzz
+      timeout: () => playTone(150, 0.5, 'square'),      // Timeout warning
+      connection: () => playTone(500, 0.2, 'triangle')  // Connection made
+    };
+  }
+
+  function playTone(frequency, duration, waveType = 'sine') {
+    if (!state.audioContext) return;
+
+    const oscillator = state.audioContext.createOscillator();
+    const gainNode = state.audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(state.audioContext.destination);
+
+    oscillator.frequency.setValueAtTime(frequency, state.audioContext.currentTime);
+    oscillator.type = waveType;
+
+    // Envelope for smooth sound
+    gainNode.gain.setValueAtTime(0, state.audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.1, state.audioContext.currentTime + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, state.audioContext.currentTime + duration);
+
+    oscillator.start(state.audioContext.currentTime);
+    oscillator.stop(state.audioContext.currentTime + duration);
+  }
+
+  function playSound(soundName) {
+    if (state.sounds && state.sounds[soundName]) {
+      state.sounds[soundName]();
+    }
+  }
+
+  // Keyboard Accessibility Functions
+  function handleKeyboardInput(e) {
+    if (state.timeoutActive) return;
+
+    switch(e.key) {
+      case 'Escape':
+        closePanel();
+        break;
+      case 'r':
+      case 'R':
+        resetPuzzle();
+        break;
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+        // Connect to port (0-3)
+        const portIndex = parseInt(e.key) - 1;
+        const portElement = document.querySelector(`[data-index="${portIndex}"]`);
+        if (portElement && !portElement.classList.contains('occupied')) {
+          // Simulate connection with currently held wire
+          if (state.holding) {
+            handlePortConnection(portIndex, portElement);
+          }
+        }
+        break;
+      case 'a':
+      case 'A':
+        // Select wire A (Red)
+        selectWireByKeyboard('R');
+        break;
+      case 'b':
+      case 'B':
+        // Select wire B (Green)
+        selectWireByKeyboard('G');
+        break;
+      case 'c':
+      case 'C':
+        // Select wire C (Blue)
+        selectWireByKeyboard('B');
+        break;
+      case 'd':
+      case 'D':
+        // Select wire D (Yellow)
+        selectWireByKeyboard('Y');
+        break;
+    }
+  }
+
+  function selectWireByKeyboard(colorId) {
+    const socket = document.querySelector(`[data-color="${colorId}"]`);
+    if (socket && !socket.classList.contains('used') && !state.timeoutActive) {
+      // Simulate mouse down event
+      const colorData = {
+        id: colorId,
+        color: colorId,
+        name: socket.dataset.colorName
+      };
+      handleSocketMouseDown({ preventDefault: () => {} }, colorData, socket);
+    }
+  }
+
+  // Connection Preview Functions
+  function updateConnectionPreview(mouseX, mouseY) {
+    // Clear previous previews
+    clearConnectionPreview();
+    
+    // Find valid drop zones
+    const validPorts = getValidDropZones();
+    
+    validPorts.forEach(portIndex => {
+      const portElement = document.querySelector(`[data-index="${portIndex}"]`);
+      if (portElement) {
+        // Add preview highlight
+        portElement.style.border = '3px solid #00ff00';
+        portElement.style.boxShadow = '0 0 15px #00ff00';
+        portElement.style.transform = 'scale(1.1)';
+      }
+    });
+  }
+
+  function getValidDropZones() {
+    const expectedSlotIndex = state.input.length;
+    return [expectedSlotIndex]; // Only the next slot in sequence is valid
+  }
+
+  function clearConnectionPreview() {
+    document.querySelectorAll('.bottom-socket').forEach(socket => {
+      if (!socket.classList.contains('occupied')) {
+        socket.style.border = '3px solid #4c535a';
+        socket.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+        socket.style.transform = 'scale(1)';
+      }
+    });
+  }
+
+  // Haptic Feedback Functions
+  function triggerHapticFeedback(type = 'light') {
+    if ('vibrate' in navigator) {
+      const patterns = {
+        light: [50],           // Light tap
+        medium: [100],         // Medium tap
+        heavy: [200],         // Heavy tap
+        success: [100, 50, 100], // Success pattern
+        error: [200, 100, 200]   // Error pattern
+      };
+      
+      navigator.vibrate(patterns[type] || patterns.light);
+    }
   }
 
   function getColorForId(colorId) {
@@ -816,7 +1022,7 @@ export function createWirePanel(opts = {}) {
     }, 3000);
   }
 
-
+    
   function resetPuzzle() {
     // Reset puzzle state
     state.input = [];
@@ -888,6 +1094,9 @@ export function createWirePanel(opts = {}) {
       
       // Turn on power LED dimly when panel opens
       setPowerLED(0.3);
+      
+      // Initialize audio system
+      initAudioSystem();
     }
   }
 
