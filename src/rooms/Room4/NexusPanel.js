@@ -501,7 +501,7 @@ export class NexusPanel {
     // Hide the keypad after a short delay
     setTimeout(() => {
       this.hide();
-      this._showCompletionMessageBoard();
+      // Remove acknowledgment screen - just hide the panel
     }, 2000);
   }
 
@@ -611,8 +611,8 @@ export class NexusPanel {
     
     // Check if puzzle is already completed
     if (this._isComplete()) {
-      console.log('NEXUS puzzle already completed - showing completion message');
-      this._showCompletionMessageBoard();
+      console.log('NEXUS puzzle already completed');
+      // Don't show acknowledgment screen - just show the panel normally
       return;
     }
     

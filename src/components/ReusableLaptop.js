@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { addToInventory } from '../player.js';
 
 export function createReusableLaptop(options = {}) {
   const {
@@ -763,11 +764,21 @@ function createRoom4LaptopInterface(roomId) {
     content = `
       <div class="room4-instruction">
         <h3 style="color: #9d4edd; margin-top: 0;">🔍 MISSION BRIEFING</h3>
-        <p><strong>Objective:</strong> Access the NEXUS system to complete the final test.</p>
+        <p><strong>Objective:</strong> Access the NEXUS system source code to complete the final test.</p>
         <p><strong>Step 1:</strong> You'll notice the binary streams floating throughout the room. The password you need is encoded within these streams, they contain the key to accessing the decoder panel.</p>
         <p><strong>Step 2:</strong> Locate the Binary Decoder panel on the north wall of this room. Interact with the Decoder to solve the puzzle and reveal the hidden password.</p>
-        <p><strong>Step 3:</strong> Return to this laptop and enter the password to access the NEXUS system.</p>
+        <p><strong>Step 3:</strong> Return to this laptop and enter the password to access the system.</p>
         <p style="color: #ffaa00;"><strong>Hint:</strong> The password is a 5-letter word that appears when you complete the binary decoder puzzle.</p>
+        <div style="
+          background: rgba(255, 170, 0, 0.1);
+          border: 1px solid #ffaa00;
+          border-radius: 4px;
+          padding: 10px;
+          margin-top: 15px;
+          color: #ffaa00;
+        ">
+          <strong>⚠️ IMPORTANT:</strong> DO NOT TRUST IT!!!
+        </div>
       </div>
     `;
   }
@@ -778,7 +789,7 @@ function createRoom4LaptopInterface(roomId) {
       <div class="room4-content">
         <p>Welcome to the Terminal. This system controls the core of the facility.</p>
         <p>Access Level: <span style="color: #9d4edd;">ADMINISTRATOR</span></p>
-        <p>System Status: <span style="color: #00ff7f;">ONLINE</span></p>
+        <p>System Status: <span style="color:rgb(255, 4, 4);">CRITICAL</span></p>
         ${content}
       </div>
       <button class="room4-btn" onclick="closeLaptopInterface('${interfaceId}')">CLOSE TERMINAL</button>
@@ -808,18 +819,26 @@ function createRoom4LaptopInterface(roomId) {
 
 // Helper function to check if binary decoder is completed
 function checkBinaryDecoderCompletion() {
+  console.log('Checking binary decoder completion...');
+  console.log('room4NexusPanel exists:', !!window.room4NexusPanel);
+  
   // Check if the global nexus panel exists and is completed
   if (window.room4NexusPanel && typeof window.room4NexusPanel._isComplete === 'function') {
-    return window.room4NexusPanel._isComplete();
+    const isComplete = window.room4NexusPanel._isComplete();
+    console.log('Nexus panel completion status:', isComplete);
+    return isComplete;
   }
   
   // Fallback: check if the binary UI exists and is visible
   const binaryUI = document.querySelector('#binaryUI');
+  console.log('Binary UI found:', !!binaryUI);
   if (binaryUI && binaryUI.style.display === 'block') {
+    console.log('Binary UI is visible, assuming not completed');
     // If the UI is visible, assume it's not completed yet
     return false;
   }
   
+  console.log('Defaulting to false - cannot determine completion state');
   // Default to false if we can't determine the state
   return false;
 }
@@ -829,9 +848,19 @@ window.submitNexusPassword = function(interfaceId) {
   const passwordInput = document.getElementById('nexus-password');
   const password = passwordInput.value.trim().toUpperCase();
   
+  // First check if binary decoder is completed
+  if (!checkBinaryDecoderCompletion()) {
+    alert('Access Denied! You must complete the binary decoder puzzle first to obtain the password.');
+    passwordInput.value = '';
+    passwordInput.focus();
+    return;
+  }
+  
   if (password === 'NEXUS') {
+    console.log('NEXUS password correct! Creating success screen...');
     // Password correct - show success message
     const content = document.querySelector('.room4-content');
+    console.log('Found content element:', content);
     content.innerHTML = `
       <p>Welcome to the Nexus Terminal. This system controls the core of the facility.</p>
       <p>Access Level: <span style="color: #9d4edd;">ADMINISTRATOR</span></p>
@@ -845,10 +874,28 @@ window.submitNexusPassword = function(interfaceId) {
       </div>
     `;
     
-    // Hide the password input section
-    const passwordSection = document.querySelector('.room4-password-section');
-    if (passwordSection) {
-      passwordSection.style.display = 'none';
+    console.log('Success screen content updated. Content innerHTML length:', content.innerHTML.length);
+    
+    // Don't hide the password section - we want to show the success message
+    // The success message is now part of the content, not a separate section
+    
+    // Add key to inventory
+    const keyAdded = addToInventory({
+      name: 'room4-nexus-key',
+      description: 'Nexus Key - Essential for escape'
+    });
+    
+    if (keyAdded) {
+      console.log('Nexus key added to inventory successfully');
+      // Show notification about key
+      if (window.AI) {
+        window.AI.say('A mysterious key has been added to your inventory. It may be essential for your escape.');
+      }
+    } else {
+      console.log('Failed to add key to inventory - inventory may be full');
+      if (window.AI) {
+        window.AI.say('Inventory is full. Make room for the key!');
+      }
     }
     
     // Trigger room completion if AI system is available
