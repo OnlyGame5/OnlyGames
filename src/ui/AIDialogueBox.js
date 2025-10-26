@@ -190,6 +190,7 @@ export class AIDialogueBox {
 
   /**
    * Show text with typewriter effect (vanilla JS implementation)
+   * Supports HTML tags by parsing and typing text content while preserving tags
    */
   showWithTyping(text, onComplete, typingSpeed = this.options.typingSpeed) {
     const strings = Array.isArray(text) ? text : [text];
@@ -197,14 +198,60 @@ export class AIDialogueBox {
     this.currentText = strings[0];
     this.currentIndex = 0;
 
+    // Helper function to parse HTML and get text with tags
+    const parseHTML = (html) => {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+      const textNodes = [];
+      const walk = (node) => {
+        if (node.nodeType === 3) { // Text node
+          const text = node.textContent;
+          for (let i = 0; i < text.length; i++) {
+            textNodes.push({ type: 'char', char: text[i] });
+          }
+        } else if (node.nodeType === 1) { // Element node
+          const tagName = node.tagName.toLowerCase();
+          const attributes = Array.from(node.attributes).map(attr => 
+            `${attr.name}="${attr.value}"`
+          ).join(' ');
+          textNodes.push({ type: 'open', tag: tagName, attrs: attributes });
+          Array.from(node.childNodes).forEach(walk);
+          textNodes.push({ type: 'close', tag: tagName });
+        }
+      };
+      walk(tempDiv);
+      return textNodes;
+    };
+
+    const nodes = parseHTML(this.currentText);
+    let nodeIndex = 0;
+    let charIndex = 0;
+
     const typeNextChar = () => {
-      if (this.currentIndex < this.currentText.length) {
-        const char = this.currentText[this.currentIndex];
-        this.textElement.innerHTML = this.currentText.substring(0, this.currentIndex + 1) + 
-          '<span class="ai-dialogue-caret"></span>';
-        this.currentIndex++;
+      if (nodeIndex < nodes.length) {
+        const node = nodes[nodeIndex];
         
-        this.typingInterval = setTimeout(typeNextChar, typingSpeed);
+        if (node.type === 'open') {
+          // Render opening tag immediately
+          const tagStr = `<${node.tag}${node.attrs ? ' ' + node.attrs : ''}>`;
+          const currentHTML = this.textElement.innerHTML.replace('<span class="ai-dialogue-caret"></span>', '');
+          this.textElement.innerHTML = currentHTML + tagStr + '<span class="ai-dialogue-caret"></span>';
+          nodeIndex++;
+          this.typingInterval = setTimeout(typeNextChar, typingSpeed);
+        } else if (node.type === 'close') {
+          // Render closing tag immediately
+          const tagStr = `</${node.tag}>`;
+          const currentHTML = this.textElement.innerHTML.replace('<span class="ai-dialogue-caret"></span>', '');
+          this.textElement.innerHTML = currentHTML + tagStr + '<span class="ai-dialogue-caret"></span>';
+          nodeIndex++;
+          this.typingInterval = setTimeout(typeNextChar, typingSpeed);
+        } else if (node.type === 'char') {
+          // Type character normally
+          const currentHTML = this.textElement.innerHTML.replace('<span class="ai-dialogue-caret"></span>', '');
+          this.textElement.innerHTML = currentHTML + node.char + '<span class="ai-dialogue-caret"></span>';
+          nodeIndex++;
+          this.typingInterval = setTimeout(typeNextChar, typingSpeed);
+        }
       } else {
         // Check if there are more strings to type
         this.currentStringIndex++;
@@ -212,7 +259,12 @@ export class AIDialogueBox {
           // Wait a bit before starting next string
           setTimeout(() => {
             this.currentText = strings[this.currentStringIndex];
-            this.currentIndex = 0;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = this.currentText;
+            const textNodes = parseHTML(this.currentText);
+            nodes.length = 0;
+            nodes.push(...textNodes);
+            nodeIndex = 0;
             this.textElement.innerHTML = '<span class="ai-dialogue-caret"></span>';
             typeNextChar();
           }, 1000);

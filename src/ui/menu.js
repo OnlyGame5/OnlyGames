@@ -715,6 +715,7 @@ export function setDifficulty(difficulty) {
 window.testGameOver = testGameOver;
 window.setCountdown = setCountdown;
 window.setDifficulty = setDifficulty;
+window.exitToMainMenu = exitToMainMenu;
 
 // Update HUD instructions with current bindings
 export function updateHUDInstructions() {
