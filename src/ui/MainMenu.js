@@ -488,6 +488,9 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     }, 600);
   }
   
+  // Expose exitGame globally
+  window.exitGame = exitGame;
+  
   // Return cleanup function
   return {
     destroy: () => {

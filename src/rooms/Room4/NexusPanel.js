@@ -27,9 +27,10 @@ export class NexusPanel {
       'S': false
     };
     
-    // Track incorrect attempts
+    // Track incorrect attempts for failure system
     this.incorrectAttempts = 0;
-    this.maxAttempts = 10;
+    this.maxAttempts = 3; // Reduced to 3 attempts before failure
+    this.hasFailed = false;
     
     // Panel state
     this.panelOpen = false;
@@ -47,21 +48,17 @@ export class NexusPanel {
    * Create the 3D panel structure
    */
   _createPanel() {
-    // Main panel frame - larger, more prominent display
-    const frameGeometry = new THREE.PlaneGeometry(8, 5);
-    // Panel starts red, changes to green when complete
-    const isComplete = this._isComplete();
-    const frameMaterial = new THREE.MeshBasicMaterial({
-      color: isComplete ? 0x00ff88 : 0xff0000,
-      transparent: true,
-      opacity: 0.9,
-      side: THREE.DoubleSide // Make it visible from both sides
-    });
-    this.panel = new THREE.Mesh(frameGeometry, frameMaterial);
-    this.panel.position.set(0, 0, 0); // Centered in the group
-    this.group.add(this.panel);
+    // Red border removed - only the binary decoder screen remains
+    // Create a placeholder panel object for compatibility with color change logic
+    this.panel = {
+      material: {
+        color: { setHex: () => {}, getHex: () => 0xff0000 },
+        needsUpdate: false,
+        opacity: 0.9
+      }
+    };
 
-    // Add some simple text on the panel
+    // Add the binary decoder screen
     this._createPanelText();
   }
 
@@ -71,40 +68,53 @@ export class NexusPanel {
   _createPanelText() {
     // Create canvas for text - larger for better visibility
     const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 320;
+    canvas.width = 960; // Increased from 640
+    canvas.height = 480; // Increased from 320
     const ctx = canvas.getContext('2d');
     
-    // Clear canvas with background color (green when complete, red otherwise)
-    const isComplete = this._isComplete();
-    ctx.fillStyle = isComplete ? '#00ff88' : '#ff0000';
+    // Clear canvas with black background (for borders)
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw title in black
+    // Draw screen area with colored background, inset with black borders
+    const isComplete = this._isComplete();
+    const borderWidth = 30; // Black border width (scaled up)
+    const screenX = borderWidth;
+    const screenY = borderWidth;
+    const screenWidth = canvas.width - (borderWidth * 2);
+    const screenHeight = canvas.height - (borderWidth * 2);
+    
+    // Fill screen area with background color (green when complete, red otherwise)
+    ctx.fillStyle = isComplete ? '#00ff88' : '#ff0000';
+    ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+    
+    // Draw title in black (on colored background) - scaled up
     ctx.fillStyle = '#000000';
-    ctx.font = 'bold 24px monospace';
+    ctx.font = 'bold 36px monospace'; // Increased from 24px
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('BINARY DECODER', canvas.width / 2, 50);
+    ctx.fillText('BINARY DECODER', canvas.width / 2, 75); // Adjusted y position
     
-    // Draw letter slots - centered better for larger canvas
+    // Draw letter slots - centered on the screen
     const letters = ['N', 'E', 'X', 'U', 'S'];
-    const startX = 132; // Centered better for 5 letters on larger canvas
-    const spacing = 75; // Adjusted spacing for larger canvas
+    const boxWidth = 90; // Width of each box
+    const spacing = 112; // Center-to-center spacing between boxes
+    const totalWidth = (letters.length - 1) * spacing + boxWidth; // Total width of all boxes
+    const startX = (canvas.width - totalWidth) / 2 + boxWidth / 2; // Center the first box
     letters.forEach((letter, index) => {
       const x = startX + (index * spacing);
-      const y = 150;
+      const y = 225; // Scaled up
       
       // Draw letter box with dark background - larger for bigger text
       ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(x - 30, y - 25, 60, 50);
+      ctx.fillRect(x - 45, y - 37, 90, 75); // Scaled up
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x - 30, y - 25, 60, 50);
+      ctx.lineWidth = 4; // Scaled up
+      ctx.strokeRect(x - 45, y - 37, 90, 75);
       
       // Draw letter or ? in white initially - larger font
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 28px monospace';
+      ctx.font = 'bold 42px monospace'; // Increased from 28px
       ctx.fillText('?', x, y);
     });
     
@@ -112,8 +122,8 @@ export class NexusPanel {
     const texture = new THREE.CanvasTexture(canvas);
     texture.needsUpdate = true;
     
-    // Create static text display using a plane mesh (no rotation) - larger size
-    const textGeometry = new THREE.PlaneGeometry(6, 3);
+    // Create static text display using a plane mesh - larger size (same as old red border was)
+    const textGeometry = new THREE.PlaneGeometry(8, 5); // Increased from 6x3 to 8x5
     const textMaterial = new THREE.MeshBasicMaterial({ 
       map: texture,
       transparent: true,
@@ -121,7 +131,7 @@ export class NexusPanel {
       side: THREE.DoubleSide
     });
     const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-    textMesh.position.set(0, 0, 0.01); // Slightly in front of panel
+    textMesh.position.set(0, 0, 0); // Centered, no offset needed
     this.group.add(textMesh);
     
     this.panelText = textMesh;
@@ -360,6 +370,9 @@ export class NexusPanel {
     // Mark as revealed
     this.revealedLetters[letter] = true;
     
+    // Update the panel display to show the new letter and update colors
+    this._updatePanelDisplay();
+    
     // Trigger flicker effect
     this._triggerFlickerEffect();
     
@@ -375,42 +388,57 @@ export class NexusPanel {
   _updatePanelDisplay() {
     if (!this.panelText) return;
 
+    // Get completion status for canvas background color
+    const isComplete = this._isComplete();
+
     // Create new canvas with updated letters - larger for better visibility
     const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 320;
+    canvas.width = 960; // Increased from 640
+    canvas.height = 480; // Increased from 320
     const ctx = canvas.getContext('2d');
     
-    // Clear canvas with background color (green when complete, red otherwise)
-    const isComplete = this._isComplete();
-    ctx.fillStyle = isComplete ? '#00ff88' : '#ff0000';
+    // Clear canvas with black background (for borders)
+    ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw title in black
+    // Draw screen area with colored background, inset with black borders
+    const borderWidth = 30; // Black border width (scaled up)
+    const screenX = borderWidth;
+    const screenY = borderWidth;
+    const screenWidth = canvas.width - (borderWidth * 2);
+    const screenHeight = canvas.height - (borderWidth * 2);
+    
+    // Fill screen area with background color (green when complete, red otherwise)
+    ctx.fillStyle = isComplete ? '#00ff88' : '#ff0000';
+    ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+    
+    // Draw title in black (on colored background) - scaled up
     ctx.fillStyle = '#000000';
-    ctx.font = 'bold 24px monospace';
+    ctx.font = 'bold 36px monospace'; // Increased from 24px
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('BINARY DECODER', canvas.width / 2, 50);
+    ctx.fillText('BINARY DECODER', canvas.width / 2, 75); // Adjusted y position
     
-    // Draw letter slots with revealed letters - centered better for larger canvas
+    // Draw letter slots with revealed letters - centered on the screen
     const letters = ['N', 'E', 'X', 'U', 'S'];
-    const startX = 132; // Centered better for 5 letters on larger canvas
-    const spacing = 75; // Adjusted spacing for larger canvas
+    const boxWidth = 90; // Width of each box
+    const spacing = 112; // Center-to-center spacing between boxes
+    const totalWidth = (letters.length - 1) * spacing + boxWidth; // Total width of all boxes
+    const startX = (canvas.width - totalWidth) / 2 + boxWidth / 2; // Center the first box
     letters.forEach((letter, index) => {
       const x = startX + (index * spacing);
-      const y = 150;
+      const y = 225; // Scaled up
       
       // Draw letter box with dark background - larger for bigger text
       ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(x - 30, y - 25, 60, 50);
+      ctx.fillRect(x - 45, y - 37, 90, 75); // Scaled up
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x - 30, y - 25, 60, 50);
+      ctx.lineWidth = 4; // Scaled up
+      ctx.strokeRect(x - 45, y - 37, 90, 75);
       
       // Draw letter or ? - revealed letters in BLACK, unrevealed in white - larger font
       ctx.fillStyle = this.revealedLetters[letter] ? '#000000' : '#ffffff';
-      ctx.font = 'bold 28px monospace';
+      ctx.font = 'bold 42px monospace'; // Increased from 28px
       ctx.fillText(this.revealedLetters[letter] ? letter : '?', x, y);
     });
     
@@ -426,13 +454,13 @@ export class NexusPanel {
    */
   _handleIncorrectInput() {
     this.incorrectAttempts++;
-    this.binaryDisplay.textContent = `WRONG! Attempts: ${this.incorrectAttempts}/${this.maxAttempts}`;
+    const remainingAttempts = this.maxAttempts - this.incorrectAttempts;
+    this.binaryDisplay.textContent = `WRONG! Attempts remaining: ${remainingAttempts}`;
     
     // Check if max attempts reached
     if (this.incorrectAttempts >= this.maxAttempts) {
-      this.binaryDisplay.textContent = 'MAX ATTEMPTS REACHED! Panel locked.';
-      this.binaryInput.disabled = true;
-      document.getElementById('submitBtn').disabled = true;
+      this.hasFailed = true;
+      this._triggerGameFailure();
     }
   }
 
@@ -458,22 +486,20 @@ export class NexusPanel {
    * Trigger flicker effect when a letter is revealed
    */
   _triggerFlickerEffect() {
-    if (!this.panel || !this.panel.material) return;
-    
-    // Store original color
-    const originalColor = this.panel.material.color.getHex();
-    
-    // Flicker to green for a moment
-    this.panel.material.color.setHex(0x00ff88);
-    this.panel.material.needsUpdate = true;
-    
-    // Return to red after 200ms
-    setTimeout(() => {
-      if (this.panel && this.panel.material) {
-        this.panel.material.color.setHex(originalColor);
-        this.panel.material.needsUpdate = true;
-      }
-    }, 200);
+    // Flicker effect: briefly increase opacity for visual feedback
+    if (this.panelText && this.panelText.material) {
+      const originalOpacity = this.panelText.material.opacity || 1.0;
+      this.panelText.material.opacity = 1.2;
+      this.panelText.material.needsUpdate = true;
+      
+      // Return to normal after 200ms
+      setTimeout(() => {
+        if (this.panelText && this.panelText.material) {
+          this.panelText.material.opacity = originalOpacity;
+          this.panelText.material.needsUpdate = true;
+        }
+      }, 200);
+    }
   }
 
   /**
@@ -491,7 +517,7 @@ export class NexusPanel {
     // Hide the keypad after a short delay
     setTimeout(() => {
       this.hide();
-      this._showCompletionMessageBoard();
+      // Remove acknowledgment screen - just hide the panel
     }, 2000);
   }
 
@@ -499,10 +525,9 @@ export class NexusPanel {
    * Change the panel color to green (completion)
    */
   _changePanelToGreen() {
-    if (this.panel && this.panel.material) {
-      this.panel.material.color.setHex(0x00ff88); // Change to green
-      this.panel.material.needsUpdate = true;
-    }
+    // Panel color change is handled by canvas background in _updatePanelDisplay()
+    // This method is kept for compatibility but no longer needs to do anything
+    // as the color change happens automatically when updating the display
   }
 
   /**
@@ -601,8 +626,8 @@ export class NexusPanel {
     
     // Check if puzzle is already completed
     if (this._isComplete()) {
-      console.log('NEXUS puzzle already completed - showing completion message');
-      this._showCompletionMessageBoard();
+      console.log('NEXUS puzzle already completed');
+      // Don't show acknowledgment screen - just show the panel normally
       return;
     }
     
@@ -670,11 +695,8 @@ export class NexusPanel {
     // Reset attempts
     this.incorrectAttempts = 0;
     
-    // Reset panel color to red (initial state)
-    if (this.panel && this.panel.material) {
-      this.panel.material.color.setHex(0xff0000);
-      this.panel.material.needsUpdate = true;
-    }
+    // Reset panel color is handled by _updatePanelDisplay()
+    // (no separate panel to reset anymore)
     
     // Reset UI
     this.binaryInput.disabled = false;
@@ -685,15 +707,137 @@ export class NexusPanel {
   }
 
   /**
+   * Trigger game failure when max attempts reached
+   */
+  _triggerGameFailure() {
+    console.log('Binary decoder failure triggered');
+    
+    // Hide the binary decoder panel
+    this.hide();
+    
+    // Show failure screen
+    this._showGameFailureScreen();
+    
+    // Trigger AI dialogue for failure
+    if (window.AI) {
+      window.AI.deliverDialogue('ACT_I.ROOM_4_BINARY_FAILURE');
+    }
+  }
+
+  /**
+   * Show game failure screen with restart/exit options
+   */
+  _showGameFailureScreen() {
+    // Create failure overlay
+    const failureOverlay = document.createElement('div');
+    failureOverlay.id = 'binary-failure-overlay';
+    failureOverlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 20000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Courier New', monospace;
+    `;
+    
+    failureOverlay.innerHTML = `
+      <div style="
+        background: #1a1a1a;
+        border: 2px solid #ff0000;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        max-width: 600px;
+        box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
+      ">
+        <h1 style="color: #ff0000; font-size: 36px; margin: 0 0 20px 0; text-shadow: 0 0 10px #ff0000;">
+          DECODER FAILURE
+        </h1>
+        <p style="color: #ff6666; font-size: 18px; margin: 0 0 30px 0;">
+          Multiple incorrect binary sequences detected.<br>
+          The decoder has been permanently locked.
+        </p>
+        <div style="
+          background: rgba(255, 0, 0, 0.2);
+          border: 1px solid #ff0000;
+          border-radius: 4px;
+          padding: 15px;
+          margin: 20px 0;
+          color: #ffaaaa;
+          font-size: 14px;
+        ">
+          <div style="font-weight: bold; margin-bottom: 10px;">SYSTEM NOTIFICATION</div>
+          <div>Decoder Status: LOCKED</div>
+          <div>Failure Count: ${this.maxAttempts}</div>
+          <div>Reason: Excessive incorrect attempts</div>
+        </div>
+        <div style="display: flex; gap: 20px; justify-content: center;">
+          <button id="binary-failure-restart-btn" style="
+            background: #cc0000;
+            color: white;
+            border: 1px solid #ff0000;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: background 0.3s ease;
+          " onmouseover="this.style.background='#ff0000'" onmouseout="this.style.background='#cc0000'">
+            Restart Game
+          </button>
+          <button id="binary-failure-exit-btn" style="
+            background: #333333;
+            color: white;
+            border: 1px solid #666666;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: background 0.3s ease;
+          " onmouseover="this.style.background='#555555'" onmouseout="this.style.background='#333333'">
+            Exit Game
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(failureOverlay);
+    
+    // Add event listeners
+    document.getElementById('binary-failure-restart-btn').addEventListener('click', () => {
+      failureOverlay.remove();
+      // Use existing exitToMainMenu function
+      if (window.exitToMainMenu) {
+        window.exitToMainMenu();
+      }
+    });
+    
+    document.getElementById('binary-failure-exit-btn').addEventListener('click', () => {
+      failureOverlay.remove();
+      // Use existing exitGame function
+      if (window.exitGame) {
+        window.exitGame();
+      }
+    });
+  }
+
+  /**
    * Update animation
    */
   update(delta) {
     this.animationTime += delta;
     
-    // Simple pulsing glow for the flat panel
-    if (this.panel && this.panel.material) {
+    // Simple pulsing glow for the panel text
+    if (this.panelText && this.panelText.material) {
       const glowIntensity = 0.5 + 0.3 * Math.sin(this.animationTime * 2);
-      this.panel.material.opacity = 0.7 + 0.2 * glowIntensity;
+      this.panelText.material.opacity = 0.9 + 0.1 * glowIntensity;
+      this.panelText.material.needsUpdate = true;
     }
   }
 

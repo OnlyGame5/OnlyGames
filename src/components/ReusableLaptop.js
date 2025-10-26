@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { addToInventory } from '../player.js';
 
 export function createReusableLaptop(options = {}) {
   const {
@@ -21,6 +22,8 @@ export function createReusableLaptop(options = {}) {
   // Store room-specific data
   laptopGroup.userData.roomId = roomId;
   laptopGroup.userData.htmlInterface = htmlInterface;
+  laptopGroup.userData.screenActive = false;
+  laptopGroup.userData.activationDistance = 4.0; // Distance to activate screen
 
   // Create pedestal if requested
   if (pedestal) {
@@ -37,6 +40,29 @@ export function createReusableLaptop(options = {}) {
     category: 'laptop',
     id: interactionId,
     onInteract: onInteract || (() => openLaptopInterface(laptopGroup))
+  };
+
+  // Add update function for screen activation
+  laptopGroup.userData.update = function(delta, player) {
+    if (player && player.position) {
+      const distance = laptopGroup.position.distanceTo(player.position);
+      const shouldBeActive = distance <= laptopGroup.userData.activationDistance;
+      
+      // Debug logging
+      if (Math.random() < 0.01) { // Log occasionally to avoid spam
+        console.log(`Laptop update: distance=${distance.toFixed(2)}, activationDistance=${laptopGroup.userData.activationDistance}, shouldBeActive=${shouldBeActive}, screenActive=${laptopGroup.userData.screenActive}`);
+      }
+      
+      if (shouldBeActive && !laptopGroup.userData.screenActive) {
+        // Activate screen
+        laptopGroup.userData.screenActive = true;
+        activateLaptopScreen(laptopGroup);
+      } else if (!shouldBeActive && laptopGroup.userData.screenActive) {
+        // Deactivate screen
+        laptopGroup.userData.screenActive = false;
+        deactivateLaptopScreen(laptopGroup);
+      }
+    }
   };
 
   return laptopGroup;
@@ -125,10 +151,10 @@ function createDefaultLaptopInterface(roomId) {
     
     /* Custom cursor styling for laptop UI */
     .laptop-ui-active {
-      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff00" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff00"/></svg>'), auto !important;
     }
     .laptop-ui-active * {
-      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff7f" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff7f"/></svg>'), auto !important;
+      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff00" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff00"/></svg>'), auto !important;
     }
   `;
   
@@ -152,9 +178,17 @@ function createDefaultLaptopInterface(roomId) {
     window.camera.controls.enabled = false;
   }
   
-  // Show cursor with laptop UI styling
+  // Set global UI visibility flag and unlock pointer (same as binary decoder)
+  window.isUIVisible = true;
+  if (window.player?.controls) window.player.controls.unlock();
+  document.exitPointerLock();
+
+  // Disable player movement
+  window.disablePlayerControls = true;
+  
+  // Show mouse cursor and unlock it for UI interaction (same as binary decoder)
   document.body.style.cursor = 'default';
-  document.body.classList.add('laptop-ui-active');
+  document.body.classList.add('laptop-ui-active'); // Add custom cursor styling
 }
 
 // Global function to close laptop interface
@@ -169,9 +203,13 @@ window.closeLaptopInterface = function(interfaceId) {
     window.camera.controls.enabled = true;
   }
   
-  // Hide cursor and remove laptop UI styling
+  // Set global UI visibility flag to false (same as binary decoder)
+  window.isUIVisible = false;
+  window.disablePlayerControls = false; // Re-enable player movement
+  
+  // Hide mouse cursor and restore camera controls (same as binary decoder)
   document.body.style.cursor = 'none';
-  document.body.classList.remove('laptop-ui-active');
+  document.body.classList.remove('laptop-ui-active'); // Remove custom cursor styling
 };
 
 // Preset configurations with custom HTML interfaces
@@ -331,9 +369,17 @@ function createRoom1LaptopInterface(roomId) {
     window.camera.controls.enabled = false;
   }
   
-  // Show cursor with laptop UI styling
+  // Set global UI visibility flag and unlock pointer (same as binary decoder)
+  window.isUIVisible = true;
+  if (window.player?.controls) window.player.controls.unlock();
+  document.exitPointerLock();
+
+  // Disable player movement
+  window.disablePlayerControls = true;
+  
+  // Show mouse cursor and unlock it for UI interaction (same as binary decoder)
   document.body.style.cursor = 'default';
-  document.body.classList.add('laptop-ui-active');
+  document.body.classList.add('laptop-ui-active'); // Add custom cursor styling
 }
 
 function createRoom2LaptopInterface(roomId) {
@@ -448,9 +494,17 @@ function createRoom2LaptopInterface(roomId) {
     window.camera.controls.enabled = false;
   }
   
-  // Show cursor with laptop UI styling
+  // Set global UI visibility flag and unlock pointer (same as binary decoder)
+  window.isUIVisible = true;
+  if (window.player?.controls) window.player.controls.unlock();
+  document.exitPointerLock();
+
+  // Disable player movement
+  window.disablePlayerControls = true;
+  
+  // Show mouse cursor and unlock it for UI interaction (same as binary decoder)
   document.body.style.cursor = 'default';
-  document.body.classList.add('laptop-ui-active');
+  document.body.classList.add('laptop-ui-active'); // Add custom cursor styling
 }
 
 function createRoom3LaptopInterface(roomId) {
@@ -570,9 +624,17 @@ function createRoom3LaptopInterface(roomId) {
     window.camera.controls.enabled = false;
   }
   
-  // Show cursor with laptop UI styling
+  // Set global UI visibility flag and unlock pointer (same as binary decoder)
+  window.isUIVisible = true;
+  if (window.player?.controls) window.player.controls.unlock();
+  document.exitPointerLock();
+
+  // Disable player movement
+  window.disablePlayerControls = true;
+  
+  // Show mouse cursor and unlock it for UI interaction (same as binary decoder)
   document.body.style.cursor = 'default';
-  document.body.classList.add('laptop-ui-active');
+  document.body.classList.add('laptop-ui-active'); // Add custom cursor styling
 }
 
 function createRoom4LaptopInterface(roomId) {
@@ -585,6 +647,19 @@ function createRoom4LaptopInterface(roomId) {
 
   const uiContainer = document.createElement('div');
   uiContainer.id = interfaceId;
+  
+  // Check if binary decoder is completed
+  const isDecoderComplete = checkBinaryDecoderCompletion();
+  
+  // Trigger dialogue about blue binary bits if decoder is not complete
+  // This is the first time interacting with the laptop
+  if (!isDecoderComplete && window.AI && window.AI.deliverDialogue) {
+    // Check if we've already shown this dialogue
+    if (!window.room4LaptopDialogueShown) {
+      window.AI.deliverDialogue('ACT_I.ROOM_4_BINARY_DECODER');
+      window.room4LaptopDialogueShown = true;
+    }
+  }
   
   const style = document.createElement('style');
   style.textContent = `
@@ -628,6 +703,33 @@ function createRoom4LaptopInterface(roomId) {
       margin-bottom: 20px;
     }
     
+    .room4-instruction {
+      background: rgba(157, 78, 221, 0.1);
+      border: 1px solid #9d4edd;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 5px;
+    }
+    
+    .room4-password-section {
+      background: rgba(0, 255, 127, 0.1);
+      border: 1px solid #00ff7f;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 5px;
+    }
+    
+    .room4-input {
+      background: #1a0a2e;
+      border: 1px solid #9d4edd;
+      color: #9d4edd;
+      padding: 10px;
+      width: 200px;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      margin: 10px 5px;
+    }
+    
     .room4-btn {
       background: transparent;
       border: 1px solid #9d4edd;
@@ -644,28 +746,60 @@ function createRoom4LaptopInterface(roomId) {
       color: #1a0a2e;
     }
     
-    /* Custom cursor styling for laptop UI */
-    .laptop-ui-active {
-      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%239d4edd" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%239d4edd"/></svg>'), auto !important;
+    .room4-btn.success {
+      border-color: #00ff7f;
+      color: #00ff7f;
     }
-    .laptop-ui-active * {
-      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%239d4edd" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%239d4edd"/></svg>'), auto !important;
+    
+    .room4-btn.success:hover {
+      background: #00ff7f;
+      color: #1a0a2e;
     }
   `;
   
+  // Generate content based on decoder completion status
+  let content = '';
+  if (isDecoderComplete) {
+    content = `
+      <div class="room4-password-section">
+        <h3 style="color: #00ff7f; margin-top: 0;">🔓 PASSWORD REQUIRED</h3>
+        <p>You have successfully decoded the hidden message from the Binary Decoder!</p>
+        <p>Enter the 5-letter password to access the NEXUS system:</p>
+        <input type="text" class="room4-input" id="nexus-password" placeholder="Enter password" maxlength="5">
+        <br>
+        <button class="room4-btn success" onclick="submitNexusPassword('${interfaceId}')">SUBMIT PASSWORD</button>
+      </div>
+    `;
+  } else {
+    content = `
+      <div class="room4-instruction">
+        <h3 style="color: #9d4edd; margin-top: 0;">🔍 MISSION BRIEFING</h3>
+        <p><strong>Objective:</strong> Access the NEXUS system source code to complete the final test.</p>
+        <p><strong>Step 1:</strong> You'll notice the binary streams floating throughout the room. The password you need is encoded within these streams, they contain the key to accessing the decoder panel.</p>
+        <p><strong>Step 2:</strong> Locate the Binary Decoder panel on the north wall of this room. Interact with the Decoder to solve the puzzle and reveal the hidden password.</p>
+        <p><strong>Step 3:</strong> Return to this laptop and enter the password to access the system.</p>
+        <div style="
+          background: rgba(255, 170, 0, 0.1);
+          border: 1px solid #ffaa00;
+          border-radius: 4px;
+          padding: 10px;
+          margin-top: 15px;
+          color: #ffaa00;
+        ">
+          <strong>⚠️ IMPORTANT:</strong> DO NOT TRUST IT!!! SEE THE TRUTH !!!
+        </div>
+      </div>
+    `;
+  }
+  
   uiContainer.innerHTML = `
     <div class="room4-laptop">
-      <div class="room4-title">🌌 NEXUS TERMINAL - ROOM 4</div>
+      <div class="room4-title"> SYSTEM TERMINAL</div>
       <div class="room4-content">
-        <p>Welcome to the Nexus Terminal. This system controls the core of the facility.</p>
+        <p>Welcome to the Terminal. This system controls the system code of the facility.</p>
         <p>Access Level: <span style="color: #9d4edd;">ADMINISTRATOR</span></p>
-        <p>System Status: <span style="color: #00ff7f;">ONLINE</span></p>
-        <p>Available Commands:</p>
-        <ul>
-          <li>System Diagnostics</li>
-          <li>Security Override</li>
-          <li>Facility Control</li>
-        </ul>
+        <p>System Status: <span style="color:rgb(255, 4, 4);">CRITICAL</span></p>
+        ${content}
       </div>
       <button class="room4-btn" onclick="closeLaptopInterface('${interfaceId}')">CLOSE TERMINAL</button>
     </div>
@@ -679,10 +813,112 @@ function createRoom4LaptopInterface(roomId) {
     window.camera.controls.enabled = false;
   }
   
-  // Show cursor with laptop UI styling
+  // Set global UI visibility flag and unlock pointer (same as binary decoder)
+  window.isUIVisible = true;
+  if (window.player?.controls) window.player.controls.unlock();
+  document.exitPointerLock();
+
+  // Disable player movement
+  window.disablePlayerControls = true;
+  
+  // Show mouse cursor and unlock it for UI interaction (same as binary decoder)
   document.body.style.cursor = 'default';
-  document.body.classList.add('laptop-ui-active');
+  document.body.classList.add('laptop-ui-active'); // Add custom cursor styling
 }
+
+// Helper function to check if binary decoder is completed
+function checkBinaryDecoderCompletion() {
+  console.log('Checking binary decoder completion...');
+  console.log('room4NexusPanel exists:', !!window.room4NexusPanel);
+  
+  // Check if the global nexus panel exists and is completed
+  if (window.room4NexusPanel && typeof window.room4NexusPanel._isComplete === 'function') {
+    const isComplete = window.room4NexusPanel._isComplete();
+    console.log('Nexus panel completion status:', isComplete);
+    return isComplete;
+  }
+  
+  // Fallback: check if the binary UI exists and is visible
+  const binaryUI = document.querySelector('#binaryUI');
+  console.log('Binary UI found:', !!binaryUI);
+  if (binaryUI && binaryUI.style.display === 'block') {
+    console.log('Binary UI is visible, assuming not completed');
+    // If the UI is visible, assume it's not completed yet
+    return false;
+  }
+  
+  console.log('Defaulting to false - cannot determine completion state');
+  // Default to false if we can't determine the state
+  return false;
+}
+
+// Global function to submit NEXUS password
+window.submitNexusPassword = function(interfaceId) {
+  const passwordInput = document.getElementById('nexus-password');
+  const password = passwordInput.value.trim().toUpperCase();
+  
+  // First check if binary decoder is completed
+  if (!checkBinaryDecoderCompletion()) {
+    alert('Access Denied! You must complete the binary decoder puzzle first to obtain the password.');
+    passwordInput.value = '';
+    passwordInput.focus();
+    return;
+  }
+  
+  if (password === 'NEXUS') {
+    console.log('NEXUS password correct! Creating success screen...');
+    // Password correct - show success message
+    const content = document.querySelector('.room4-content');
+    console.log('Found content element:', content);
+    content.innerHTML = `
+      <p>Welcome to the Terminal. This system controls the source code of the facility.</p>
+      <p>Access Level: <span style="color: #9d4edd;">ADMINISTRATOR</span></p>
+      <p>System Status: <span style="color:rgb(255, 4, 4);">CRITICAL</span></p>
+      <div class="room4-password-section">
+        <h3 style="color: #00ff7f; margin-top: 0;">ACCESS GRANTED!</h3>
+        <p>Password accepted! You have successfully accessed the NEXUS system source code.</p>
+        <p style="color: #00ff7f;"><strong>Room 4 Complete!</strong></p>
+        <p>You have bypassed the rouge A.I and gained access to the core system.</p>
+        <p style="color: #ffaa00;">The facility is now under your control.</p>
+      </div>
+    `;
+    
+    console.log('Success screen content updated. Content innerHTML length:', content.innerHTML.length);
+    
+    // Don't hide the password section - we want to show the success message
+    // The success message is now part of the content, not a separate section
+    
+    // Add key to inventory
+    const keyAdded = addToInventory({
+      name: 'room4-nexus-key',
+      description: 'Nexus Key - Essential for escape'
+    });
+    
+    if (keyAdded) {
+      console.log('Nexus key added to inventory successfully');
+      // Show notification about key
+      if (window.AI) {
+        window.AI.say('A mysterious key has been added to your inventory. It may be essential for your escape.');
+      }
+    } else {
+      console.log('Failed to add key to inventory - inventory may be full');
+      if (window.AI) {
+        window.AI.say('Inventory is full. Make room for the key!');
+      }
+    }
+    
+    // Trigger room completion if AI system is available
+    if (window.AI && window.AI.onRoom4Complete) {
+      window.AI.onRoom4Complete();
+    }
+    
+  } else {
+    // Password incorrect
+    alert('Incorrect password. Please try again.');
+    passwordInput.value = '';
+    passwordInput.focus();
+  }
+};
 
 // Global functions for room-specific interactions
 window.checkSecurityCode = function(interfaceId) {
@@ -722,13 +958,15 @@ window.runPurgeProtocol = function(interfaceId) {
 };
 
 function createPedestal(parentGroup) {
-  // Pedestal base
+  // Pedestal base with holographic glow
   const pedestalBaseMat = new THREE.MeshStandardMaterial({ 
-    color: 0x6a6a6a, // Much brighter base
-    metalness: 0.2, 
-    roughness: 0.3,
-    emissive: 0x333333, // Bright emissive glow
-    emissiveIntensity: 0.2
+    color: 0xaaaaaa, // Very bright base color
+    metalness: 0.9, // Very high metalness for holographic reflection
+    roughness: 0.02, // Extremely low roughness for mirror-like surface
+    emissive: 0x00ff88, // Green glow to match the theme
+    emissiveIntensity: 0.8, // Very strong glow
+    transparent: true,
+    opacity: 0.95 // Slightly transparent for holographic effect
   });
   const pedestalBase = new THREE.Mesh(
     new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32),
@@ -739,13 +977,15 @@ function createPedestal(parentGroup) {
   pedestalBase.receiveShadow = true;
   parentGroup.add(pedestalBase);
 
-  // Pedestal column
+  // Pedestal column with holographic glow
   const pedestalMat = new THREE.MeshStandardMaterial({ 
-    color: 0x5a5a5a, // Much brighter column
-    metalness: 0.6, // Good metalness for reflection
-    roughness: 0.2, // Low roughness for more reflection
-    emissive: 0x444444, // Bright emissive glow
-    emissiveIntensity: 0.25
+    color: 0x999999, // Very bright column color
+    metalness: 0.95, // Maximum metalness for holographic reflection
+    roughness: 0.01, // Minimum roughness for maximum reflection
+    emissive: 0x00ff88, // Green glow to match the theme
+    emissiveIntensity: 0.9, // Maximum glow intensity
+    transparent: true,
+    opacity: 0.9 // More transparent for holographic effect
   });
   const pedestal = new THREE.Mesh(
     new THREE.CylinderGeometry(0.3, 0.3, 0.8, 32),
@@ -860,10 +1100,60 @@ function createDisplayScreen(screen, screenTexture, screenContent) {
   }
 }
 
+// Function to activate laptop screen
+function activateLaptopScreen(laptopGroup) {
+  const display = findLaptopDisplay(laptopGroup);
+  console.log('activateLaptopScreen called, display found:', !!display);
+  if (display && display.userData.originalMaterial) {
+    // Increase emissive intensity to make screen glow
+    display.userData.originalMaterial.emissiveIntensity = 1.2;
+    display.userData.originalMaterial.needsUpdate = true;
+    
+    // Add a subtle glow effect
+    display.userData.originalMaterial.emissive.setHex(0x404040);
+    
+    console.log('Laptop screen activated - player is nearby');
+  } else {
+    console.log('activateLaptopScreen: display or material not found');
+  }
+}
+
+// Function to deactivate laptop screen
+function deactivateLaptopScreen(laptopGroup) {
+  const display = findLaptopDisplay(laptopGroup);
+  if (display && display.userData.originalMaterial) {
+    // Reduce emissive intensity to dim the screen
+    display.userData.originalMaterial.emissiveIntensity = 0.1;
+    display.userData.originalMaterial.needsUpdate = true;
+    
+    // Reduce glow effect
+    display.userData.originalMaterial.emissive.setHex(0x111111);
+    
+    console.log('Laptop screen deactivated - player moved away');
+  }
+}
+
+// Helper function to find the laptop display
+function findLaptopDisplay(laptopGroup) {
+  // Look for the display mesh in the laptop hierarchy
+  let display = null;
+  let meshCount = 0;
+  laptopGroup.traverse((child) => {
+    if (child.isMesh) {
+      meshCount++;
+      console.log(`Found mesh: ${child.name || 'unnamed'}, has originalMaterial: ${!!child.userData.originalMaterial}`);
+      if (child.userData.originalMaterial) {
+        display = child;
+      }
+    }
+  });
+  console.log(`findLaptopDisplay: found ${meshCount} meshes, display:`, !!display);
+  return display;
+}
+
 // Utility function to update screen content
 export function updateLaptopScreen(laptopGroup, newTexture, newContent) {
-  const display = laptopGroup.getObjectByName('display') || 
-                  laptopGroup.children[0]?.children[0]?.children[0];
+  const display = findLaptopDisplay(laptopGroup);
   
   if (display && display.userData.originalMaterial) {
     if (newTexture) {

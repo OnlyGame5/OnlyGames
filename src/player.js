@@ -114,6 +114,8 @@ function getItemIcon(itemName) {
   switch (itemName) {
     case 'stage0-key':
       return '🗝️';
+    case 'room4-nexus-key':
+      return '🔑';
     case 'room1-note':
       return '📝';
     case 'statue':
@@ -307,8 +309,85 @@ function createItemMesh(item) {
       }
       break;
     
-    
-
+    case 'room4-nexus-key':
+      // Copy exact implementation from stage0-key, just change color to green
+      // Try to get the original key model from room0
+      if (window.gameState && window.gameState.room0 && window.gameState.room0.key) {
+        // Clone the original key model
+        mesh = window.gameState.room0.key.clone();
+        
+        // Scale it down for first-person view
+        mesh.scale.set(0.5, 0.5, 0.5);
+        
+        // Rotate it to point upward
+        mesh.rotation.x = Math.PI / 2;
+        
+        // Ensure it has proper materials and shadows
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            
+            // Enhance the material if it's a standard material (green for Room 4)
+            if (child.material) {
+              child.material.emissive = new THREE.Color(0x00ff88);
+              child.material.emissiveIntensity = 0.5; // Same intensity as stage0-key
+              child.material.metalness = 0.8;
+              child.material.roughness = 0.2;
+            }
+          }
+        });
+      } else {
+        // Fallback to simple key if original model not available
+        const keyGroup = new THREE.Group();
+        
+        // Key blade (rotated to point upward)
+        const keyBlade = new THREE.Mesh(
+          new THREE.BoxGeometry(0.05, 0.6, 0.3),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x88ff88,
+            emissive: 0x00ff88,
+            emissiveIntensity: 0.3,
+            metalness: 0.8,
+            roughness: 0.2
+          })
+        );
+        keyBlade.position.set(0, 0.15, 0);
+        keyGroup.add(keyBlade);
+        
+        // Key handle (rotated to point upward)
+        const keyHandle = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08, 0.08, 0.02, 8),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x88ff88,
+            emissive: 0x00ff88,
+            emissiveIntensity: 0.3,
+            metalness: 0.8,
+            roughness: 0.2
+          })
+        );
+        keyHandle.position.set(0, -0.2, 0);
+        keyGroup.add(keyHandle);
+        
+        // Key teeth (notches) - rotated to point upward
+        for (let i = 0; i < 3; i++) {
+          const tooth = new THREE.Mesh(
+            new THREE.BoxGeometry(0.05, 0.1, 0.05),
+            new THREE.MeshStandardMaterial({ 
+              color: 0x88ff88,
+              emissive: 0x00ff88,
+              emissiveIntensity: 0.3,
+              metalness: 0.8,
+              roughness: 0.2
+            })
+          );
+          tooth.position.set(-0.1 + i * 0.1, 0.4, 0);
+          keyGroup.add(tooth);
+        }
+        
+        mesh = keyGroup;
+      }
+      break;
     
   }
   
@@ -1057,6 +1136,83 @@ function createDroppedItemMesh(item, player) {
             color: 0xffff00,
             metalness: 0.8,
             roughness: 0.2
+          })
+        );
+        keyHandle.position.set(0, -0.2, 0);
+        keyGroup.add(keyHandle);
+        
+        keyGroup.position.copy(dropPosition);
+        keyGroup.userData.itemName = item.name;
+        keyGroup.userData.itemDescription = item.description;
+        keyGroup.userData.isDroppedItem = true;
+        
+        // Add subtle glow effect
+        keyGroup.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        mesh = keyGroup;
+      }
+      break;
+      
+    case 'room4-nexus-key':
+      // Try to get the original key model from global registry (same as Hub)
+      if (globalModelRegistry['stage0-key']) {
+        // Clone the original key model from global registry
+        mesh = globalModelRegistry['stage0-key'].clone();
+        
+        // Position the key
+        mesh.position.copy(dropPosition);
+        
+        // Ensure it has proper materials and shadows
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            
+            // Keep the green glow for nexus key
+            if (child.material) {
+              child.material.emissive = new THREE.Color(0x00ff88);
+              child.material.emissiveIntensity = 0.8;
+              child.material.metalness = 0.9;
+              child.material.roughness = 0.1;
+            }
+          }
+        });
+        
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple key if floating key not available
+        const keyGroup = new THREE.Group();
+        
+        // Key blade
+        const keyBlade = new THREE.Mesh(
+          new THREE.BoxGeometry(0.1, 0.8, 0.4),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x00ff88,
+            emissive: 0x00ff88,
+            emissiveIntensity: 0.8,
+            metalness: 0.9,
+            roughness: 0.1
+          })
+        );
+        keyBlade.position.set(0, 0.2, 0);
+        keyGroup.add(keyBlade);
+        
+        // Key handle
+        const keyHandle = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x00ff88,
+            emissive: 0x00ff88,
+            emissiveIntensity: 0.8,
+            metalness: 0.9,
+            roughness: 0.1
           })
         );
         keyHandle.position.set(0, -0.2, 0);
