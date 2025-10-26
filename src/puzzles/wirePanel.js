@@ -521,6 +521,163 @@ export function createWirePanel(opts = {}) {
     }
   }
 
+  // Create industrial distribution box
+  function createDistributionBox() {
+    const group = new THREE.Group();
+    const textureLoader = new THREE.TextureLoader();
+    
+    // Load metal textures
+    const metalTextures = {
+      color: textureLoader.load('/textures/metal030/Metal030_2K-JPG_Color.jpg'),
+      normal: textureLoader.load('/textures/metal030/Metal030_2K-JPG_NormalDX.jpg'),
+      roughness: textureLoader.load('/textures/metal030/Metal030_2K-JPG_Roughness.jpg'),
+      metalness: textureLoader.load('/textures/metal030/Metal030_2K-JPG_Metalness.jpg')
+    };
+    
+    // Main distribution box body (deeper, more industrial)
+    const mainBoxGeometry = new THREE.BoxGeometry(2.2, 1.8, 0.4);
+    const mainBoxMaterial = new THREE.MeshStandardMaterial({
+      map: metalTextures.color,
+      normalMap: metalTextures.normal,
+      roughnessMap: metalTextures.roughness,
+      metalnessMap: metalTextures.metalness,
+      metalness: 0.8,
+      roughness: 0.3
+    });
+    const mainBox = new THREE.Mesh(mainBoxGeometry, mainBoxMaterial);
+    mainBox.position.set(0, 0, 0);
+    mainBox.castShadow = true;
+    mainBox.receiveShadow = true;
+    group.add(mainBox);
+    
+    // Front panel (removable cover)
+    const frontPanelGeometry = new THREE.BoxGeometry(2.0, 1.6, 0.05);
+    const frontPanelMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1a1a1a,
+      metalness: 0.9,
+      roughness: 0.2
+    });
+    const frontPanel = new THREE.Mesh(frontPanelGeometry, frontPanelMaterial);
+    frontPanel.position.set(0, 0, 0.225);
+    frontPanel.castShadow = true;
+    frontPanel.receiveShadow = true;
+    group.add(frontPanel);
+    
+    // Corner bolts/rivets
+    const boltGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.1, 8);
+    const boltMaterial = new THREE.MeshStandardMaterial({
+      color: 0x444444,
+      metalness: 0.9,
+      roughness: 0.1
+    });
+    
+    const boltPositions = [
+      [-0.9, 0.7, 0.25],   // Top-left
+      [0.9, 0.7, 0.25],    // Top-right
+      [-0.9, -0.7, 0.25],  // Bottom-left
+      [0.9, -0.7, 0.25]    // Bottom-right
+    ];
+    
+    boltPositions.forEach(pos => {
+      const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+      bolt.position.set(pos[0], pos[1], pos[2]);
+      bolt.rotation.z = Math.PI / 2;
+      bolt.castShadow = true;
+      bolt.receiveShadow = true;
+      group.add(bolt);
+    });
+    
+    // Status LEDs (replace single red octagon)
+    const ledGeometry = new THREE.SphereGeometry(0.08, 8, 6);
+    
+    const statusLeds = [
+      { color: 0x00ff00, emissive: 0x00ff00, position: [-0.3, 0.2, 0.26] }, // Power LED (green)
+      { color: 0xff0000, emissive: 0xff0000, position: [0, 0.2, 0.26] },    // Fault LED (red)
+      { color: 0xffff00, emissive: 0xffff00, position: [0.3, 0.2, 0.26] }   // Maintenance LED (yellow)
+    ];
+    
+    statusLeds.forEach(ledData => {
+      const ledMaterial = new THREE.MeshBasicMaterial({
+        color: ledData.color,
+        emissive: ledData.emissive,
+        emissiveIntensity: 0.5
+      });
+      const led = new THREE.Mesh(ledGeometry, ledMaterial);
+      led.position.set(ledData.position[0], ledData.position[1], ledData.position[2]);
+      group.add(led);
+    });
+    
+    // Warning labels
+    const labelGeometry = new THREE.PlaneGeometry(0.3, 0.15);
+    const labelMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 0.8
+    });
+    
+    const warningLabel = new THREE.Mesh(labelGeometry, labelMaterial);
+    warningLabel.position.set(0, -0.3, 0.26);
+    warningLabel.rotation.x = Math.PI / 2;
+    group.add(warningLabel);
+    
+    // Cable management holes
+    const cableHoleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.05, 12);
+    const cableHoleMaterial = new THREE.MeshStandardMaterial({
+      color: 0x000000,
+      metalness: 0.1,
+      roughness: 0.9
+    });
+    
+    const cableHolePositions = [
+      [-0.8, -0.8, 0.21],  // Bottom-left
+      [0.8, -0.8, 0.21]    // Bottom-right
+    ];
+    
+    cableHolePositions.forEach(pos => {
+      const cableHole = new THREE.Mesh(cableHoleGeometry, cableHoleMaterial);
+      cableHole.position.set(pos[0], pos[1], pos[2]);
+      cableHole.rotation.x = Math.PI / 2;
+      cableHole.castShadow = true;
+      cableHole.receiveShadow = true;
+      group.add(cableHole);
+    });
+    
+    // Ventilation grilles
+    const ventGeometry = new THREE.PlaneGeometry(0.4, 0.2);
+    const ventMaterial = new THREE.MeshStandardMaterial({
+      color: 0x333333,
+      transparent: true,
+      opacity: 0.7
+    });
+    
+    const ventPositions = [
+      [-0.6, 0.6, 0.21],   // Top-left vent
+      [0.6, 0.6, 0.21]      // Top-right vent
+    ];
+    
+    ventPositions.forEach(pos => {
+      const vent = new THREE.Mesh(ventGeometry, ventMaterial);
+      vent.position.set(pos[0], pos[1], pos[2]);
+      vent.rotation.x = Math.PI / 2;
+      group.add(vent);
+    });
+    
+    // Power switch/button
+    const switchGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.08, 12);
+    const switchMaterial = new THREE.MeshStandardMaterial({
+      color: 0x666666,
+      metalness: 0.8,
+      roughness: 0.2
+    });
+    const powerSwitch = new THREE.Mesh(switchGeometry, switchMaterial);
+    powerSwitch.position.set(0, -0.6, 0.26);
+    powerSwitch.castShadow = true;
+    powerSwitch.receiveShadow = true;
+    group.add(powerSwitch);
+    
+    return group;
+  }
+
   // Create the popup UI
   const popupUI = createPopupUI();
 
@@ -539,24 +696,15 @@ export function createWirePanel(opts = {}) {
   fallbackPanel.userData = { type: 'wire-panel-trigger' };
   group.add(fallbackPanel);
   
-  // Create a simple rectangle instead of loading the GLB model
-  const boxGeometry = new THREE.BoxGeometry(2, 1.5, 0.2);
-  const boxMaterial = new THREE.MeshStandardMaterial({
-    color: 0x2a2a2a,
-    metalness: 0.1,
-    roughness: 0.8
-  });
-  const electricBox = new THREE.Mesh(boxGeometry, boxMaterial);
-  electricBox.position.set(0, 0, 0);
-  electricBox.castShadow = true;
-  electricBox.receiveShadow = true;
-  electricBox.userData = { type: 'wire-panel-trigger' };
+  // Create industrial distribution box
+  const distributionBox = createDistributionBox();
+  distributionBox.userData = { type: 'wire-panel-trigger' };
   
-  // Replace fallback panel with rectangle
+  // Replace fallback panel with distribution box
   group.remove(fallbackPanel);
-  group.add(electricBox);
+  group.add(distributionBox);
   
-  console.log('Electric box replaced with simple rectangle');
+  console.log('Electric box replaced with industrial distribution box');
 
   // Visual indicators removed - using proper 3D model instead
 

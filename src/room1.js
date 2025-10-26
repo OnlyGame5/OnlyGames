@@ -27,7 +27,9 @@ export function createRoom1() {
     safeOpened: false,
     safeObject: null,
     keypadOpen: false,
-    inputCode: ''
+    inputCode: '',
+    laptopPowered: false,  // NEW: Track if laptop has power
+    chargerFound: false    // NEW: Track if charger has been found
   };
 
   // Tiles136C texture files for Room 1 (note: capital C in folder name)
@@ -474,15 +476,15 @@ export function createRoom1() {
   // Wire Panel System
   const wirePanel = createWirePanel({ order: ['R','G','B','Y'], useGLBModel: true });
   wirePanel.group.name = 'wirePanel';
-  wirePanel.group.position.set(8.2, 0.8, 0); // Position on the right wall
-  wirePanel.group.rotation.y = -Math.PI / 2; // Rotate to face into the room (from the right wall)
+  wirePanel.group.position.set(0, 0.8, 8.2); // Position on the front wall (opposite to back wall)
+  wirePanel.group.rotation.y = Math.PI; // Face into the room (from the front wall)
   group.add(wirePanel.group);
   
   // Add a visible marker for debugging
   const markerGeometry = new THREE.SphereGeometry(0.2, 8, 6);
   const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
   const wirePanelMarker = new THREE.Mesh(markerGeometry, markerMaterial);
-  wirePanelMarker.position.set(8.2, 0.8, 0);
+  wirePanelMarker.position.set(0, 0.8, 8.2);
   wirePanelMarker.name = 'wirePanelMarker';
   group.add(wirePanelMarker);
   
@@ -722,6 +724,7 @@ export function createRoom1() {
     });
     // Move the table near the back wall but not clipping (centered)
     sciFiTable.position.set(0, 0, -7.5);
+    sciFiTable.name = 'admin-desk'; // Add name for easier identification
     group.add(sciFiTable);
   }, undefined, (err) => {
     console.error('Failed to load sci_fi_table.glb', err);
@@ -1043,6 +1046,13 @@ export function createRoom1() {
         return true;
       }
     }
+
+    // Check admin desk drawer for charger discovery
+    console.log('Checking admin desk drawer interaction...');
+    if (handleAdminDeskDrawerInteraction(playerObject)) {
+      console.log('Admin desk drawer interaction handled');
+      return true;
+    }
     
     // Check wire panel first
     console.log('Checking wire panel interaction...');
@@ -1212,6 +1222,96 @@ export function createRoom1() {
       }
     });
   })();
+
+  // Admin desk drawer interaction for charger discovery
+  function handleAdminDeskDrawerInteraction(playerObject) {
+    // Check if player is near the admin desk (sci-fi table)
+    const adminDesk = group.getObjectByName('admin-desk');
+    
+    if (!adminDesk) return false;
+    
+    // Get the admin desk world position
+    const deskWorldPos = new THREE.Vector3();
+    adminDesk.getWorldPosition(deskWorldPos);
+    
+    const distanceToDesk = playerObject.position.distanceTo(deskWorldPos);
+    console.log('Admin desk distance:', distanceToDesk, 'threshold: 3.0');
+    
+    if (distanceToDesk < 3.0) {
+      if (!state.chargerFound) {
+        // Player found the charger
+        state.chargerFound = true;
+        state.laptopPowered = true; // Power up the laptop
+        
+        // Add charger to inventory
+        const chargerItem = {
+          name: 'laptop-charger',
+          description: 'A laptop charger found in the admin desk drawer.',
+          type: 'charger'
+        };
+        addToInventory(chargerItem);
+        
+        // Show success message
+        if (window.AI) {
+          window.AI.say("You found a laptop charger in the admin desk drawer! The laptop should now have power.");
+        }
+        
+        // Update the laptop display to show it's now powered
+        updateLaptopDisplay();
+        
+        console.log('Charger found! Laptop is now powered.');
+        return true;
+      } else {
+        // Charger already found
+        if (window.AI) {
+          window.AI.say("The admin desk drawer is empty. You already found the charger.");
+        }
+        return true;
+      }
+    } else if (distanceToDesk < 5.0 && !state.chargerFound) {
+      // Show hint when player is near but not close enough
+      if (window.AI) {
+        window.AI.say("You notice the admin desk has drawers. Maybe there's something useful inside.");
+      }
+    }
+    
+    return false;
+  }
+
+  // Update laptop display when power state changes
+  function updateLaptopDisplay() {
+    const laptop = group.getObjectByName('room3-style-laptop');
+    if (!laptop) return;
+    
+    // Find the screen and display
+    const screen = laptop.children.find(child => child.geometry && child.geometry.type === 'BoxGeometry');
+    if (!screen) return;
+    
+    // Remove existing display
+    const existingDisplay = screen.children.find(child => child.name === 'display');
+    if (existingDisplay) {
+      screen.remove(existingDisplay);
+    }
+    
+    // Add new display based on power state
+    if (state.laptopPowered) {
+      // Normal working display
+      const displayGeometry = new THREE.PlaneGeometry(0.55, 0.35);
+      const displayMat = new THREE.MeshStandardMaterial({
+        color: 0x00ff7f,
+        emissive: 0x00ff7f,
+        emissiveIntensity: 0.3,
+        toneMapped: false
+      });
+      const display = new THREE.Mesh(displayGeometry, displayMat);
+      display.position.set(0, 0.2, -0.175);
+      display.name = 'display';
+      screen.add(display);
+    } else {
+      // Dead battery display
+      createDeadBatteryDisplay(screen);
+    }
+  }
 
   // Create entry/exit anchors for room connections
   const entryAnchor = new THREE.Object3D();
@@ -1622,7 +1722,8 @@ export function createRoom1() {
     hasPromptedDesk: false,
     hasPromptedPaper: false,
     hasExaminedPaperWithLightsOff: false,
-    hasPromptedLightsOn: false
+    hasPromptedLightsOn: false,
+    hasInteractedWithDeadLaptop: false
   };
   
   // Welcome message for Room 1
@@ -1740,6 +1841,45 @@ export function createRoom1() {
     }
   }
   
+  // Create dead battery display for laptop
+  function createDeadBatteryDisplay(laptopGroup) {
+    const textureLoader = new THREE.TextureLoader();
+    
+    // Load the dead battery image
+    const deadBatteryTexture = textureLoader.load(
+      '/images/dead-battery.jpg',
+      (texture) => {
+        console.log('Dead battery texture loaded successfully');
+        texture.colorSpace = THREE.SRGBColorSpace;
+      },
+      undefined,
+      (error) => {
+        console.error('Failed to load dead battery texture:', error);
+      }
+    );
+    
+    // Create a more visible material for the dead battery
+    const displayMat = new THREE.MeshBasicMaterial({
+      map: deadBatteryTexture,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide
+    });
+    
+    const display = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.55, 0.35), // Same dimensions as working laptop
+      displayMat
+    );
+    // Position it slightly in front of the screen to ensure it's visible
+    display.position.set(0, 0.2, -0.22); // Moved slightly forward from -0.175
+    display.name = 'display';
+    laptopGroup.add(display);
+    
+    console.log('Dead battery display created and added to laptop');
+    
+    return display;
+  }
+
   // Create Room 3 Style Laptop (standalone implementation)
   function createRoom3StyleLaptop() {
     const laptopGroup = new THREE.Group();
@@ -1764,18 +1904,27 @@ export function createRoom1() {
     screen.position.set(0, 0.2, -0.2);
     laptopGroup.add(screen);
     
-    // Display screen
-    const displayGeometry = new THREE.PlaneGeometry(0.55, 0.35);
-    const displayMat = new THREE.MeshStandardMaterial({
-      color: 0x00ff7f,
-      emissive: 0x00ff7f,
-      emissiveIntensity: 0.3,
-      toneMapped: false
-    });
-    const display = new THREE.Mesh(displayGeometry, displayMat);
-    display.position.set(0, 0.2, -0.175);
-    display.name = 'display';
-    laptopGroup.add(display);
+    // Display screen - check power state
+    console.log('Creating laptop display, laptopPowered:', state.laptopPowered);
+    if (state.laptopPowered) {
+      // Normal working display
+      const displayGeometry = new THREE.PlaneGeometry(0.55, 0.35);
+      const displayMat = new THREE.MeshStandardMaterial({
+        color: 0x00ff7f,
+        emissive: 0x00ff7f,
+        emissiveIntensity: 0.3,
+        toneMapped: false
+      });
+      const display = new THREE.Mesh(displayGeometry, displayMat);
+      display.position.set(0, 0.2, -0.175);
+      display.name = 'display';
+      laptopGroup.add(display);
+      console.log('Added working laptop display');
+    } else {
+      // Dead battery display
+      console.log('Creating dead battery display');
+      createDeadBatteryDisplay(laptopGroup);
+    }
     
     // Add interaction data
     laptopGroup.userData = { 
@@ -1796,6 +1945,122 @@ export function createRoom1() {
       existingInterface.remove();
     }
 
+    // Check power state and show appropriate interface
+    if (!state.laptopPowered) {
+      showDeadLaptopInterface(interfaceId);
+      return;
+    }
+
+    // Show normal working laptop interface
+    showWorkingLaptopInterface(interfaceId);
+  }
+
+  // Dead laptop interface - full screen with dead battery image only
+  function showDeadLaptopInterface(interfaceId) {
+    // Trigger Nexus's dismissive message on first interaction
+    if (!room1DialogueState.hasInteractedWithDeadLaptop) {
+      room1DialogueState.hasInteractedWithDeadLaptop = true;
+      if (window.AI) {
+        window.AI.say("Ah — that terminal seems to be without power. It is merely auxiliary equipment. You may ignore it and focus on the room's primary tasks.");
+      }
+    }
+    
+    const uiContainer = document.createElement('div');
+    uiContainer.id = interfaceId;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+      #${interfaceId} {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #0a192f;
+        z-index: 10000;
+        font-family: 'Courier New', 'Consolas', monospace;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      
+      .dead-battery-display {
+        width: 100%;
+        height: 100%;
+        background-image: url('/images/dead-battery.jpg');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      
+      /* A simple, cosmetic taskbar at the bottom */
+      .laptop-taskbar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 40px;
+        background: rgba(5, 15, 30, 0.9);
+        border-top: 1px solid #ff6b35;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+      }
+      
+      .taskbar-close-btn {
+        background: transparent;
+        border: 1px solid #ff6b35;
+        color: #ff6b35;
+        padding: 8px 16px;
+        cursor: pointer;
+        font-family: 'Courier New', 'Consolas', monospace;
+        font-size: 12px;
+        transition: all 0.2s;
+      }
+      
+      .taskbar-close-btn:hover {
+        background: #ff6b35;
+        color: #051018;
+      }
+      
+      /* Custom cursor styling for UI */
+      .laptop-ui-active {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%23ff6b35" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%23ff6b35"/></svg>'), auto !important;
+      }
+      .laptop-ui-active * {
+        cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%23ff6b35" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%23ff6b35"/></svg>'), auto !important;
+      }
+    `;
+    
+    uiContainer.innerHTML = `
+      <div class="dead-battery-display">
+        <!-- Dead battery image displayed as background -->
+      </div>
+
+      <div class="laptop-taskbar">
+        <button class="taskbar-close-btn" onclick="closeRoom3StyleLaptop()">CLOSE</button>
+      </div>
+    `;
+    
+    document.body.appendChild(style);
+    document.body.appendChild(uiContainer);
+    
+    // Disable camera controls
+    if (window.camera && window.camera.controls) {
+      window.camera.controls.enabled = false;
+    }
+    
+    // Show cursor with laptop UI styling
+    document.body.style.cursor = 'default';
+    document.body.classList.add('laptop-ui-active');
+  }
+
+  // Working laptop interface (existing functionality)
+  function showWorkingLaptopInterface(interfaceId) {
     const uiContainer = document.createElement('div');
     uiContainer.id = interfaceId;
     
