@@ -786,7 +786,7 @@ function createRoom4LaptopInterface(roomId) {
           margin-top: 15px;
           color: #ffaa00;
         ">
-          <strong>⚠️ IMPORTANT:</strong> DO NOT TRUST IT!!!
+          <strong>⚠️ IMPORTANT:</strong> DO NOT TRUST IT!!! SEE THE TRUTH !!!
         </div>
       </div>
     `;
