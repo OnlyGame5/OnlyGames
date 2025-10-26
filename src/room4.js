@@ -212,8 +212,10 @@ export function createRoom4() {
   atmosphericLight.name = 'atmospheric-glow';
   group.add(atmosphericLight);
 
-  // Create a single holographic beam - MASSIVE diameter for skybox effect
-  const beamGeometry = new THREE.ConeGeometry(2.5, 12, 20, 1, true); // Even larger radius (2.5) and height (12)
+  // Create a cylindrical holographic beam - originates from the sky
+  const beamRadius = 2.5; // Same diameter as before
+  const beamHeight = 50; // Much taller - extends far into the sky
+  const beamGeometry = new THREE.CylinderGeometry(beamRadius, beamRadius, beamHeight, 32, 1, true); // Cylinder instead of cone
   const beamMaterial = new THREE.MeshBasicMaterial({
     color: 0x00ff88,
     transparent: true,
@@ -222,8 +224,10 @@ export function createRoom4() {
     blending: THREE.AdditiveBlending
   });
   const beamMesh = new THREE.Mesh(beamGeometry, beamMaterial);
-  beamMesh.position.set(0, 6, -3); // Positioned higher for skybox effect
-  beamMesh.rotation.x = 0; // No rotation - cone points down by default
+  // Position cylinder so it extends from very high in the sky down to laptop area
+  // Cylinder geometry is centered, so position needs to account for half height
+  beamMesh.position.set(0, 25, -3); // Center high up - extends from y=0 to y=50
+  beamMesh.rotation.x = 0; // Cylinder is vertical by default
   beamMesh.name = 'holographic-beam';
   group.add(beamMesh);
 
@@ -235,14 +239,14 @@ export function createRoom4() {
   
   for (let i = 0; i < particleCount; i++) {
     const i3 = i * 3;
-    // Position particles within the massive beam area
-    const height = Math.random() * 10 + 1; // Y: from ceiling down to laptop (1 to 11)
-    const radius = (height / 12) * 2.5; // Radius decreases with height (cone shape) - matches beam
+    // Position particles within the cylindrical beam area
+    const height = Math.random() * beamHeight + (beamMesh.position.y - beamHeight / 2); // Y: from sky down to laptop
+    const radius = beamRadius * Math.random(); // Uniform radius for cylinder (not cone)
     const angle = Math.random() * Math.PI * 2; // Random angle around the beam
     
-    positions[i3] = Math.cos(angle) * radius * Math.random(); // X: within beam radius
+    positions[i3] = Math.cos(angle) * radius; // X: within beam radius
     positions[i3 + 1] = height; // Y: along beam height
-    positions[i3 + 2] = -3 + Math.sin(angle) * radius * Math.random(); // Z: within beam radius
+    positions[i3 + 2] = -3 + Math.sin(angle) * radius; // Z: within beam radius
     
     // Green color for all particles
     colors[i3] = 0.0; // R

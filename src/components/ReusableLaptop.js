@@ -651,6 +651,16 @@ function createRoom4LaptopInterface(roomId) {
   // Check if binary decoder is completed
   const isDecoderComplete = checkBinaryDecoderCompletion();
   
+  // Trigger dialogue about blue binary bits if decoder is not complete
+  // This is the first time interacting with the laptop
+  if (!isDecoderComplete && window.AI && window.AI.deliverDialogue) {
+    // Check if we've already shown this dialogue
+    if (!window.room4LaptopDialogueShown) {
+      window.AI.deliverDialogue('ACT_I.ROOM_4_BINARY_DECODER');
+      window.room4LaptopDialogueShown = true;
+    }
+  }
+  
   const style = document.createElement('style');
   style.textContent = `
     #${interfaceId} {
@@ -768,7 +778,6 @@ function createRoom4LaptopInterface(roomId) {
         <p><strong>Step 1:</strong> You'll notice the binary streams floating throughout the room. The password you need is encoded within these streams, they contain the key to accessing the decoder panel.</p>
         <p><strong>Step 2:</strong> Locate the Binary Decoder panel on the north wall of this room. Interact with the Decoder to solve the puzzle and reveal the hidden password.</p>
         <p><strong>Step 3:</strong> Return to this laptop and enter the password to access the system.</p>
-        <p style="color: #ffaa00;"><strong>Hint:</strong> The password is a 5-letter word that appears when you complete the binary decoder puzzle.</p>
         <div style="
           background: rgba(255, 170, 0, 0.1);
           border: 1px solid #ffaa00;
@@ -785,9 +794,9 @@ function createRoom4LaptopInterface(roomId) {
   
   uiContainer.innerHTML = `
     <div class="room4-laptop">
-      <div class="room4-title">🌌 NEXUS TERMINAL</div>
+      <div class="room4-title"> SYSTEM TERMINAL</div>
       <div class="room4-content">
-        <p>Welcome to the Terminal. This system controls the core of the facility.</p>
+        <p>Welcome to the Terminal. This system controls the system code of the facility.</p>
         <p>Access Level: <span style="color: #9d4edd;">ADMINISTRATOR</span></p>
         <p>System Status: <span style="color:rgb(255, 4, 4);">CRITICAL</span></p>
         ${content}
@@ -862,14 +871,14 @@ window.submitNexusPassword = function(interfaceId) {
     const content = document.querySelector('.room4-content');
     console.log('Found content element:', content);
     content.innerHTML = `
-      <p>Welcome to the Nexus Terminal. This system controls the core of the facility.</p>
+      <p>Welcome to the Terminal. This system controls the source code of the facility.</p>
       <p>Access Level: <span style="color: #9d4edd;">ADMINISTRATOR</span></p>
-      <p>System Status: <span style="color: #00ff7f;">ONLINE</span></p>
+      <p>System Status: <span style="color:rgb(255, 4, 4);">CRITICAL</span></p>
       <div class="room4-password-section">
-        <h3 style="color: #00ff7f; margin-top: 0;">🎉 ACCESS GRANTED!</h3>
-        <p>Password accepted! You have successfully accessed the NEXUS system.</p>
+        <h3 style="color: #00ff7f; margin-top: 0;">ACCESS GRANTED!</h3>
+        <p>Password accepted! You have successfully accessed the NEXUS system source code.</p>
         <p style="color: #00ff7f;"><strong>Room 4 Complete!</strong></p>
-        <p>You have discovered the AI's true identity and gained access to the core system.</p>
+        <p>You have bypassed the rouge A.I and gained access to the core system.</p>
         <p style="color: #ffaa00;">The facility is now under your control.</p>
       </div>
     `;

@@ -45,7 +45,7 @@ export const NEXUS_DIALOGUE = {
 
     ROOM_4_ENTRY: "This is the data processing chamber. Navigate to the laptop for further instructions.",
     
-    ROOM_4_BINARY_DECODER: "The binary decoder panel is now active. Enter the correct 8-bit binary sequences you found in the blue streams to reveal the password. Each correct sequence will reveal a letter. Complete the word to proceed.",
+    ROOM_4_BINARY_DECODER: "The binary decoder panel is now active. Enter the correct 8-bit binary sequences you found in the <strong style='color: #00aaff; font-size: 1.2em; font-weight: bold;'>BLUE</strong> streams to reveal the password. Each correct sequence will reveal a letter. Complete the word to proceed.",
     
     ROOM_4_PASSWORD_FOUND: "Excellent work. You've successfully decoded the password. This information will be crucial for the final phase of your assessment.",
     
