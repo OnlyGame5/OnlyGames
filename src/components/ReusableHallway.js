@@ -168,7 +168,7 @@ export function createReusableHallway(options = {}) {
       vScale: 0.4
     })
   );
-  hallwayFloor.position.set(0, -0.15, 0);
+  hallwayFloor.position.set(0, 0, 0); // Position at center to align with room floors
   hallwayFloor.receiveShadow = true;
   hallwayFloor.name = 'hallway-floor';
   hallway.add(hallwayFloor);

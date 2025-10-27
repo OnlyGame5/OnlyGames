@@ -26,6 +26,49 @@ export function createWirePanel(opts = {}) {
     sounds: {}               // Sound effect references
   };
 
+  // Create shuffling animation function (global scope)
+  function createShufflingAnimation() {
+    const colors = [
+      { id: 'R', color: '#ff3b30', name: 'Red', label: 'A' },
+      { id: 'G', color: '#34c759', name: 'Green', label: 'B' },
+      { id: 'B', color: '#0a84ff', name: 'Blue', label: 'C' },
+      { id: 'Y', color: '#ffcc00', name: 'Yellow', label: 'D' }
+    ];
+    
+    const animationDuration = 2000; // 2 seconds
+    const shuffleSteps = 8;
+    const stepDuration = animationDuration / shuffleSteps;
+    
+    let currentStep = 0;
+    
+    const shuffleInterval = setInterval(() => {
+      // Randomly rearrange the sockets
+      colors.forEach((colorData, index) => {
+        const socket = document.querySelector(`[data-color="${colorData.id}"]`);
+        if (socket) {
+          // Add slight rotation and scale for shuffle effect
+          const rotation = (Math.random() - 0.5) * 20;
+          const scale = 0.8 + Math.random() * 0.4;
+          socket.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
+          socket.style.transition = 'all 0.1s ease';
+        }
+      });
+      
+      currentStep++;
+      if (currentStep >= shuffleSteps) {
+        clearInterval(shuffleInterval);
+        // Final positioning
+        colors.forEach((colorData, index) => {
+          const socket = document.querySelector(`[data-color="${colorData.id}"]`);
+          if (socket) {
+            socket.style.transform = 'scale(1) rotate(0deg)';
+            socket.style.transition = 'all 0.3s ease';
+          }
+        });
+      }
+    }, stepDuration);
+  }
+
   // Create popup UI
   function createPopupUI() {
     const overlay = document.createElement('div');
@@ -103,41 +146,7 @@ export function createWirePanel(opts = {}) {
     // Shuffle the visual order but keep track of the mapping
     const shuffledColors = [...colors].sort(() => Math.random() - 0.5);
 
-    // Create shuffling animation
-    function createShufflingAnimation() {
-      const animationDuration = 2000; // 2 seconds
-      const shuffleSteps = 8;
-      const stepDuration = animationDuration / shuffleSteps;
-      
-      let currentStep = 0;
-      
-      const shuffleInterval = setInterval(() => {
-        // Randomly rearrange the sockets
-        shuffledColors.forEach((colorData, index) => {
-          const socket = document.querySelector(`[data-color="${colorData.id}"]`);
-          if (socket) {
-            // Add slight rotation and scale for shuffle effect
-            const rotation = (Math.random() - 0.5) * 20;
-            const scale = 0.8 + Math.random() * 0.4;
-            socket.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
-            socket.style.transition = 'all 0.1s ease';
-          }
-        });
-        
-        currentStep++;
-        if (currentStep >= shuffleSteps) {
-          clearInterval(shuffleInterval);
-          // Final positioning
-          shuffledColors.forEach((colorData, index) => {
-            const socket = document.querySelector(`[data-color="${colorData.id}"]`);
-            if (socket) {
-              socket.style.transform = 'scale(1) rotate(0deg)';
-              socket.style.transition = 'all 0.3s ease';
-            }
-          });
-        }
-      }, stepDuration);
-    }
+    // Note: createShufflingAnimation function moved to global scope
 
     shuffledColors.forEach((colorData, index) => {
       const socket = document.createElement('div');
@@ -284,7 +293,10 @@ export function createWirePanel(opts = {}) {
       cursor: pointer;
       font-weight: bold;
     `;
-    closeBtn.addEventListener('click', closePanel);
+    closeBtn.addEventListener('click', () => {
+      forceCleanupDrag();
+      closePanel();
+    });
     panel.appendChild(closeBtn);
 
     // Reset button
@@ -302,15 +314,22 @@ export function createWirePanel(opts = {}) {
       cursor: pointer;
       font-weight: bold;
     `;
-    resetBtn.addEventListener('click', resetPuzzle);
+    resetBtn.addEventListener('click', () => {
+      forceCleanupDrag();
+      resetPuzzle();
+    });
     panel.appendChild(resetBtn);
 
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
+    
+    // Add debug panel for development
+    addDebugPanel();
 
     // Prevent game from taking control when popup is open
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
+        forceCleanupDrag();
         closePanel();
       }
     });
@@ -369,8 +388,15 @@ export function createWirePanel(opts = {}) {
   // Remove drag wire visualization
   function removeDragWire() {
     const dragWire = document.getElementById('dragWire');
+    console.log('=== REMOVE DRAG WIRE DEBUG ===');
+    console.log('Attempting to remove drag wire:', dragWire);
+    
     if (dragWire) {
+      console.log('Drag wire found, removing...');
       dragWire.remove();
+      console.log('Drag wire removed successfully');
+    } else {
+      console.log('No drag wire found to remove');
     }
   }
 
@@ -378,13 +404,43 @@ export function createWirePanel(opts = {}) {
   function handleSocketMouseDown(e, colorData, socketElement) {
     if (state.solved || state.timeoutActive || socketElement.classList.contains('used')) return;
     
+    // Prevent multiple simultaneous drags
+    if (state.isDragging) {
+      console.log('Already dragging, ignoring new drag attempt for:', colorData.id);
+      return;
+    }
+    
+    // Safety cleanup: ensure no orphaned drag wires exist
+    const existingDragWire = document.getElementById('dragWire');
+    if (existingDragWire) {
+      console.log('Found orphaned drag wire, cleaning up before starting new drag');
+      existingDragWire.remove();
+    }
+    
     e.preventDefault();
+    
+    console.log('=== DRAG START DEBUG ===');
+    console.log('Color Data:', colorData);
+    console.log('Socket Element:', socketElement);
+    console.log('Current state:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      existingDragWire: document.getElementById('dragWire')
+    });
     
     // Create drag wire visualization
     const dragWire = createDragWire(colorData);
     state.dragElement = dragWire;
     state.isDragging = true;
     state.holding = { id: colorData.id, color: colorData.id };
+    
+    console.log('After drag start:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      dragWireId: dragWire.id
+    });
     
     // Update socket visual state
     socketElement.style.border = '3px solid #00ff00';
@@ -396,6 +452,9 @@ export function createWirePanel(opts = {}) {
     socketElement.textContent = colorData.name;
     
     // Add global mouse move and mouse up handlers
+    // Remove any existing listeners first to prevent duplicates
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
     
@@ -425,24 +484,57 @@ export function createWirePanel(opts = {}) {
 
   // Handle mouse up (end drag)
   function handleMouseUp(e) {
-    if (!state.isDragging) return;
+    console.log('=== MOUSE UP DEBUG ===');
+    console.log('Mouse up event:', e);
+    console.log('Current state:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      existingDragWire: document.getElementById('dragWire')
+    });
+    
+    if (!state.isDragging) {
+      console.log('Not dragging, ignoring mouse up');
+      return;
+    }
     
     // Find the target port under the mouse
     const targetPort = document.elementFromPoint(e.clientX, e.clientY);
+    console.log('Target port under mouse:', targetPort);
+    
     if (targetPort && targetPort.classList.contains('bottom-socket')) {
       const portIndex = parseInt(targetPort.dataset.index);
+      console.log('Attempting connection to port:', portIndex);
       handlePortConnection(portIndex, targetPort);
+    } else {
+      console.log('No valid target port found, cleaning up drag');
     }
     
-    // Clean up drag state
+    // ALWAYS clean up drag state, regardless of connection success
+    console.log('Calling cleanupDrag()');
     cleanupDrag();
   }
 
   // Clean up drag state
   function cleanupDrag() {
+    console.log('=== CLEANUP DRAG DEBUG ===');
+    console.log('Before cleanup:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      existingDragWire: document.getElementById('dragWire')
+    });
+    
     state.isDragging = false;
     state.holding = null;
     removeDragWire();
+    
+    console.log('After cleanup:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      existingDragWire: document.getElementById('dragWire')
+    });
     
     // Reset source socket visual state
     document.querySelectorAll('.top-socket').forEach(socket => {
@@ -463,6 +555,105 @@ export function createWirePanel(opts = {}) {
     
     // Clear connection preview
     clearConnectionPreview();
+    
+    console.log('Cleanup completed');
+  }
+
+  // Safety cleanup function that can be called from anywhere
+  function forceCleanupDrag() {
+    console.log('=== FORCE CLEANUP DEBUG ===');
+    console.log('Checking for stuck drag wire:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      existingDragWire: document.getElementById('dragWire')
+    });
+    
+    // More aggressive cleanup - remove ALL drag wires from DOM
+    const allDragWires = document.querySelectorAll('#dragWire');
+    console.log('Found drag wires in DOM:', allDragWires.length);
+    
+    allDragWires.forEach((wire, index) => {
+      console.log(`Removing drag wire ${index}:`, wire);
+      wire.remove();
+    });
+    
+    if (state.isDragging || state.holding || document.getElementById('dragWire')) {
+      console.log('Force cleaning up stuck drag wire');
+      cleanupDrag();
+    } else {
+      console.log('No stuck drag wire found');
+    }
+    
+    // Final check - ensure no drag wires remain
+    const remainingWires = document.querySelectorAll('#dragWire');
+    if (remainingWires.length > 0) {
+      console.error('ERROR: Drag wires still exist after cleanup!', remainingWires);
+    } else {
+      console.log('All drag wires successfully removed');
+    }
+  }
+
+  // Visual debugging function to show current state
+  function debugState() {
+    const debugInfo = {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      existingDragWire: document.getElementById('dragWire'),
+      dragWireInDOM: document.querySelector('#dragWire'),
+      allDragWires: document.querySelectorAll('#dragWire')
+    };
+    
+    console.log('=== CURRENT STATE DEBUG ===');
+    console.log(debugInfo);
+    
+    // Also log to a visible debug panel if it exists
+    const debugPanel = document.getElementById('debugPanel');
+    if (debugPanel) {
+      debugPanel.innerHTML = JSON.stringify(debugInfo, null, 2);
+    }
+    
+    return debugInfo;
+  }
+
+  // Add debug panel to the UI
+  function addDebugPanel() {
+    const debugPanel = document.createElement('div');
+    debugPanel.id = 'debugPanel';
+    debugPanel.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 9999;
+      max-width: 300px;
+      max-height: 200px;
+      overflow: auto;
+      border: 1px solid #00ff00;
+    `;
+    debugPanel.textContent = 'Debug info will appear here';
+    document.body.appendChild(debugPanel);
+    
+    // Add debug button
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = 'DEBUG STATE';
+    debugBtn.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 320px;
+      background: #00ff00;
+      color: black;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      z-index: 9999;
+    `;
+    debugBtn.addEventListener('click', debugState);
+    document.body.appendChild(debugBtn);
   }
 
   // Handle port mouse up (for rewiring)
@@ -1073,6 +1264,10 @@ export function createWirePanel(opts = {}) {
   function openPanel() {
     const overlay = document.getElementById('wirePanelOverlay');
     if (overlay) {
+      // Safety cleanup: clear any existing stuck drag wires
+      console.log('=== PANEL OPEN - SAFETY CLEANUP ===');
+      forceCleanupDrag();
+      
       overlay.style.display = 'flex';
       state.isOpen = true;
       
@@ -1089,7 +1284,11 @@ export function createWirePanel(opts = {}) {
       
       // Start shuffling animation after a brief delay
       setTimeout(() => {
-        createShufflingAnimation();
+        try {
+          createShufflingAnimation();
+        } catch (error) {
+          console.error('Error in shuffling animation:', error);
+        }
       }, 500);
       
       // Turn on power LED dimly when panel opens
@@ -1103,6 +1302,9 @@ export function createWirePanel(opts = {}) {
   function closePanel() {
     const overlay = document.getElementById('wirePanelOverlay');
     if (overlay) {
+      // Always cleanup any stuck drag wires when closing
+      forceCleanupDrag();
+      
       overlay.style.display = 'none';
       state.isOpen = false;
       

@@ -10,7 +10,7 @@ import {
   buildStandardLightRig,
   removeExistingLights,
 } from './lighting/standardLighting.js';
-import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling } from './materials/room1Materials.js';
+import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling, makeSolarPanelWall, makeTiles002Floor } from './materials/room1Materials.js';
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { createReusableLaptop, LaptopPresets } from './components/ReusableLaptop.js';
@@ -34,7 +34,24 @@ export function createRoom1() {
     gammaMessageShown: false // Track if Gamma's first message has been shown
   };
 
-  // Tiles136C texture files for Room 1 (note: capital C in folder name)
+  // Solar Panel texture files for Room 1 walls
+  const solarPanelFiles = {
+    color: "/textures/solar-panel/SolarPanel003_2K-JPG_Color.jpg",
+    normal: "/textures/solar-panel/SolarPanel003_2K-JPG_NormalGL.jpg",
+    rough: "/textures/solar-panel/SolarPanel003_2K-JPG_Roughness.jpg",
+    metalness: "/textures/solar-panel/SolarPanel003_2K-JPG_Metalness.jpg",
+    displacement: "/textures/solar-panel/SolarPanel003_2K-JPG_Displacement.jpg"
+  };
+
+  // Tiles002 texture files for Room 1 floor
+  const tiles002Files = {
+    color: "/textures/tiles002/Tiles002_1K-JPG_Color.jpg",
+    normal: "/textures/tiles002/Tiles002_1K-JPG_NormalGL.jpg",
+    rough: "/textures/tiles002/Tiles002_1K-JPG_Roughness.jpg",
+    displacement: "/textures/tiles002/Tiles002_1K-JPG_Displacement.jpg"
+  };
+
+  // Tiles136C texture files for Room 1 (keeping for reference)
   const tiles136cFiles = {
     color: "/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
     normal: "/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
@@ -51,31 +68,32 @@ export function createRoom1() {
     disp: "/textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
   };
 
-  // Tiles136c floor for Room 1
-  function createTiles136cFloor() {
+  // Tiles002 floor for Room 1
+  function createTiles002Floor() {
     const floorGeometry = new THREE.BoxGeometry(18, 0.2, 18);
-    const floorMaterial = makeTiles136cFloor(18, 18, tiles136cFiles, {
+    const floorMaterial = makeTiles002Floor(18, 18, tiles002Files, {
       tileSizeMeters: 1.0,
       anisotropy: 16,
       metalness: 0.0,
-      roughness: 0.9,
-      normalScale: new THREE.Vector2(0.5, 0.5)
+      roughness: 0.8,
+      normalScale: new THREE.Vector2(0.6, 0.6)
     });
     
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+    floor.position.set(0, 0, 0); // Position slightly below center to align with hallway
     floor.receiveShadow = true;
     floor.name = 'room1-floor';
     group.add(floor);
   }
-  createTiles136cFloor();
+  createTiles002Floor();
 
-  // Tiles136c wall material for Room 1
-  const wallMat = makeTiles136cWall(18, 4, tiles136cFiles, {
+  // Solar panel wall material for Room 1
+  const wallMat = makeSolarPanelWall(18, 4, solarPanelFiles, {
     tileSizeMeters: 1.0,
     anisotropy: 16,
-    metalness: 0.0,
-    roughness: 0.8,
-    normalScale: new THREE.Vector2(0.3, 0.3)
+    metalness: 0.8,
+    roughness: 0.3,
+    normalScale: new THREE.Vector2(0.5, 0.5)
   });
 
   // Back wall - Solid wall spanning full width
@@ -755,8 +773,8 @@ export function createRoom1() {
     // Create green material for completed lines
     const greenLineMat = new THREE.MeshStandardMaterial({ 
       color: 0x00ff7f,           // Bright green color
-      emissive: 0x004422,        // Dark green emissive glow
-      emissiveIntensity: 0.3,    // Moderate glow intensity
+      emissive: 0x00ff7f,        // Bright green emissive glow
+      emissiveIntensity: 0.8,    // High glow intensity for visibility
       metalness: 0.8,            // High metalness for sci-fi look
       roughness: 0.2,            // Low roughness for smooth surface
       envMapIntensity: 1.5,      // Enhanced environment reflections
@@ -766,8 +784,8 @@ export function createRoom1() {
     // Create red material for incomplete lines (memory game line)
     const redLineMat = new THREE.MeshStandardMaterial({ 
       color: 0xff4444,           // Bright red color
-      emissive: 0x440022,        // Dark red emissive glow
-      emissiveIntensity: 0.3,    // Moderate glow intensity
+      emissive: 0xff4444,        // Bright red emissive glow
+      emissiveIntensity: 0.8,    // High glow intensity for visibility
       metalness: 0.8,            // High metalness for sci-fi look
       roughness: 0.2,            // Low roughness for smooth surface
       envMapIntensity: 1.5,      // Enhanced environment reflections
@@ -777,8 +795,8 @@ export function createRoom1() {
     // Create purple material for admin desk line and memory game line when unlocked
     const purpleLineMat = new THREE.MeshStandardMaterial({ 
       color: 0x8b5cf6,           // Purple color
-      emissive: 0x4c1d95,        // Dark purple emissive glow
-      emissiveIntensity: 0.3,    // Moderate glow intensity
+      emissive: 0x8b5cf6,        // Bright purple emissive glow
+      emissiveIntensity: 0.8,    // High glow intensity for visibility
       metalness: 0.8,            // High metalness for sci-fi look
       roughness: 0.2,            // Low roughness for smooth surface
       envMapIntensity: 1.5,      // Enhanced environment reflections
@@ -788,8 +806,8 @@ export function createRoom1() {
     // Table dimensions
     const tableWidth = 1.2;
     const tableDepth = 1.2;
-    const lineHeight = 0.05; // Increased height for better visibility
-    const lineWidth = tableWidth * 0.05; // 5% of table width
+    const lineHeight = 0.15; // Increased height for better visibility
+    const lineWidth = tableWidth * 0.15; // 15% of table width for better visibility
     
     // Room dimensions (assuming 18x18 room)
     const roomSize = 18;
@@ -895,6 +913,45 @@ export function createRoom1() {
   
   
 
+  // Add table for the laptop with glowing green sci-fi material
+  const tableMat = new THREE.MeshStandardMaterial({ 
+    color: 0x00ff7f,           // Bright green color
+    emissive: 0x004422,        // Dark green emissive glow
+    emissiveIntensity: 0.3,    // Moderate glow intensity
+    metalness: 0.8,            // High metalness for sci-fi look
+    roughness: 0.2,            // Low roughness for smooth, reflective surface
+    envMapIntensity: 1.5,      // Enhanced environment reflections
+    toneMapped: false          // Disable tone mapping for brighter colors
+  });
+  const table = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.2), tableMat);
+  table.position.set(0, 0.3, 0); // Adjusted for floor position change
+  table.castShadow = true;
+  table.receiveShadow = true;
+  table.name = 'laptop-table'; // Add name for easier identification
+  group.add(table);
+  
+  // Add subtle point light above the table for enhanced glow effect
+  const tableGlowLight = new THREE.PointLight(0x00ff7f, 0.5, 8);
+  tableGlowLight.position.set(0, 1.5, 0); // Above the table
+  tableGlowLight.castShadow = false;
+  tableGlowLight.name = 'table-glow-light';
+  group.add(tableGlowLight);
+  
+  // Store table reference for potential future effects
+  state.laptopTable = table;
+  state.tableGlowLight = tableGlowLight;
+  
+  // Add green grid lines extending from table to walls
+  const tableGridLines = createTableGridLines();
+  group.add(tableGridLines);
+  state.tableGridLines = tableGridLines;
+  
+  // Add custom laptop to Room 1 (Gammas Laptop) on the table
+  const laptop = createRoom3StyleLaptop();
+  laptop.position.set(0, 0.7, 0); // Adjusted for floor position change
+  laptop.rotation.y = Math.PI / 2 + Math.PI; // Face 180 degrees from original direction
+  group.add(laptop);
+
   // Load the safe model very small and place it next to the sci-fi table
   gltfLoader.load('/models/safe.glb', (gltf) => {
     const safeModel = gltf.scene;
@@ -907,50 +964,11 @@ export function createRoom1() {
     // Make the safe really small and shorter (squash Y axis)
     safeModel.scale.set(0.03, 0.03, 0.01); // Y axis is shorter
     // Place it near the back wall, next to the table (right side)
-    safeModel.position.set(1.8, 0.1, -7.8); // z = -7.8 is near back wall but not clipping
+    safeModel.position.set(1.8, 0.0, -7.8); // Adjusted for floor position change
     group.add(safeModel);
 
     // Store reference for interaction
     state.safeObject = safeModel;
-    
-    // Add table for the laptop with glowing green sci-fi material
-    const tableMat = new THREE.MeshStandardMaterial({ 
-      color: 0x00ff7f,           // Bright green color
-      emissive: 0x004422,        // Dark green emissive glow
-      emissiveIntensity: 0.3,    // Moderate glow intensity
-      metalness: 0.8,            // High metalness for sci-fi look
-      roughness: 0.2,            // Low roughness for smooth, reflective surface
-      envMapIntensity: 1.5,      // Enhanced environment reflections
-      toneMapped: false          // Disable tone mapping for brighter colors
-    });
-    const table = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 1.2), tableMat);
-    table.position.set(0, 0.4, 0); // Position at the center of the room
-    table.castShadow = true;
-    table.receiveShadow = true;
-    table.name = 'laptop-table'; // Add name for easier identification
-    group.add(table);
-    
-    // Add subtle point light above the table for enhanced glow effect
-    const tableGlowLight = new THREE.PointLight(0x00ff7f, 0.5, 8);
-    tableGlowLight.position.set(0, 1.5, 0); // Above the table
-    tableGlowLight.castShadow = false;
-    tableGlowLight.name = 'table-glow-light';
-    group.add(tableGlowLight);
-    
-    // Store table reference for potential future effects
-    state.laptopTable = table;
-    state.tableGlowLight = tableGlowLight;
-    
-    // Add green grid lines extending from table to walls
-    const tableGridLines = createTableGridLines();
-    group.add(tableGridLines);
-    state.tableGridLines = tableGridLines;
-    
-    // Add custom laptop to Room 1 (Gammas Laptop) on the table
-    const laptop = createRoom3StyleLaptop();
-    laptop.position.set(0, 0.8, 0); // Position on top of the table
-    laptop.rotation.y = Math.PI / 2 + Math.PI; // Face 180 degrees from original direction
-    group.add(laptop);
   }, undefined, (err) => {
     console.error('Failed to load safe.glb', err);
   });
