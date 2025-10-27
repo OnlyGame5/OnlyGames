@@ -135,6 +135,19 @@ function getItemIcon(itemName) {
       return '🎳';
     case 'candle':
       return '🕯️';
+    case 'glasses':
+      return '👓';
+    // AI-themed Room 2 items
+    case 'robot_eye':
+      return '👁️';
+    case 'circuit_board':
+      return '🔌';
+    case 'robot_hand':
+      return '✋';
+    case 'ai_book':
+      return '📚';
+    case 'key_card':
+      return '💳';
     default:
       return '📦';
   }
@@ -885,7 +898,11 @@ let globalModelRegistry = {
   'bowling_ball': null,
   'bowling_pin': null,
   'candle': null,
-  'glasses': null
+  'glasses': null,
+  'robot_eye': null,
+  'circuit_board': null,
+  'robot_hand': null,
+  'ai_book': null
 };
 
 // Function to register models globally
@@ -1157,6 +1174,34 @@ function createDroppedItemMesh(item, player) {
         mesh = keyGroup;
       }
       break;
+
+    case 'key_card': {
+      // Simple rectangular card with a stripe
+      const cardGroup = new THREE.Group();
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.86, 0.02, 0.54),
+        new THREE.MeshStandardMaterial({ color: 0x113355, metalness: 0.2, roughness: 0.8 })
+      );
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.86, 0.005, 0.1),
+        new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.7, roughness: 0.3 })
+      );
+      stripe.position.set(0, 0.012, 0.15);
+      // tiny LED dot
+      const led = new THREE.Mesh(
+        new THREE.SphereGeometry(0.015, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00aaff, emissiveIntensity: 0.6 })
+      );
+      led.position.set(0.3, 0.015, -0.1);
+      cardGroup.add(body, stripe, led);
+      cardGroup.position.copy(dropPosition);
+      cardGroup.rotation.x = -Math.PI / 2; // lay flat on floor
+      cardGroup.userData.isDroppedItem = true;
+      cardGroup.userData.itemName = item.name;
+      cardGroup.userData.itemDescription = item.description || item.name;
+      mesh = cardGroup;
+      break;
+    }
       
     case 'room4-nexus-key':
       // Try to get the original key model from global registry (same as Hub)
@@ -1496,6 +1541,169 @@ function createDroppedItemMesh(item, player) {
         glassesGroup.userData.isDroppedItem = true;
         
         mesh = glassesGroup;
+      }
+      break;
+      
+    case 'robot_eye':
+      // Try to get the original robot eye model from our stored models
+      if (globalModelRegistry['robot_eye']) {
+        mesh = globalModelRegistry['robot_eye'].clone();
+        mesh.position.copy(dropPosition);
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              child.material = child.material.clone();
+            }
+          }
+        });
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple robot eye
+        const eyeGroup = new THREE.Group();
+        const eyeBall = new THREE.Mesh(
+          new THREE.SphereGeometry(0.15, 16, 16),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x00ffff, 
+            emissive: 0x00ccff, 
+            emissiveIntensity: 0.5,
+            metalness: 0.8,
+            roughness: 0.2
+          })
+        );
+        eyeBall.castShadow = true;
+        eyeBall.receiveShadow = true;
+        eyeGroup.add(eyeBall);
+        eyeGroup.position.copy(dropPosition);
+        eyeGroup.userData.itemName = item.name;
+        eyeGroup.userData.itemDescription = item.description;
+        eyeGroup.userData.isDroppedItem = true;
+        mesh = eyeGroup;
+      }
+      break;
+      
+    case 'circuit_board':
+      // Try to get the original circuit board model from our stored models
+      if (globalModelRegistry['circuit_board']) {
+        mesh = globalModelRegistry['circuit_board'].clone();
+        mesh.position.copy(dropPosition);
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              child.material = child.material.clone();
+            }
+          }
+        });
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple circuit board
+        const boardGroup = new THREE.Group();
+        const board = new THREE.Mesh(
+          new THREE.BoxGeometry(0.4, 0.02, 0.3),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x00aa00, 
+            metalness: 0.3,
+            roughness: 0.6
+          })
+        );
+        board.castShadow = true;
+        board.receiveShadow = true;
+        boardGroup.add(board);
+        boardGroup.position.copy(dropPosition);
+        boardGroup.userData.itemName = item.name;
+        boardGroup.userData.itemDescription = item.description;
+        boardGroup.userData.isDroppedItem = true;
+        mesh = boardGroup;
+      }
+      break;
+      
+    case 'robot_hand':
+      // Try to get the original robot hand model from our stored models
+      if (globalModelRegistry['robot_hand']) {
+        mesh = globalModelRegistry['robot_hand'].clone();
+        mesh.position.copy(dropPosition);
+        mesh.position.y = 0.3; // Raise it above the floor to prevent clipping
+        
+        // Orient the hand horizontally (lying flat)
+        mesh.rotation.x = Math.PI / 2; // Rotate 90 degrees to make it horizontal
+        
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              child.material = child.material.clone();
+            }
+          }
+        });
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple robot hand
+        const handGroup = new THREE.Group();
+        const palm = new THREE.Mesh(
+          new THREE.BoxGeometry(0.2, 0.05, 0.25),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x888888, 
+            metalness: 0.9,
+            roughness: 0.3
+          })
+        );
+        palm.castShadow = true;
+        palm.receiveShadow = true;
+        handGroup.add(palm);
+        handGroup.position.copy(dropPosition);
+        handGroup.userData.itemName = item.name;
+        handGroup.userData.itemDescription = item.description;
+        handGroup.userData.isDroppedItem = true;
+        mesh = handGroup;
+      }
+      break;
+      
+    case 'ai_book':
+      // Try to get the original AI book model from our stored models
+      if (globalModelRegistry['ai_book']) {
+        mesh = globalModelRegistry['ai_book'].clone();
+        mesh.position.copy(dropPosition);
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              child.material = child.material.clone();
+            }
+          }
+        });
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+      } else {
+        // Fallback to simple AI book
+        const bookGroup = new THREE.Group();
+        const bookCover = new THREE.Mesh(
+          new THREE.BoxGeometry(0.25, 0.35, 0.04),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a3e, 
+            metalness: 0.2,
+            roughness: 0.7
+          })
+        );
+        bookCover.castShadow = true;
+        bookCover.receiveShadow = true;
+        bookGroup.add(bookCover);
+        bookGroup.position.copy(dropPosition);
+        bookGroup.userData.itemName = item.name;
+        bookGroup.userData.itemDescription = item.description;
+        bookGroup.userData.isDroppedItem = true;
+        mesh = bookGroup;
       }
       break;
       
