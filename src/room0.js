@@ -274,40 +274,7 @@ export function createRoom0() {
   backCollisionWallRight.userData = { type: 'collision-wall', side: 'back-right' };
   group.add(backCollisionWallRight);
   
-  // Add ventilation grille in the center of front wall
-  const grilleMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x3a3a3a,
-    metalness: 0.9,
-    roughness: 0.1
-  });
-  
-  const grille = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 1.5, 0.1),
-    grilleMaterial
-  );
-  grille.position.set(0, wallHeight/2, roomDepthHalf + wallThickness/2 + 0.05);
-  grille.castShadow = true;
-  grille.userData = { type: 'grille', side: 'front' };
-  group.add(grille);
-  
-  // Add grille bars for detail
-  for (let i = 0; i < 8; i++) {
-    const bar = new THREE.Mesh(
-      new THREE.BoxGeometry(0.05, 1.5, 0.15),
-      grilleMaterial
-    );
-    bar.position.set(-1.75 + i * 0.5, wallHeight/2, roomDepthHalf + wallThickness/2 + 0.08);
-    group.add(bar);
-  }
-  
-  for (let i = 0; i < 4; i++) {
-    const bar = new THREE.Mesh(
-      new THREE.BoxGeometry(4, 0.05, 0.15),
-      grilleMaterial
-    );
-    bar.position.set(0, wallHeight/2 - 0.5 + i * 0.5, roomDepthHalf + wallThickness/2 + 0.08);
-    group.add(bar);
-  }
+  // Front ventilation grille removed to keep hallway entrance clear
 
   // Stage 0: Roof removed - now using global skybox
   // Ceiling light fixture removed - now using global lighting
@@ -548,11 +515,7 @@ export function createRoom0() {
   
   console.log(`[Room0] Created south door with ID: ${southDoor.userData.id}, category: ${southDoor.userData.category}`);
 
-  southDoor.userData.onOpen = () => {
-    if (window.AI) {
-      window.AI.say("South sector unlocked. Advanced protocols await.");
-    }
-  };
+    // Removed front grille, no need to hide anything on open
 
   southDoor.userData.onUnlock = () => {
     if (window.AI) {

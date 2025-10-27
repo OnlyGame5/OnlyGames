@@ -6,15 +6,15 @@ import * as THREE from 'three';
 import { getPlayerInventory, getInventorySnapshot, addToInventory, removeFromInventory } from '../player.js';
 
 const ITEM_WEIGHTS = {
-  book: 3,
-  liberty: 5,
-  bowling_ball: 12,
-  bowling_pin: 4,
+  robot_eye: 3,
+  circuit_board: 5,
+  robot_hand: 12,
+  ai_book: 4,
   'stage0-key': 1
 };
 
 // Only these four belong on the pans; key is not used for this puzzle
-const PAN_ITEM_IDS = ['book', 'liberty', 'bowling_ball', 'bowling_pin'];
+const PAN_ITEM_IDS = ['robot_eye', 'circuit_board', 'robot_hand', 'ai_book'];
 const REQUIRED_IDS = PAN_ITEM_IDS;
 
 function el(tag, opts = {}, children = []) {
@@ -48,7 +48,6 @@ function ensureStyles() {
     #scaleUI button:hover { background: #384069; }
     #scaleUI .item { user-select: none; cursor: grab; padding: 4px 6px; border-radius: 4px; background: #1f2236; border: 1px solid #3b4061; display: inline-flex; gap: 6px; align-items: center; }
     #scaleUI .item[data-invalid="true"] { filter: grayscale(1); opacity: 0.6; }
-    #scaleUI .sum { margin-top: 6px; font-size: 14px; color: #9fb3ff; }
     #scaleUI .hint { margin-top: 8px; min-height: 18px; color: #ffd66b; font-size: 14px; }
   `;
   document.head.appendChild(style);
@@ -56,11 +55,11 @@ function ensureStyles() {
 
 function getIconFor(id) {
   switch (id) {
-    case 'book': return '📖';
-    case 'liberty': return '🗽';
-    case 'bowling_ball': return '🎳';
-    case 'bowling_pin': return '📍';
-    case 'stage0-key': return '🗝️';
+    case 'robot_eye': return '👁';
+    case 'circuit_board': return '🔌';
+    case 'robot_hand': return '✋';
+    case 'ai_book': return '📘';
+    case 'stage0-key': return '🗝';
     default: return '📦';
   }
 }
@@ -161,12 +160,7 @@ export class ScaleOfBalance {
   }
 
   updateSums() {
-    const sumLeft = this.panState.left.reduce((a, id) => a + (ITEM_WEIGHTS[id] || 0), 0);
-    const sumRight = this.panState.right.reduce((a, id) => a + (ITEM_WEIGHTS[id] || 0), 0);
-    const leftEl = this.ui?.querySelector('#leftSum');
-    const rightEl = this.ui?.querySelector('#rightSum');
-    if (leftEl) leftEl.textContent = String(sumLeft);
-    if (rightEl) rightEl.textContent = String(sumRight);
+    // Weight display removed - players must figure out the balance themselves
   }
 
   buildUI() {
@@ -183,13 +177,11 @@ export class ScaleOfBalance {
       el('div', { className: 'pans' }, [
         el('div', { className: 'pan', attrs: { 'data-side': 'left' } }, [
           el('h3', { text: 'Left Pan' }),
-          leftSlots,
-          el('div', { className: 'sum', id: 'leftSum', text: '0' })
+          leftSlots
         ]),
         el('div', { className: 'pan', attrs: { 'data-side': 'right' } }, [
           el('h3', { text: 'Right Pan' }),
-          rightSlots,
-          el('div', { className: 'sum', id: 'rightSum', text: '0' })
+          rightSlots
         ]),
       ]),
       el('div', { className: 'inventory' }, [
@@ -221,7 +213,7 @@ export class ScaleOfBalance {
         e.preventDefault();
       }
     };
-    const onDrop = (e) => {
+  const onDrop = (e) => {
       const dropLeft = e.target.closest('#leftSlots');
       const dropRight = e.target.closest('#rightSlots');
       const dropInv = e.target.closest('#invSlots');
@@ -234,14 +226,26 @@ export class ScaleOfBalance {
       if (!id) return;
 
       if (dropInv) {
+        // If dragging from inventory to inventory, ignore (no-op)
+        if (source === 'inventory') {
+          this.setHint('');
+          return;
+        }
         // Move from pan back to inventory
-        if (source === 'left') this.removeFromPan('left', id);
-        else if (source === 'right') this.removeFromPan('right', id);
-        // Add back to inventory
-        addToInventory({ name: id, description: this.prettyName(id) });
-        this.refreshInventoryStrip();
-        this.updateSums();
-        this.setHint('');
+        if (source === 'left' || source === 'right') {
+          this.removeFromPan(source, id);
+          const ok = addToInventory({ name: id, description: this.prettyName(id) });
+          if (!ok) {
+            // Inventory full - put it back where it came from
+            this.panState[source].push(id);
+            this.setHint('My inventory is full.');
+          } else {
+            this.setHint('');
+          }
+          this.refreshInventoryStrip();
+          this.renderPanContents();
+          this.updateSums();
+        }
         return;
       }
 
@@ -418,10 +422,10 @@ export class ScaleOfBalance {
 
   prettyName(id) {
     switch (id) {
-      case 'book': return 'Book';
-      case 'liberty': return 'Statue of Liberty';
-      case 'bowling_ball': return 'Bowling Ball';
-      case 'bowling_pin': return 'Bowling Pin';
+      case 'robot_eye': return 'Robot Eye';
+      case 'circuit_board': return 'Circuit Board Fragment';
+      case 'robot_hand': return 'Robot Hand';
+      case 'ai_book': return 'AI Manual';
       default: return id;
     }
   }
