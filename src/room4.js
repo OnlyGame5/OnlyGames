@@ -6,7 +6,7 @@ import {
   buildStandardLightRig,
   removeExistingLights,
 } from './lighting/standardLighting.js';
-import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling } from './materials/room4Materials.js';
+import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling, makeTiles002Floor } from './materials/room4Materials.js';
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { FloatingBinary } from './rooms/Room4/FloatingBinary.js';
@@ -26,7 +26,15 @@ export function createRoom4() {
     hasShownDecoderDialogue: false
   };
 
-  // Tiles136C texture files for Room 4 (same as Room 1)
+  // Tiles002 texture files for Room 4 floor (same as Room 1)
+  const tiles002Files = {
+    color: "/textures/tiles002/Tiles002_1K-JPG_Color.jpg",
+    normal: "/textures/tiles002/Tiles002_1K-JPG_NormalGL.jpg",
+    rough: "/textures/tiles002/Tiles002_1K-JPG_Roughness.jpg",
+    displacement: "/textures/tiles002/Tiles002_1K-JPG_Displacement.jpg"
+  };
+
+  // Tiles136C texture files for Room 4 (keeping for reference)
   const tiles136cFiles = {
     color: "/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
     normal: "/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
@@ -43,10 +51,19 @@ export function createRoom4() {
     disp: "/textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
   };
 
-  // Black floor
+  // Tiles002 floor for Room 4 (same as Room 1, but with black color)
   const floorGeometry = new THREE.BoxGeometry(18, 0.2, 18);
-  const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.9, metalness: 0.0 });
+  const floorMaterial = makeTiles002Floor(18, 18, tiles002Files, {
+    tileSizeMeters: 1.0,
+    anisotropy: 16,
+    metalness: 0.0,
+    roughness: 0.8,
+    normalScale: new THREE.Vector2(0.6, 0.6)
+  });
+  // Set floor color to black (like Room 1 when lights are off)
+  floorMaterial.color.setHex(0x000000);
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+  floor.position.set(0, 0, 0);
   floor.receiveShadow = true;
   floor.name = 'room4-floor';
   group.add(floor);
