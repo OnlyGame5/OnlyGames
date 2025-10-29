@@ -48,7 +48,10 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(-9, 1.75, 0), size: new THREE.Vector3(0.2, 3.5, 3.0), type: 'door', id: 'west-door', dynamic: true },
       
       // Main Door (RESTRICTED SECTOR) - Locked until key is found - Thinner collision box
-      { position: new THREE.Vector3(0, 1.75, -7.35), size: new THREE.Vector3(3.0, 3.5, 0.2), type: 'door', id: 'stage0-door', dynamic: true }
+      { position: new THREE.Vector3(0, 1.75, -7.35), size: new THREE.Vector3(3.0, 3.5, 0.2), type: 'door', id: 'stage0-door', dynamic: true },
+      
+      // Security Monitor - Mounted on South Wall (offset left)
+      { position: new THREE.Vector3(-4, 2.5, 7.2), size: new THREE.Vector3(2.0, 1.5, 0.5), type: 'monitor', id: 'security-monitor', dynamic: false }
     ],
     hallways: [
       // Room 1 hallway (East)

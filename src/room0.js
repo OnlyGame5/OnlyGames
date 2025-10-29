@@ -673,6 +673,134 @@ export function createRoom0() {
   
   // Camera tracking removed for performance optimization
 
+  // Security Monitor - Mounted on East Wall
+  function createSecurityMonitor() {
+    const monitorGroup = new THREE.Group();
+    monitorGroup.name = 'security-monitor';
+    
+    // Monitor screen (main display)
+    const screenGeometry = new THREE.BoxGeometry(1.8, 1.2, 0.08);
+    const screenMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x000000,
+      emissive: 0x001100,
+      emissiveIntensity: 0.2,
+      metalness: 0.1,
+      roughness: 0.9
+    });
+    const screen = new THREE.Mesh(screenGeometry, screenMaterial);
+    screen.position.set(0, 0, 0.05);
+    screen.name = 'monitor-screen'; // Add name for SecurityMonitor to find
+    screen.castShadow = true;
+    screen.receiveShadow = true;
+    monitorGroup.add(screen);
+    
+    // Monitor frame/bezel - Enhanced Phong shading for dramatic lighting
+    const frameGeometry = new THREE.BoxGeometry(1.9, 1.3, 0.15);
+    const frameMaterial = new THREE.MeshPhysicalMaterial({ 
+      // Base properties - darker for better contrast
+      color: 0x1a1a1a,
+      metalness: 0.95,
+      roughness: 0.05,       // Very smooth for sharp reflections
+      
+      // Enhanced Phong shading features
+      clearcoat: 0.9,        // High clearcoat for dramatic gloss
+      clearcoatRoughness: 0.05, // Very smooth clearcoat
+      ior: 1.6,              // Higher IOR for more pronounced effects
+      specularIntensity: 2.5, // Much higher specular intensity
+      specularColor: new THREE.Color(0xffffff),
+      envMapIntensity: 1.5,  // Stronger environment reflections
+      
+      // Enhanced emissive for subtle glow
+      emissive: new THREE.Color(0x001122),
+      emissiveIntensity: 0.1,
+      
+      // Shadow properties
+      castShadow: true,
+      receiveShadow: true
+    });
+    const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+    frame.castShadow = true;
+    frame.receiveShadow = true;
+    monitorGroup.add(frame);
+    
+    // Mounting bracket - Ultra-enhanced Phong shading
+    const bracketGeometry = new THREE.BoxGeometry(2.2, 0.1, 0.3);
+    const bracketMaterial = new THREE.MeshPhysicalMaterial({ 
+      color: 0x0f0f0f,        // Even darker for maximum contrast
+      metalness: 0.98,
+      roughness: 0.02,        // Ultra-smooth for sharpest reflections
+      
+      // Ultra-enhanced Phong shading features
+      clearcoat: 0.95,        // Maximum clearcoat
+      clearcoatRoughness: 0.02, // Ultra-smooth clearcoat
+      ior: 1.8,               // Very high IOR for dramatic effects
+      specularIntensity: 3.0, // Maximum specular intensity
+      specularColor: new THREE.Color(0xffffff),
+      envMapIntensity: 2.0,   // Maximum environment reflections
+      
+      // Enhanced emissive for subtle glow
+      emissive: new THREE.Color(0x001133),
+      emissiveIntensity: 0.15,
+      
+      // Shadow properties
+      castShadow: true,
+      receiveShadow: true
+    });
+    const bracket = new THREE.Mesh(bracketGeometry, bracketMaterial);
+    bracket.position.set(0, -0.7, -0.1);
+    bracket.castShadow = true;
+    bracket.receiveShadow = true;
+    monitorGroup.add(bracket);
+    
+    // Status LED
+    const ledGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+    const ledMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x00ff00,
+      emissive: 0x00ff00,
+      emissiveIntensity: 0.8
+    });
+    const statusLED = new THREE.Mesh(ledGeometry, ledMaterial);
+    statusLED.position.set(0.7, 0.5, 0.1);
+    monitorGroup.add(statusLED);
+    
+    // Position on South Wall (Back Wall) - offset to the left to avoid hallway
+    // X: -4 (left of center), Y: 2.5 (eye level), Z: 7.2 (closer to wall, mounted)
+    monitorGroup.position.set(-4, 2.5, 7.2);
+    monitorGroup.rotation.y = Math.PI; // Face toward room center
+    
+    // Add interaction data
+    monitorGroup.userData = { 
+      type: 'interactable', 
+      id: 'security-monitor',
+      description: 'Press E to activate security feed',
+      category: 'monitor'
+    };
+    
+    return monitorGroup;
+  }
+
+  // Create and add security monitor
+  const securityMonitorObj = createSecurityMonitor();
+  group.add(securityMonitorObj);
+  
+  // Add visible collision box for debugging (only when debug mode is enabled)
+  const monitorCollisionBox = new THREE.Mesh(
+    new THREE.BoxGeometry(2.0, 1.5, 0.5),
+    new THREE.MeshBasicMaterial({ 
+      color: 0x00ff00, 
+      transparent: true, 
+      opacity: 0.3,
+      wireframe: true 
+    })
+  );
+  monitorCollisionBox.position.set(-4, 2.5, 7.2);
+  monitorCollisionBox.name = 'security-monitor-collision-debug';
+  monitorCollisionBox.visible = false; // Hidden by default
+  group.add(monitorCollisionBox);
+  
+  // Store reference for debug toggle
+  window.securityMonitorCollisionDebug = monitorCollisionBox;
+
   // Stage 0: Room state
   const state = {
     hasKey: false,
@@ -765,6 +893,42 @@ export function createRoom0() {
           }
           return true;
         }
+      }
+    }
+    
+    // Check if player is near security monitor
+    const securityMonitorPos = new THREE.Vector3(-4, 2.5, 7.2);
+    const distanceToMonitor = playerObject.position.distanceTo(securityMonitorPos);
+    
+    if (distanceToMonitor < 3.0) { // Within 3.0 units of the monitor (increased range)
+      if (window.securityMonitor) {
+        if (!window.securityMonitor.isActive) {
+          // Reset the security monitor before showing to prevent state corruption
+          window.securityMonitor.reset();
+          window.securityMonitor.show();
+          if (window.AI) {
+            window.AI.say("Security monitor activated. Press E to cycle through room feeds.");
+          }
+        } else {
+          // Always cycle room when monitor is active - let cycleRoom handle the destroy/recreate logic
+          window.securityMonitor.cycleRoom();
+          if (window.AI && window.securityMonitor) {
+            const roomNames = {
+              1: "East Sector",
+              2: "South Sector", 
+              3: "West Sector - Access Denied",
+              4: "North Sector"
+            };
+            window.AI.say(`Switching to ${roomNames[window.securityMonitor.currentRoom]} feed.`);
+          }
+        }
+        return true;
+      } else {
+        // Security monitor doesn't exist, wait for recreation
+        if (window.AI) {
+          window.AI.say("Security monitor is initializing, please wait...");
+        }
+        return true;
       }
     }
     
@@ -1025,6 +1189,7 @@ export function createRoom0() {
     westDoor,
     key,
     awakeningChair,
+    securityMonitorObj,
     // securityCamera removed for performance optimization
     triggers: { doorwayBox },
     state,
