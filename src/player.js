@@ -1803,11 +1803,11 @@ function pickupDroppedItem(droppedMesh) {
       droppedMesh.parent.remove(droppedMesh);
     }
     
-    AI.say(`Picked up ${itemDescription || itemName}.`);
+    AI.showInteractionFeedback(`Picked up ${itemDescription || itemName}.`);
     updateInventoryUI();
     return true;
   } else {
-    AI.say("My inventory is full.");
+    AI.showInteractionFeedback("My inventory is full.");
     return false;
   }
 }

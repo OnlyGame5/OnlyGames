@@ -108,8 +108,8 @@ export const roomWallDefinitions = {
       // Safe (position: 1.8, 0.1, -7.8) -> World: (30.8, 0.3, -7.8)
       { position: new THREE.Vector3(30.8, 0.3, -7.8), size: new THREE.Vector3(0.8, 0.6, 0.6), type: 'safe' },
       
-      // Wire panel (position: 8.2, 0.8, 0) -> World: (37.2, 0.8, 0) - Made thicker
-      { position: new THREE.Vector3(37.2, 0.8, 0), size: new THREE.Vector3(1.5, 1.5, 1.0), type: 'wirePanel' },
+      // Wire panel (position: 0, 0.8, 8.2) -> World: (29, 0.8, 8.2) - Made thicker
+      { position: new THREE.Vector3(29, 0.8, 8.2), size: new THREE.Vector3(1.5, 1.5, 1.0), type: 'wirePanel' },
       
       // Simon stand/Memory game (position: 8.2, 0, -3) -> World: (37.2, 0.5, -3)
       { position: new THREE.Vector3(37.2, 0.5, -3), size: new THREE.Vector3(0.8, 1.0, 0.8), type: 'memoryGame' },

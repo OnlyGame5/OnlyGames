@@ -49,6 +49,9 @@ export class MemoryPanel {
     this.createUI();
     document.body.appendChild(this.overlay);
     
+    // Reset all pads to ensure clean state
+    setTimeout(() => this.resetAllPads(), 100);
+    
     // Add keyboard listeners
     this.keyboardHandler = this.handleKeyboard.bind(this);
     window.addEventListener('keydown', this.keyboardHandler);
@@ -253,6 +256,10 @@ export class MemoryPanel {
         e.stopPropagation();
         pad.style.transform = '';
       });
+      pad.addEventListener('mouseleave', (e) => {
+        // Reset transform if mouse leaves while pressed
+        pad.style.transform = '';
+      });
     }
     
     // Controls
@@ -413,6 +420,9 @@ export class MemoryPanel {
     const pad = this.pads[idx];
     if (!pad) return;
     
+    // Ensure pad is in clean state before flashing
+    this.resetPadVisualState(pad);
+    
     pad.classList.add('lit');
     pad.style.background = `var(--on)`;
     pad.style.boxShadow = `0 0 22px color-mix(in oklab, var(--on) 65%, white 10%), 0 0 60px color-mix(in oklab, var(--on) 45%, black 0%), inset 0 0 28px color-mix(in oklab, var(--on) 65%, white 10%), inset 0 -10px 22px rgba(0,0,0,0.35)`;
@@ -421,10 +431,22 @@ export class MemoryPanel {
     this.beep(idx, Math.max(180, duration - 80));
     await this.wait(duration);
     
+    // Always reset pad state after flash
+    this.resetPadVisualState(pad);
+  }
+
+  resetPadVisualState(pad) {
+    if (!pad) return;
+    
     pad.classList.remove('lit');
     pad.style.background = `var(--base-color)20`;
     pad.style.boxShadow = 'inset 0 8px 18px rgba(255,255,255,0.04), inset 0 -10px 22px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.08)';
     pad.style.filter = '';
+    pad.style.transform = ''; // Reset any transform from mousedown
+  }
+
+  resetAllPads() {
+    this.pads.forEach(pad => this.resetPadVisualState(pad));
   }
   
   async playSequence() {
@@ -448,6 +470,10 @@ export class MemoryPanel {
     this.sequence = [];
     this.inputIndex = 0;
     this.round = 0;
+    
+    // Reset all pads to clean state
+    this.resetAllPads();
+    
     // Remove log message - let Nexus handle dialogue
     this.updateLog();
     

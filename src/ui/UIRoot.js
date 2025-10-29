@@ -1,6 +1,7 @@
 import { gameStore } from '../state/gameStore.js';
 import { memoryPanel } from './MemoryPanel.js';
 import { aiDialogueBox } from './AIDialogueBox.js';
+import { interactionFeedback } from './InteractionFeedback.js';
 
 export class UIRoot {
   constructor() {
@@ -39,6 +40,15 @@ export class UIRoot {
     // Listen for dialogue header changes
     gameStore.subscribe('setDialogueHeader', (header) => {
       aiDialogueBox.setHeaderLabel(header);
+    });
+
+    // Listen for interaction feedback events
+    gameStore.subscribe('showInteractionFeedback', (data) => {
+      if (data) {
+        interactionFeedback.show(data.text, data.duration || 2000);
+      } else {
+        interactionFeedback.hide();
+      }
     });
   }
 }

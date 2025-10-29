@@ -10,13 +10,64 @@ export function createWirePanel(opts = {}) {
   // State management
   const state = {
     order: order,
-    input: [],
+    input: [],            // Array of connections: [{color: 'R', port: 0}, ...]
     solved: false,
     holding: null,        // { id:'R', color:'R' }
     pulse: 0,             // status strip pulse
     sparkTimer: 0,
-    isOpen: false
+    isOpen: false,
+    isDragging: false,   // Track if currently dragging a wire
+    dragElement: null,   // Reference to the wire being dragged
+    firstMistakeMade: false, // Track if first mistake has occurred
+    timeoutActive: false,    // Track if timeout is active
+    timeoutDuration: 30,      // Timeout duration in seconds
+    timeoutRemaining: 0,     // Remaining timeout time
+    audioContext: null,      // Web Audio API context
+    sounds: {}               // Sound effect references
   };
+
+  // Create shuffling animation function (global scope)
+  function createShufflingAnimation() {
+    const colors = [
+      { id: 'R', color: '#ff3b30', name: 'Red', label: 'A' },
+      { id: 'G', color: '#34c759', name: 'Green', label: 'B' },
+      { id: 'B', color: '#0a84ff', name: 'Blue', label: 'C' },
+      { id: 'Y', color: '#ffcc00', name: 'Yellow', label: 'D' }
+    ];
+    
+    const animationDuration = 2000; // 2 seconds
+    const shuffleSteps = 8;
+    const stepDuration = animationDuration / shuffleSteps;
+    
+    let currentStep = 0;
+    
+    const shuffleInterval = setInterval(() => {
+      // Randomly rearrange the sockets
+      colors.forEach((colorData, index) => {
+        const socket = document.querySelector(`[data-color="${colorData.id}"]`);
+        if (socket) {
+          // Add slight rotation and scale for shuffle effect
+          const rotation = (Math.random() - 0.5) * 20;
+          const scale = 0.8 + Math.random() * 0.4;
+          socket.style.transform = `scale(${scale}) rotate(${rotation}deg)`;
+          socket.style.transition = 'all 0.1s ease';
+        }
+      });
+      
+      currentStep++;
+      if (currentStep >= shuffleSteps) {
+        clearInterval(shuffleInterval);
+        // Final positioning
+        colors.forEach((colorData, index) => {
+          const socket = document.querySelector(`[data-color="${colorData.id}"]`);
+          if (socket) {
+            socket.style.transform = 'scale(1) rotate(0deg)';
+            socket.style.transition = 'all 0.3s ease';
+          }
+        });
+      }
+    }, stepDuration);
+  }
 
   // Create popup UI
   function createPopupUI() {
@@ -86,42 +137,47 @@ export function createWirePanel(opts = {}) {
 
     // Randomize the visual layout but keep the same logical order
     const colors = [
-      { id: 'R', color: '#ff3b30', name: 'Red' },
-      { id: 'G', color: '#34c759', name: 'Green' },
-      { id: 'B', color: '#0a84ff', name: 'Blue' },
-      { id: 'Y', color: '#ffcc00', name: 'Yellow' }
+      { id: 'R', color: '#ff3b30', name: 'Red', label: 'A' },
+      { id: 'G', color: '#34c759', name: 'Green', label: 'B' },
+      { id: 'B', color: '#0a84ff', name: 'Blue', label: 'C' },
+      { id: 'Y', color: '#ffcc00', name: 'Yellow', label: 'D' }
     ];
     
     // Shuffle the visual order but keep track of the mapping
     const shuffledColors = [...colors].sort(() => Math.random() - 0.5);
 
-    shuffledColors.forEach(colorData => {
+    // Note: createShufflingAnimation function moved to global scope
+
+    shuffledColors.forEach((colorData, index) => {
       const socket = document.createElement('div');
       socket.className = 'top-socket';
       socket.dataset.color = colorData.id;
+      socket.dataset.label = colorData.label;
+      socket.dataset.colorName = colorData.name;
       socket.style.cssText = `
         width: 80px;
         height: 80px;
-        background: ${colorData.color};
+        background: #6b6f74;
         border: 3px solid #4c535a;
         border-radius: 50%;
-        cursor: pointer;
+        cursor: grab;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-weight: bold;
-        font-size: 14px;
+        font-size: 18px;
         text-shadow: 0 0 5px rgba(0,0,0,0.8);
         box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         transition: all 0.2s ease;
         position: relative;
+        user-select: none;
       `;
-      socket.textContent = colorData.name;
+      socket.textContent = colorData.label; // Show abstract label initially
       
       // Add hover effect
       socket.addEventListener('mouseenter', () => {
-        if (!state.solved && !socket.classList.contains('used')) {
+        if (!state.solved && !socket.classList.contains('used') && !state.timeoutActive) {
           socket.style.transform = 'scale(1.1)';
           socket.style.boxShadow = '0 6px 12px rgba(0,0,0,0.5)';
         }
@@ -132,12 +188,25 @@ export function createWirePanel(opts = {}) {
         socket.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
       });
 
-      // Click handler
-      socket.addEventListener('click', () => handleSocketClick(colorData.id, socket));
+      // Drag and drop handlers
+      socket.addEventListener('mousedown', (e) => handleSocketMouseDown(e, colorData, socket));
+      socket.addEventListener('dragstart', (e) => e.preventDefault()); // Prevent default drag
       
       topRow.appendChild(socket);
     });
 
+    // Add SOURCE label above top row
+    const sourceLabel = document.createElement('div');
+    sourceLabel.style.cssText = `
+      text-align: center;
+      color: #ffffff;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      margin-bottom: 10px;
+      font-weight: bold;
+    `;
+    sourceLabel.textContent = 'SOURCE';
+    panel.appendChild(sourceLabel);
     panel.appendChild(topRow);
 
     // Bottom row - neutral sockets
@@ -168,12 +237,13 @@ export function createWirePanel(opts = {}) {
         box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         transition: all 0.2s ease;
         position: relative;
+        user-select: none;
       `;
-      socket.textContent = 'PORT';
+      socket.textContent = i.toString(); // Show port number
       
       // Add hover effect
       socket.addEventListener('mouseenter', () => {
-        if (!state.solved && !socket.classList.contains('occupied')) {
+        if (!state.solved && !socket.classList.contains('occupied') && !state.timeoutActive) {
           socket.style.transform = 'scale(1.1)';
           socket.style.boxShadow = '0 6px 12px rgba(0,0,0,0.5)';
         }
@@ -184,11 +254,27 @@ export function createWirePanel(opts = {}) {
         socket.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
       });
 
-      // Click handler
-      socket.addEventListener('click', () => handlePortClick(i, socket));
+      // Drag and drop handlers
+      socket.addEventListener('mouseup', (e) => handlePortMouseUp(e, i, socket));
+      socket.addEventListener('dragover', (e) => e.preventDefault());
+      socket.addEventListener('drop', (e) => e.preventDefault());
       
       bottomRow.appendChild(socket);
     }
+
+    // Add TARGET label above bottom row
+    const targetLabel = document.createElement('div');
+    targetLabel.style.cssText = `
+      text-align: center;
+      color: #ffffff;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      margin-bottom: 10px;
+      margin-top: 20px;
+      font-weight: bold;
+    `;
+    targetLabel.textContent = 'TARGET';
+    panel.appendChild(targetLabel);
 
     panel.appendChild(bottomRow);
 
@@ -207,7 +293,10 @@ export function createWirePanel(opts = {}) {
       cursor: pointer;
       font-weight: bold;
     `;
-    closeBtn.addEventListener('click', closePanel);
+    closeBtn.addEventListener('click', () => {
+      forceCleanupDrag();
+      closePanel();
+    });
     panel.appendChild(closeBtn);
 
     // Reset button
@@ -225,15 +314,22 @@ export function createWirePanel(opts = {}) {
       cursor: pointer;
       font-weight: bold;
     `;
-    resetBtn.addEventListener('click', resetPuzzle);
+    resetBtn.addEventListener('click', () => {
+      forceCleanupDrag();
+      resetPuzzle();
+    });
     panel.appendChild(resetBtn);
 
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
+    
+    // Add debug panel for development
+    addDebugPanel();
 
     // Prevent game from taking control when popup is open
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
+        forceCleanupDrag();
         closePanel();
       }
     });
@@ -254,49 +350,375 @@ export function createWirePanel(opts = {}) {
       e.stopPropagation();
     });
 
+    // Add keyboard accessibility
+    overlay.addEventListener('keydown', handleKeyboardInput);
+
     return overlay;
   }
 
-  function handleSocketClick(colorId, socketElement) {
-    if (state.solved || state.holding) return;
-    
-    // Allow picking up ANY color without feedback
-    state.holding = { id: colorId, color: colorId };
-    socketElement.classList.add('selected');
-    socketElement.style.border = '3px solid #00ff00';
-    socketElement.style.boxShadow = '0 0 15px #00ff00';
-    
-    console.log('Started holding:', colorId);
+  // Create drag wire visualization
+  function createDragWire(colorData) {
+    const dragWire = document.createElement('div');
+    dragWire.id = 'dragWire';
+    dragWire.style.cssText = `
+      position: fixed;
+      width: 60px;
+      height: 60px;
+      background: ${colorData.color};
+      border: 3px solid #00ff00;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 16px;
+      text-shadow: 0 0 5px rgba(0,0,0,0.8);
+      box-shadow: 0 0 20px ${colorData.color};
+      z-index: 3000;
+      pointer-events: none;
+      opacity: 0.9;
+      transform: translate(-50%, -50%);
+    `;
+    dragWire.textContent = colorData.name;
+    document.body.appendChild(dragWire);
+    return dragWire;
   }
 
-  function handlePortClick(portIndex, portElement) {
-    if (!state.holding) return;
+  // Remove drag wire visualization
+  function removeDragWire() {
+    const dragWire = document.getElementById('dragWire');
+    console.log('=== REMOVE DRAG WIRE DEBUG ===');
+    console.log('Attempting to remove drag wire:', dragWire);
+    
+    if (dragWire) {
+      console.log('Drag wire found, removing...');
+      dragWire.remove();
+      console.log('Drag wire removed successfully');
+    } else {
+      console.log('No drag wire found to remove');
+    }
+  }
+
+  // Handle mouse down on source socket (start drag)
+  function handleSocketMouseDown(e, colorData, socketElement) {
+    if (state.solved || state.timeoutActive || socketElement.classList.contains('used')) return;
+    
+    // Prevent multiple simultaneous drags
+    if (state.isDragging) {
+      console.log('Already dragging, ignoring new drag attempt for:', colorData.id);
+      return;
+    }
+    
+    // Safety cleanup: ensure no orphaned drag wires exist
+    const existingDragWire = document.getElementById('dragWire');
+    if (existingDragWire) {
+      console.log('Found orphaned drag wire, cleaning up before starting new drag');
+      existingDragWire.remove();
+    }
+    
+    e.preventDefault();
+    
+    console.log('=== DRAG START DEBUG ===');
+    console.log('Color Data:', colorData);
+    console.log('Socket Element:', socketElement);
+    console.log('Current state:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      existingDragWire: document.getElementById('dragWire')
+    });
+    
+    // Create drag wire visualization
+    const dragWire = createDragWire(colorData);
+    state.dragElement = dragWire;
+    state.isDragging = true;
+    state.holding = { id: colorData.id, color: colorData.id };
+    
+    console.log('After drag start:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      dragWireId: dragWire.id
+    });
+    
+    // Update socket visual state
+    socketElement.style.border = '3px solid #00ff00';
+    socketElement.style.boxShadow = '0 0 15px #00ff00';
+    socketElement.style.cursor = 'grabbing';
+    
+    // Reveal color on drag start
+    socketElement.style.background = colorData.color;
+    socketElement.textContent = colorData.name;
+    
+    // Add global mouse move and mouse up handlers
+    // Remove any existing listeners first to prevent duplicates
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    // Pulse maintenance LED while dragging
+    setMaintenanceLED(0.6);
+    
+    // Play drag start sound
+    playSound('dragStart');
+    
+    // Trigger haptic feedback
+    triggerHapticFeedback('light');
+    
+    console.log('Started dragging:', colorData.id);
+  }
+
+  // Handle mouse move during drag
+  function handleMouseMove(e) {
+    if (!state.isDragging || !state.dragElement) return;
+    
+    // Update drag wire position
+    state.dragElement.style.left = e.clientX + 'px';
+    state.dragElement.style.top = e.clientY + 'px';
+    
+    // Update connection preview
+    updateConnectionPreview(e.clientX, e.clientY);
+  }
+
+  // Handle mouse up (end drag)
+  function handleMouseUp(e) {
+    console.log('=== MOUSE UP DEBUG ===');
+    console.log('Mouse up event:', e);
+    console.log('Current state:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      existingDragWire: document.getElementById('dragWire')
+    });
+    
+    if (!state.isDragging) {
+      console.log('Not dragging, ignoring mouse up');
+      return;
+    }
+    
+    // Find the target port under the mouse
+    const targetPort = document.elementFromPoint(e.clientX, e.clientY);
+    console.log('Target port under mouse:', targetPort);
+    
+    if (targetPort && targetPort.classList.contains('bottom-socket')) {
+      const portIndex = parseInt(targetPort.dataset.index);
+      console.log('Attempting connection to port:', portIndex);
+      handlePortConnection(portIndex, targetPort);
+    } else {
+      console.log('No valid target port found, cleaning up drag');
+    }
+    
+    // ALWAYS clean up drag state, regardless of connection success
+    console.log('Calling cleanupDrag()');
+    cleanupDrag();
+  }
+
+  // Clean up drag state
+  function cleanupDrag() {
+    console.log('=== CLEANUP DRAG DEBUG ===');
+    console.log('Before cleanup:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      existingDragWire: document.getElementById('dragWire')
+    });
+    
+    state.isDragging = false;
+    state.holding = null;
+    removeDragWire();
+    
+    console.log('After cleanup:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      existingDragWire: document.getElementById('dragWire')
+    });
+    
+    // Reset source socket visual state
+    document.querySelectorAll('.top-socket').forEach(socket => {
+      socket.style.border = '3px solid #4c535a';
+      socket.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+      socket.style.cursor = 'grab';
+    });
+    
+    // Remove global event listeners
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+    
+    // Turn off maintenance LED
+    setMaintenanceLED(0.1);
+    
+    // Play drag end sound
+    playSound('dragEnd');
+    
+    // Clear connection preview
+    clearConnectionPreview();
+    
+    console.log('Cleanup completed');
+  }
+
+  // Safety cleanup function that can be called from anywhere
+  function forceCleanupDrag() {
+    console.log('=== FORCE CLEANUP DEBUG ===');
+    console.log('Checking for stuck drag wire:', {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      existingDragWire: document.getElementById('dragWire')
+    });
+    
+    // More aggressive cleanup - remove ALL drag wires from DOM
+    const allDragWires = document.querySelectorAll('#dragWire');
+    console.log('Found drag wires in DOM:', allDragWires.length);
+    
+    allDragWires.forEach((wire, index) => {
+      console.log(`Removing drag wire ${index}:`, wire);
+      wire.remove();
+    });
+    
+    if (state.isDragging || state.holding || document.getElementById('dragWire')) {
+      console.log('Force cleaning up stuck drag wire');
+      cleanupDrag();
+    } else {
+      console.log('No stuck drag wire found');
+    }
+    
+    // Final check - ensure no drag wires remain
+    const remainingWires = document.querySelectorAll('#dragWire');
+    if (remainingWires.length > 0) {
+      console.error('ERROR: Drag wires still exist after cleanup!', remainingWires);
+    } else {
+      console.log('All drag wires successfully removed');
+    }
+  }
+
+  // Visual debugging function to show current state
+  function debugState() {
+    const debugInfo = {
+      isDragging: state.isDragging,
+      holding: state.holding,
+      dragElement: state.dragElement,
+      existingDragWire: document.getElementById('dragWire'),
+      dragWireInDOM: document.querySelector('#dragWire'),
+      allDragWires: document.querySelectorAll('#dragWire')
+    };
+    
+    console.log('=== CURRENT STATE DEBUG ===');
+    console.log(debugInfo);
+    
+    // Also log to a visible debug panel if it exists
+    const debugPanel = document.getElementById('debugPanel');
+    if (debugPanel) {
+      debugPanel.innerHTML = JSON.stringify(debugInfo, null, 2);
+    }
+    
+    return debugInfo;
+  }
+
+  // Add debug panel to the UI
+  function addDebugPanel() {
+    const debugPanel = document.createElement('div');
+    debugPanel.id = 'debugPanel';
+    debugPanel.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 9999;
+      max-width: 300px;
+      max-height: 200px;
+      overflow: auto;
+      border: 1px solid #00ff00;
+    `;
+    debugPanel.textContent = 'Debug info will appear here';
+    document.body.appendChild(debugPanel);
+    
+    // Add debug button
+    const debugBtn = document.createElement('button');
+    debugBtn.textContent = 'DEBUG STATE';
+    debugBtn.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 320px;
+      background: #00ff00;
+      color: black;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      z-index: 9999;
+    `;
+    debugBtn.addEventListener('click', debugState);
+    document.body.appendChild(debugBtn);
+  }
+
+  // Handle port mouse up (for rewiring)
+  function handlePortMouseUp(e, portIndex, portElement) {
+    if (state.isDragging) return; // Don't handle if we're dragging
+    
+    // Check if this port has a connection that can be rewired
+    const existingConnection = state.input.find(conn => conn.port === portIndex);
+    if (existingConnection && !state.timeoutActive) {
+      disconnectWire(portIndex, portElement);
+    }
+  }
+
+  // Disconnect a wire (rewiring functionality)
+  function disconnectWire(portIndex, portElement) {
+    // Remove from state
+    state.input = state.input.filter(conn => conn.port !== portIndex);
+    
+    // Reset port visual state
+    portElement.classList.remove('occupied');
+    portElement.style.background = '#6b6f74';
+    portElement.style.border = '3px solid #4c535a';
+    portElement.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+    portElement.textContent = portIndex.toString();
+    
+    // Reset corresponding source socket
+    const colorId = state.input.find(conn => conn.port === portIndex)?.color;
+    if (colorId) {
+      const sourceSocket = document.querySelector(`[data-color="${colorId}"]`);
+      if (sourceSocket) {
+        sourceSocket.classList.remove('used');
+        sourceSocket.style.opacity = '1';
+        sourceSocket.style.background = '#6b6f74';
+        sourceSocket.textContent = sourceSocket.dataset.label;
+      }
+    }
+    
+    console.log('Disconnected wire from port', portIndex);
+  }
+
+  // Handle port connection (new logic)
+  function handlePortConnection(portIndex, portElement) {
+    if (!state.holding || state.timeoutActive) return;
     
     // Check if port is already occupied
     if (portElement.classList.contains('occupied')) return;
     
     // Check if this is the correct slot in the sequence
-    const expectedSlotIndex = state.input.length; // Should be 0, 1, 2, 3 in order
+    const expectedSlotIndex = state.input.length;
     if (portIndex !== expectedSlotIndex) {
-      // Wrong slot - show red light and reset everything
-      console.log('Wrong slot! Expected slot', expectedSlotIndex, 'but got', portIndex);
-      updateStatusStrip('#ff0000', 0.8);
-      triggerSparkEffect();
+      // Wrong slot - handle mistake
+      handleMistake('Wrong port sequence! Expected port ' + expectedSlotIndex);
       return;
     }
     
     // Check if the color is correct for this position
     const expectedColor = state.order[state.input.length];
     if (state.holding.color !== expectedColor) {
-      // Wrong color for this position - show red light and reset everything
-      console.log('Wrong color for this position! Expected:', expectedColor, 'Got:', state.holding.color);
-      updateStatusStrip('#ff0000', 0.8);
-      triggerSparkEffect();
+      // Wrong color for this position - handle mistake
+      handleMistake('Wrong color for this position! Expected: ' + expectedColor);
       return;
     }
     
     // Accept connection
-    state.input.push(state.holding.color);
+    state.input.push({ color: state.holding.color, port: portIndex });
     
     // Visual feedback
     portElement.style.background = getColorForId(state.holding.color);
@@ -312,11 +734,14 @@ export function createWirePanel(opts = {}) {
       topSocket.style.opacity = '0.5';
     }
     
-    // Clear holding
-    state.holding = null;
-    
     // Green flash for successful connection
     updateStatusStrip('#00ff00', 0.6);
+    
+    // Play connection sound
+    playSound('connection');
+    
+    // Trigger haptic feedback
+    triggerHapticFeedback('medium');
     
     // Check if solved
     if (state.input.length === state.order.length) {
@@ -325,6 +750,16 @@ export function createWirePanel(opts = {}) {
       
       // Set wire puzzle complete in game store
       gameStore.setWireComplete(true);
+      
+      // Turn on power LED bright green for success
+      setPowerLED(1.0);
+      setFaultLED(0.1); // Turn off fault LED
+      
+      // Play success sound
+      playSound('success');
+      
+      // Trigger success haptic feedback
+      triggerHapticFeedback('success');
       
       // Show success popup
       showValidationPopup('success', 'CIRCUIT COMPLETE', 'Congratulations! The wire panel has been successfully configured. The door is now unlocked.');
@@ -335,10 +770,328 @@ export function createWirePanel(opts = {}) {
           window.AI.onWirePanelSuccess();
         }
         closePanel();
-      }, 2000); // Give time to read the popup
+      }, 2000);
     }
     
-    console.log('Connected:', state.holding?.color, 'to port', portIndex, 'Input:', state.input);
+    console.log('Connected:', state.holding.color, 'to port', portIndex, 'Input:', state.input);
+  }
+
+  // Handle mistakes (new logic)
+  function handleMistake(message) {
+    console.log('Mistake:', message);
+    
+    if (!state.firstMistakeMade) {
+      // First mistake - trigger timeout
+      state.firstMistakeMade = true;
+      state.timeoutActive = true;
+      state.timeoutRemaining = state.timeoutDuration;
+      
+      // Show timeout message
+      showTimeoutMessage();
+      
+      // Start timeout countdown
+      const timeoutInterval = setInterval(() => {
+        state.timeoutRemaining--;
+        updateTimeoutMessage();
+        
+        if (state.timeoutRemaining <= 0) {
+          clearInterval(timeoutInterval);
+          endTimeout();
+        }
+      }, 1000);
+      
+      // Red flash and reset
+      updateStatusStrip('#ff0000', 0.8);
+      resetSingleConnection();
+      
+      // Flash fault LED during timeout
+      setFaultLED(0.8, true);
+      
+      // Play timeout sound
+      playSound('timeout');
+      
+      // Trigger error haptic feedback
+      triggerHapticFeedback('error');
+      
+    } else {
+      // Subsequent mistakes - immediate reset
+      updateStatusStrip('#ff0000', 0.8);
+      resetSingleConnection();
+      
+      // Brief fault LED flash
+      setFaultLED(0.6);
+      setTimeout(() => setFaultLED(0.1), 500);
+      
+      // Play error sound
+      playSound('error');
+      
+      // Trigger error haptic feedback
+      triggerHapticFeedback('error');
+    }
+    
+    if (window.AI) {
+      window.AI.onWirePanelFailure();
+    }
+  }
+
+  // Show timeout message
+  function showTimeoutMessage() {
+    const timeoutMsg = document.createElement('div');
+    timeoutMsg.id = 'timeoutMessage';
+    timeoutMsg.style.cssText = `
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ff4444;
+      color: white;
+      padding: 15px 30px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      z-index: 3000;
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+    `;
+    timeoutMsg.textContent = `System recalibrating... ${state.timeoutRemaining}s timeout.`;
+    document.body.appendChild(timeoutMsg);
+  }
+
+  // Update timeout message
+  function updateTimeoutMessage() {
+    const timeoutMsg = document.getElementById('timeoutMessage');
+    if (timeoutMsg) {
+      timeoutMsg.textContent = `System recalibrating... ${state.timeoutRemaining}s timeout.`;
+    }
+  }
+
+  // End timeout
+  function endTimeout() {
+    state.timeoutActive = false;
+    const timeoutMsg = document.getElementById('timeoutMessage');
+    if (timeoutMsg) {
+      timeoutMsg.remove();
+    }
+  }
+
+  // Reset single connection (instead of full reset)
+  function resetSingleConnection() {
+    // Remove the last (incorrect) connection
+    if (state.input.length > 0) {
+      const lastConnection = state.input[state.input.length - 1];
+      state.input.pop();
+      
+      // Reset the port
+      const portElement = document.querySelector(`[data-index="${lastConnection.port}"]`);
+      if (portElement) {
+        portElement.classList.remove('occupied');
+        portElement.style.background = '#6b6f74';
+        portElement.style.border = '3px solid #4c535a';
+        portElement.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+        portElement.textContent = lastConnection.port.toString();
+      }
+      
+      // Reset the source socket
+      const sourceSocket = document.querySelector(`[data-color="${lastConnection.color}"]`);
+      if (sourceSocket) {
+        sourceSocket.classList.remove('used');
+        sourceSocket.style.opacity = '1';
+        sourceSocket.style.background = '#6b6f74';
+        sourceSocket.textContent = sourceSocket.dataset.label;
+      }
+    }
+  }
+
+  // LED Control Functions
+  function updateLED(ledName, intensity, flicker = false) {
+    if (state.leds && state.leds[ledName]) {
+      const led = state.leds[ledName];
+      led.material.emissiveIntensity = intensity;
+      
+      if (flicker) {
+        // Add flickering effect
+        led.material.emissiveIntensity = intensity * (0.5 + Math.random() * 0.5);
+      }
+    }
+  }
+
+  function setPowerLED(intensity) {
+    updateLED('powerLed', intensity);
+  }
+
+  function setFaultLED(intensity, flicker = false) {
+    updateLED('faultLed', intensity, flicker);
+  }
+
+  function setMaintenanceLED(intensity) {
+    updateLED('maintenanceLed', intensity);
+  }
+
+  function resetAllLEDs() {
+    setPowerLED(0.1);
+    setFaultLED(0.1);
+    setMaintenanceLED(0.1);
+  }
+
+  // Audio System Functions
+  function initAudioSystem() {
+    try {
+      state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      createSoundEffects();
+    } catch (error) {
+      console.log('Audio not supported:', error);
+    }
+  }
+
+  function createSoundEffects() {
+    if (!state.audioContext) return;
+
+    // Create different sound effects using Web Audio API
+    state.sounds = {
+      dragStart: () => playTone(800, 0.1, 'sine'),      // High beep for drag start
+      dragEnd: () => playTone(400, 0.15, 'sine'),       // Lower beep for drag end
+      success: () => playTone(600, 0.3, 'sine'),        // Success tone
+      error: () => playTone(200, 0.4, 'sawtooth'),      // Error buzz
+      timeout: () => playTone(150, 0.5, 'square'),      // Timeout warning
+      connection: () => playTone(500, 0.2, 'triangle')  // Connection made
+    };
+  }
+
+  function playTone(frequency, duration, waveType = 'sine') {
+    if (!state.audioContext) return;
+
+    const oscillator = state.audioContext.createOscillator();
+    const gainNode = state.audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(state.audioContext.destination);
+
+    oscillator.frequency.setValueAtTime(frequency, state.audioContext.currentTime);
+    oscillator.type = waveType;
+
+    // Envelope for smooth sound
+    gainNode.gain.setValueAtTime(0, state.audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.1, state.audioContext.currentTime + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, state.audioContext.currentTime + duration);
+
+    oscillator.start(state.audioContext.currentTime);
+    oscillator.stop(state.audioContext.currentTime + duration);
+  }
+
+  function playSound(soundName) {
+    if (state.sounds && state.sounds[soundName]) {
+      state.sounds[soundName]();
+    }
+  }
+
+  // Keyboard Accessibility Functions
+  function handleKeyboardInput(e) {
+    if (state.timeoutActive) return;
+
+    switch(e.key) {
+      case 'Escape':
+        closePanel();
+        break;
+      case 'r':
+      case 'R':
+        resetPuzzle();
+        break;
+      case '1':
+      case '2':
+      case '3':
+      case '4':
+        // Connect to port (0-3)
+        const portIndex = parseInt(e.key) - 1;
+        const portElement = document.querySelector(`[data-index="${portIndex}"]`);
+        if (portElement && !portElement.classList.contains('occupied')) {
+          // Simulate connection with currently held wire
+          if (state.holding) {
+            handlePortConnection(portIndex, portElement);
+          }
+        }
+        break;
+      case 'a':
+      case 'A':
+        // Select wire A (Red)
+        selectWireByKeyboard('R');
+        break;
+      case 'b':
+      case 'B':
+        // Select wire B (Green)
+        selectWireByKeyboard('G');
+        break;
+      case 'c':
+      case 'C':
+        // Select wire C (Blue)
+        selectWireByKeyboard('B');
+        break;
+      case 'd':
+      case 'D':
+        // Select wire D (Yellow)
+        selectWireByKeyboard('Y');
+        break;
+    }
+  }
+
+  function selectWireByKeyboard(colorId) {
+    const socket = document.querySelector(`[data-color="${colorId}"]`);
+    if (socket && !socket.classList.contains('used') && !state.timeoutActive) {
+      // Simulate mouse down event
+      const colorData = {
+        id: colorId,
+        color: colorId,
+        name: socket.dataset.colorName
+      };
+      handleSocketMouseDown({ preventDefault: () => {} }, colorData, socket);
+    }
+  }
+
+  // Connection Preview Functions
+  function updateConnectionPreview(mouseX, mouseY) {
+    // Clear previous previews
+    clearConnectionPreview();
+    
+    // Find valid drop zones
+    const validPorts = getValidDropZones();
+    
+    validPorts.forEach(portIndex => {
+      const portElement = document.querySelector(`[data-index="${portIndex}"]`);
+      if (portElement) {
+        // Add preview highlight
+        portElement.style.border = '3px solid #00ff00';
+        portElement.style.boxShadow = '0 0 15px #00ff00';
+        portElement.style.transform = 'scale(1.1)';
+      }
+    });
+  }
+
+  function getValidDropZones() {
+    const expectedSlotIndex = state.input.length;
+    return [expectedSlotIndex]; // Only the next slot in sequence is valid
+  }
+
+  function clearConnectionPreview() {
+    document.querySelectorAll('.bottom-socket').forEach(socket => {
+      if (!socket.classList.contains('occupied')) {
+        socket.style.border = '3px solid #4c535a';
+        socket.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+        socket.style.transform = 'scale(1)';
+      }
+    });
+  }
+
+  // Haptic Feedback Functions
+  function triggerHapticFeedback(type = 'light') {
+    if ('vibrate' in navigator) {
+      const patterns = {
+        light: [50],           // Light tap
+        medium: [100],         // Medium tap
+        heavy: [200],         // Heavy tap
+        success: [100, 50, 100], // Success pattern
+        error: [200, 100, 200]   // Error pattern
+      };
+      
+      navigator.vibrate(patterns[type] || patterns.light);
+    }
   }
 
   function getColorForId(colorId) {
@@ -354,8 +1107,42 @@ export function createWirePanel(opts = {}) {
   function updateStatusStrip(color, intensity) {
     const statusStrip = document.getElementById('statusStrip');
     if (statusStrip) {
+      // Enhanced visual feedback
       statusStrip.style.background = color;
-      statusStrip.style.boxShadow = `0 0 10px ${color}`;
+      statusStrip.style.boxShadow = `0 0 ${20 * intensity}px ${color}`;
+      statusStrip.style.transition = 'all 0.3s ease';
+      
+      // Add pulsing effect for high intensity
+      if (intensity > 0.7) {
+        statusStrip.style.animation = `statusPulse 0.5s ease-in-out ${intensity > 0.9 ? '3' : '1'}`;
+        
+        // Add CSS animation if not already added
+        if (!document.getElementById('statusStripAnimation')) {
+          const style = document.createElement('style');
+          style.id = 'statusStripAnimation';
+          style.textContent = `
+            @keyframes statusPulse {
+              0% { transform: scaleY(1); opacity: 1; }
+              50% { transform: scaleY(1.2); opacity: 0.8; }
+              100% { transform: scaleY(1); opacity: 1; }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+      } else {
+        statusStrip.style.animation = 'none';
+      }
+      
+      // Reset to default after animation
+      if (intensity < 1.0) {
+        setTimeout(() => {
+          if (statusStrip) {
+            statusStrip.style.background = '#001122';
+            statusStrip.style.boxShadow = 'inset 0 0 5px rgba(0, 0, 0, 0.5)';
+            statusStrip.style.animation = 'none';
+          }
+        }, 1000);
+      }
     }
   }
 
@@ -426,52 +1213,29 @@ export function createWirePanel(opts = {}) {
     }, 3000);
   }
 
-  function triggerSparkEffect() {
-    // Red pulse on status strip
-    updateStatusStrip('#ff0000', 0.8);
-    state.sparkTimer = 0.5;
     
-    // Show validation popup for mistake
-    showValidationPopup('error', 'INCORRECT CONNECTION', 'The circuit sequence is wrong. All connections have been reset.');
-    
-    // Reset puzzle state
-    state.input = [];
-    state.holding = null;
-    state.solved = false;
-    
-    // Reset visual state
-    document.querySelectorAll('.top-socket').forEach(socket => {
-      socket.classList.remove('selected', 'used');
-      socket.style.opacity = '1';
-      socket.style.border = '3px solid #4c535a';
-      socket.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-    });
-    
-    document.querySelectorAll('.bottom-socket').forEach(socket => {
-      socket.classList.remove('occupied');
-      socket.style.background = '#6b6f74';
-      socket.style.border = '3px solid #4c535a';
-      socket.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-      socket.textContent = 'PORT';
-    });
-    
-    if (window.AI) {
-      window.AI.onWirePanelFailure();
-    }
-  }
-
   function resetPuzzle() {
     // Reset puzzle state
     state.input = [];
     state.holding = null;
     state.solved = false;
+    state.isDragging = false;
+    state.firstMistakeMade = false;
+    state.timeoutActive = false;
+    state.timeoutRemaining = 0;
+    
+    // Clean up any drag wire
+    removeDragWire();
     
     // Reset visual state
     document.querySelectorAll('.top-socket').forEach(socket => {
       socket.classList.remove('selected', 'used');
       socket.style.opacity = '1';
+      socket.style.background = '#6b6f74';
       socket.style.border = '3px solid #4c535a';
       socket.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+      socket.style.cursor = 'grab';
+      socket.textContent = socket.dataset.label; // Reset to abstract label
     });
     
     document.querySelectorAll('.bottom-socket').forEach(socket => {
@@ -479,11 +1243,20 @@ export function createWirePanel(opts = {}) {
       socket.style.background = '#6b6f74';
       socket.style.border = '3px solid #4c535a';
       socket.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-      socket.textContent = 'PORT';
+      socket.textContent = socket.dataset.index; // Show port number
     });
     
     // Reset status strip
     updateStatusStrip('#001122', 0.2);
+    
+    // Remove timeout message if exists
+    const timeoutMsg = document.getElementById('timeoutMessage');
+    if (timeoutMsg) {
+      timeoutMsg.remove();
+    }
+    
+    // Reset all LEDs
+    resetAllLEDs();
     
     console.log('Puzzle reset manually');
   }
@@ -491,6 +1264,10 @@ export function createWirePanel(opts = {}) {
   function openPanel() {
     const overlay = document.getElementById('wirePanelOverlay');
     if (overlay) {
+      // Safety cleanup: clear any existing stuck drag wires
+      console.log('=== PANEL OPEN - SAFETY CLEANUP ===');
+      forceCleanupDrag();
+      
       overlay.style.display = 'flex';
       state.isOpen = true;
       
@@ -504,12 +1281,30 @@ export function createWirePanel(opts = {}) {
       
       // Show cursor
       document.body.style.cursor = 'default';
+      
+      // Start shuffling animation after a brief delay
+      setTimeout(() => {
+        try {
+          createShufflingAnimation();
+        } catch (error) {
+          console.error('Error in shuffling animation:', error);
+        }
+      }, 500);
+      
+      // Turn on power LED dimly when panel opens
+      setPowerLED(0.3);
+      
+      // Initialize audio system
+      initAudioSystem();
     }
   }
 
   function closePanel() {
     const overlay = document.getElementById('wirePanelOverlay');
     if (overlay) {
+      // Always cleanup any stuck drag wires when closing
+      forceCleanupDrag();
+      
       overlay.style.display = 'none';
       state.isOpen = false;
       
@@ -519,6 +1314,175 @@ export function createWirePanel(opts = {}) {
       // Reset cursor
       document.body.style.cursor = 'auto';
     }
+  }
+
+  // Create industrial distribution box
+  function createDistributionBox() {
+    const group = new THREE.Group();
+    const textureLoader = new THREE.TextureLoader();
+    
+    // Load metal textures
+    const metalTextures = {
+      color: textureLoader.load('/textures/metal030/Metal030_2K-JPG_Color.jpg'),
+      normal: textureLoader.load('/textures/metal030/Metal030_2K-JPG_NormalDX.jpg'),
+      roughness: textureLoader.load('/textures/metal030/Metal030_2K-JPG_Roughness.jpg'),
+      metalness: textureLoader.load('/textures/metal030/Metal030_2K-JPG_Metalness.jpg')
+    };
+    
+    // Main distribution box body (deeper, more industrial)
+    const mainBoxGeometry = new THREE.BoxGeometry(2.2, 1.8, 0.4);
+    const mainBoxMaterial = new THREE.MeshStandardMaterial({
+      map: metalTextures.color,
+      normalMap: metalTextures.normal,
+      roughnessMap: metalTextures.roughness,
+      metalnessMap: metalTextures.metalness,
+      metalness: 0.8,
+      roughness: 0.3
+    });
+    const mainBox = new THREE.Mesh(mainBoxGeometry, mainBoxMaterial);
+    mainBox.position.set(0, 0, 0);
+    mainBox.castShadow = true;
+    mainBox.receiveShadow = true;
+    group.add(mainBox);
+    
+    // Front panel (removable cover)
+    const frontPanelGeometry = new THREE.BoxGeometry(2.0, 1.6, 0.05);
+    const frontPanelMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1a1a1a,
+      metalness: 0.9,
+      roughness: 0.2
+    });
+    const frontPanel = new THREE.Mesh(frontPanelGeometry, frontPanelMaterial);
+    frontPanel.position.set(0, 0, 0.225);
+    frontPanel.castShadow = true;
+    frontPanel.receiveShadow = true;
+    group.add(frontPanel);
+    
+    // Corner bolts/rivets
+    const boltGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.1, 8);
+    const boltMaterial = new THREE.MeshStandardMaterial({
+      color: 0x444444,
+      metalness: 0.9,
+      roughness: 0.1
+    });
+    
+    const boltPositions = [
+      [-0.9, 0.7, 0.25],   // Top-left
+      [0.9, 0.7, 0.25],    // Top-right
+      [-0.9, -0.7, 0.25],  // Bottom-left
+      [0.9, -0.7, 0.25]    // Bottom-right
+    ];
+    
+    boltPositions.forEach(pos => {
+      const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+      bolt.position.set(pos[0], pos[1], pos[2]);
+      bolt.rotation.z = Math.PI / 2;
+      bolt.castShadow = true;
+      bolt.receiveShadow = true;
+      group.add(bolt);
+    });
+    
+    // Status LEDs (replace single red octagon)
+    const ledGeometry = new THREE.SphereGeometry(0.08, 8, 6);
+    
+    const statusLeds = [
+      { color: 0x00ff00, emissive: 0x00ff00, position: [-0.3, 0.2, 0.26], name: 'powerLed' }, // Power LED (green)
+      { color: 0xff0000, emissive: 0xff0000, position: [0, 0.2, 0.26], name: 'faultLed' },    // Fault LED (red)
+      { color: 0xffff00, emissive: 0xffff00, position: [0.3, 0.2, 0.26], name: 'maintenanceLed' }   // Maintenance LED (yellow)
+    ];
+    
+    // Store LED references for dynamic control
+    state.leds = {};
+    
+    statusLeds.forEach(ledData => {
+      const ledMaterial = new THREE.MeshBasicMaterial({
+        color: ledData.color,
+        emissive: ledData.emissive,
+        emissiveIntensity: 0.1 // Start dim
+      });
+      const led = new THREE.Mesh(ledGeometry, ledMaterial);
+      led.position.set(ledData.position[0], ledData.position[1], ledData.position[2]);
+      led.name = ledData.name;
+      group.add(led);
+      
+      // Store reference for dynamic control
+      state.leds[ledData.name] = {
+        mesh: led,
+        material: ledMaterial,
+        originalColor: ledData.color,
+        originalEmissive: ledData.emissive
+      };
+    });
+    
+    // Warning labels
+    const labelGeometry = new THREE.PlaneGeometry(0.3, 0.15);
+    const labelMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 0.8
+    });
+    
+    const warningLabel = new THREE.Mesh(labelGeometry, labelMaterial);
+    warningLabel.position.set(0, -0.3, 0.26);
+    warningLabel.rotation.x = Math.PI / 2;
+    group.add(warningLabel);
+    
+    // Cable management holes
+    const cableHoleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.05, 12);
+    const cableHoleMaterial = new THREE.MeshStandardMaterial({
+      color: 0x000000,
+      metalness: 0.1,
+      roughness: 0.9
+    });
+    
+    const cableHolePositions = [
+      [-0.8, -0.8, 0.21],  // Bottom-left
+      [0.8, -0.8, 0.21]    // Bottom-right
+    ];
+    
+    cableHolePositions.forEach(pos => {
+      const cableHole = new THREE.Mesh(cableHoleGeometry, cableHoleMaterial);
+      cableHole.position.set(pos[0], pos[1], pos[2]);
+      cableHole.rotation.x = Math.PI / 2;
+      cableHole.castShadow = true;
+      cableHole.receiveShadow = true;
+      group.add(cableHole);
+    });
+    
+    // Ventilation grilles
+    const ventGeometry = new THREE.PlaneGeometry(0.4, 0.2);
+    const ventMaterial = new THREE.MeshStandardMaterial({
+      color: 0x333333,
+      transparent: true,
+      opacity: 0.7
+    });
+    
+    const ventPositions = [
+      [-0.6, 0.6, 0.21],   // Top-left vent
+      [0.6, 0.6, 0.21]      // Top-right vent
+    ];
+    
+    ventPositions.forEach(pos => {
+      const vent = new THREE.Mesh(ventGeometry, ventMaterial);
+      vent.position.set(pos[0], pos[1], pos[2]);
+      vent.rotation.x = Math.PI / 2;
+      group.add(vent);
+    });
+    
+    // Power switch/button
+    const switchGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.08, 12);
+    const switchMaterial = new THREE.MeshStandardMaterial({
+      color: 0x666666,
+      metalness: 0.8,
+      roughness: 0.2
+    });
+    const powerSwitch = new THREE.Mesh(switchGeometry, switchMaterial);
+    powerSwitch.position.set(0, -0.6, 0.26);
+    powerSwitch.castShadow = true;
+    powerSwitch.receiveShadow = true;
+    group.add(powerSwitch);
+    
+    return group;
   }
 
   // Create the popup UI
@@ -539,24 +1503,15 @@ export function createWirePanel(opts = {}) {
   fallbackPanel.userData = { type: 'wire-panel-trigger' };
   group.add(fallbackPanel);
   
-  // Create a simple rectangle instead of loading the GLB model
-  const boxGeometry = new THREE.BoxGeometry(2, 1.5, 0.2);
-  const boxMaterial = new THREE.MeshStandardMaterial({
-    color: 0x2a2a2a,
-    metalness: 0.1,
-    roughness: 0.8
-  });
-  const electricBox = new THREE.Mesh(boxGeometry, boxMaterial);
-  electricBox.position.set(0, 0, 0);
-  electricBox.castShadow = true;
-  electricBox.receiveShadow = true;
-  electricBox.userData = { type: 'wire-panel-trigger' };
+  // Create industrial distribution box
+  const distributionBox = createDistributionBox();
+  distributionBox.userData = { type: 'wire-panel-trigger' };
   
-  // Replace fallback panel with rectangle
+  // Replace fallback panel with distribution box
   group.remove(fallbackPanel);
-  group.add(electricBox);
+  group.add(distributionBox);
   
-  console.log('Electric box replaced with simple rectangle');
+  console.log('Electric box replaced with industrial distribution box');
 
   // Visual indicators removed - using proper 3D model instead
 
@@ -568,6 +1523,18 @@ export function createWirePanel(opts = {}) {
     
     if (state.sparkTimer > 0) {
       state.sparkTimer -= dt;
+    }
+    
+    // Handle timeout countdown
+    if (state.timeoutActive && state.timeoutRemaining > 0) {
+      state.timeoutRemaining -= dt;
+      if (state.timeoutRemaining <= 0) {
+        state.timeoutActive = false;
+        const timeoutMsg = document.getElementById('timeoutMessage');
+        if (timeoutMsg) {
+          timeoutMsg.remove();
+        }
+      }
     }
     
     // Performance optimization: LOD culling
@@ -596,6 +1563,19 @@ export function createWirePanel(opts = {}) {
     if (overlay && overlay.parentNode) {
       overlay.parentNode.removeChild(overlay);
     }
+    
+    // Clean up drag wire
+    removeDragWire();
+    
+    // Remove timeout message
+    const timeoutMsg = document.getElementById('timeoutMessage');
+    if (timeoutMsg) {
+      timeoutMsg.remove();
+    }
+    
+    // Remove global event listeners
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
   }
 
   return {
