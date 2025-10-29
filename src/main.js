@@ -27,6 +27,7 @@ import { LevelManager } from './game/levels/LevelManager.js';
 import { gameStore } from './state/gameStore.js';
 import { createFuturisticDoor } from './game/props/FuturisticDoor.js';
 import { MatrixSky } from './scene/MatrixSky.js';
+import { SecurityMonitor } from './ui/SecurityMonitor.js';
 
 // --- CHEAT CONSOLE SYSTEM ---
 function createCheatConsole() {
@@ -585,6 +586,14 @@ let minimap = null;
 // FPS Counter setup
 let fpsCounter = null;
 
+// Security Monitor setup
+let securityMonitor = null;
+
+// Function to update security monitor reference after recreation
+window.updateSecurityMonitorReference = (newMonitor) => {
+  securityMonitor = newMonitor;
+};
+
 // === Glasses vignette overlay (shader) ===
 const overlayScene = new THREE.Scene();
 const overlayCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -1080,6 +1089,10 @@ async function initGame() {
      // Initialize FPS counter
      fpsCounter = new FPSCounter();
     
+    // Initialize Security Monitor
+    securityMonitor = new SecurityMonitor(scene, renderer, gameState);
+    window.securityMonitor = securityMonitor; // Make globally accessible
+    
     // Update HUD with current bindings
     updateHUDInstructions();
     
@@ -1398,6 +1411,10 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyK') {
     if (wallCollisionManager.debugMode) {
       wallCollisionManager.clearDebug();
+      // Also hide security monitor debug box
+      if (window.securityMonitorCollisionDebug) {
+        window.securityMonitorCollisionDebug.visible = false;
+      }
       console.log('[Main] Wall collision debug disabled');
       AI.say('Wall collision debug disabled');
     } else {
@@ -1416,8 +1433,14 @@ window.addEventListener('keydown', (e) => {
       console.log(`[Main] Forcing collision setup for room: ${forceRoom}`);
       setupRoomCollisions(forceRoom);
       wallCollisionManager.enableDebug(scene);
+      
+      // Also show security monitor debug box
+      if (window.securityMonitorCollisionDebug) {
+        window.securityMonitorCollisionDebug.visible = true;
+      }
+      
       console.log('[Main] Wall collision debug enabled (press K to toggle)');
-      AI.say('Wall collision debug enabled - Red = walls, Green = hallways, Yellow = hallway walls, Blue = objects, Purple = doors');
+      AI.say('Wall collision debug enabled - Red = walls, Green = hallways, Yellow = hallway walls, Blue = objects, Purple = doors, Green wireframe = security monitor');
     }
   }
    
@@ -1925,6 +1948,14 @@ function animate(currentTime) {
    if (fpsCounter) {
      fpsCounter.update();
    }
+  
+  // Update Security Monitor
+  if (securityMonitor) {
+    securityMonitor.update(deltaTime);
+  } else if (window.securityMonitor) {
+    // Update the global security monitor if local reference is null (after recreation)
+    window.securityMonitor.update(deltaTime);
+  }
   
   // Update Level Manager
   levelManager.update(deltaTime);

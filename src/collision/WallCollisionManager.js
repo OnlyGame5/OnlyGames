@@ -196,7 +196,6 @@ export class WallCollisionManager {
     const doorObject = this.findDoorById(doorObj.id);
     if (!doorObject) {
       // If door not found, treat as solid collision
-      console.log(`[Debug] Door object not found in scene: ${doorObj.id}`);
       return this.isAABBOverlap(playerMin, playerMax, doorObj.min, doorObj.max);
     }
 
