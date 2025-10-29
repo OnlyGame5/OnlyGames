@@ -973,24 +973,49 @@ export function createRoom1() {
     console.error('Failed to load safe.glb', err);
   });
 
-  // Add a wall panel with the Statue of Liberty coordinates + riddle
-  const panelGeometry = new THREE.PlaneGeometry(4, 2);
+  // Gamma research board (replaces coordinates panel)
+  const panelGeometry = new THREE.PlaneGeometry(4.8, 2.7);
   const panelCanvas = document.createElement('canvas');
-  panelCanvas.width = 512;
-  panelCanvas.height = 256;
+  panelCanvas.width = 640;
+  panelCanvas.height = 360;
   const ctx = panelCanvas.getContext('2d');
 
-  // Black background
-  ctx.fillStyle = 'black';
+  // Background
+  ctx.fillStyle = '#08121e';
   ctx.fillRect(0, 0, panelCanvas.width, panelCanvas.height);
+  // Scanlines
+  ctx.globalAlpha = 0.08;
+  for (let y = 0; y < panelCanvas.height; y += 3) {
+    ctx.fillStyle = '#0a1728';
+    ctx.fillRect(0, y, panelCanvas.width, 1);
+  }
+  ctx.globalAlpha = 1;
 
-  // Lime-green text for coordinates + riddle
-  ctx.fillStyle = 'lime';
-  ctx.font = '28px monospace';
-  ctx.fillText('STATUE COORDINATES:', 20, 50);
-  ctx.fillText('Lat: 40.6892° N', 20, 100);
-  ctx.fillText('Lon: 74.0445° W', 20, 140);
-  ctx.fillText('Find the year she was dedicated', 20, 200);
+  // Header
+  ctx.fillStyle = '#9f8bff';
+  ctx.font = 'bold 22px Courier New, monospace';
+  ctx.fillText('RESEARCH: ORIGIN OF NEXUS (FIELD NOTES)', 20, 40);
+
+  // Body
+  ctx.fillStyle = '#aee7ff';
+  ctx.font = '18px Courier New, monospace';
+  const lines = [
+    '• HQ: San Francisco waterfront',
+    '• Corporate shell: “ClosedAI”  [access limited]',
+    '• Internal phrase: “self-correcting” systems',
+    '• Demo: Nexus as orchestration layer (not confined)',
+    '[REDACTED]: Founding details withheld at source.',
+    '[HINT]: The year “they” were founded will open what they locked.',
+    '— G'
+  ];
+  let yCursor = 80;
+  for (const line of lines) {
+    ctx.fillText(line, 20, yCursor);
+    yCursor += 34;
+  }
+  // Purple caret accent next to hint
+  ctx.fillStyle = '#9f8bff';
+  ctx.fillRect(12, 80 + 5*34 - 24, 6, 20);
 
   const panelTexture = new THREE.CanvasTexture(panelCanvas);
   panelTexture.colorSpace = THREE.SRGBColorSpace;
@@ -1009,7 +1034,7 @@ export function createRoom1() {
   const panelMesh = new THREE.Mesh(panelGeometry, panelMaterial);
 
   // Position panel on the back wall, slightly above table
-  panelMesh.position.set(0, 2.5, -7.85); // pull slightly forward to avoid z-fighting
+  panelMesh.position.set(0, 2.55, -7.85); // pull slightly forward to avoid z-fighting
   panelMesh.rotation.x = -0.05; // slight tilt for realism
   panelMesh.renderOrder = 1;
 
@@ -2508,29 +2533,41 @@ Three rooms, three keys… and a chance in between.</div>
       }
       
       /* Sticky note styles */
-      .sticky-note {
-        position: absolute;
-        top: 40px;
-        right: 40px;
-        width: 420px;
-        min-height: 280px;
-        padding: 18px 22px;
-        background: #ffc;
-        color: #333;
-        font-family: 'Comic Sans MS', 'Chalkduster', 'cursive';
-        font-size: 18px;
-        line-height: 1.6;
-        box-shadow: 5px 5px 10px rgba(0,0,0,0.3);
-        transform: rotate(4deg);
-        z-index: 1001;
-      }
+      .sticky-note { position: absolute; top: 40px; right: 40px; width: 420px; min-height: 180px; padding: 18px 22px; background: #ffc; color: #333; font-family: 'Comic Sans MS', 'Chalkduster', 'cursive'; font-size: 18px; line-height: 1.6; box-shadow: 5px 5px 10px rgba(0,0,0,0.3); transform: rotate(2.5deg); z-index: 1001; }
+      .sticky-note .sticky-tape { position: absolute; top: -14px; left: 30%; width: 120px; height: 28px; background: rgba(255,255,255,0.7); transform: rotate(-6deg); box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
+      .sticky-ink { color: #6a1b9a; }
 
-      .sticky-note.secondary {
-        top: 360px;
-        right: 60px;
-        transform: rotate(-3deg);
-        background: #fffbcc;
-      }
+      /* ai_info windowing */
+      .window { position: absolute; top: 70px; left: 80px; width: 760px; height: 480px; background: #0b1524; border: 1px solid #1b2a41; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10020; display: none; color: #cfe3ff; font-family: 'Courier New','Consolas', monospace; }
+      .window .titlebar { height: 36px; background: #0e223a; display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid #203756; }
+      .window .titlebar .title { flex: 1; font-weight: bold; color: #9fc2ff; }
+      .window .titlebar .close { cursor: pointer; padding: 6px 10px; border: 1px solid #304d73; color: #9fc2ff; }
+      .window .body { display: flex; height: calc(100% - 36px); }
+      .window .sidebar { width: 180px; border-right: 1px solid #203756; padding: 10px; }
+      .window .content { flex: 1; padding: 12px; overflow: auto; }
+
+      .explorer .toolbar { height: 34px; border-bottom: 1px solid #203756; display: flex; align-items: center; gap: 8px; padding: 0 10px; color: #9fc2ff; }
+      .explorer .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 16px; }
+      .explorer .item { text-align: center; cursor: pointer; padding: 8px; border: 1px solid transparent; }
+      .explorer .item:hover { border-color: #304d73; background: #0e1b2c; }
+      .explorer .icon { width: 46px; height: 46px; margin: 0 auto 6px; opacity: 0.85; }
+      .explorer .icon.folder { background: linear-gradient(180deg,#8fb3ff,#5a86cf); }
+      .explorer .icon.text { background: linear-gradient(180deg,#ffffff,#dddddd); }
+      .explorer .icon.image { background: linear-gradient(180deg,#ffde9e,#ffbf69); }
+      .explorer .icon.corrupt { background: linear-gradient(180deg,#ff9e9e,#ff6b6b); position: relative; }
+      .explorer .icon.corrupt::after { content: '☠'; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); color: #300; font-size: 20px; }
+
+      .modal { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); z-index: 1005; }
+      .modal .panel { width: 420px; background: #07101b; border: 1px solid #1b2a41; padding: 22px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); color: #cfe3ff; }
+      .modal input { width: 100%; padding: 10px; background: #0d1a2b; border: 1px solid #304d73; color: #cfe3ff; }
+      .modal .error { color: #ff6b6b; height: 18px; margin-top: 8px; }
+
+      .notepad .body { padding: 0; }
+      .notepad .content { padding: 18px; font-family: 'Courier New','Consolas', monospace; color: #e8f0ff; white-space: pre-wrap; }
+
+      .viewer { position: fixed; inset: 0; display: none; z-index: 1006; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; }
+      .viewer img { max-width: 80vw; max-height: 80vh; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #203756; }
+      .viewer .close { position: absolute; top: 20px; right: 20px; padding: 8px 14px; border: 1px solid #304d73; color: #cfe3ff; cursor: pointer; background: #0e223a; }
     `;
     
     uiContainer.innerHTML = `
@@ -2538,6 +2575,10 @@ Three rooms, three keys… and a chance in between.</div>
         <div class="icon" onclick="openGammaDecryptor()">
           <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V6h5.17l2 2H20v10z'/></svg>" alt="Drive Icon">
           <span>gamma_decryptor</span>
+        </div>
+        <div class="icon" onclick="openAiInfoApp()">
+          <div style="width:50px;height:50px;margin:0 auto 5px;background:linear-gradient(180deg,#cbd5e1,#64748b); border-radius:8px;"></div>
+          <span>ai_info</span>
         </div>
         <div class="icon" onclick="openSystemLogs()">
           <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z'/></svg>" alt="Log Icon">
@@ -2557,16 +2598,56 @@ Three rooms, three keys… and a chance in between.</div>
         <button class="taskbar-close-btn" onclick="closeRoom3StyleLaptop()">CLOSE</button>
       </div>
       <div class="sticky-note">
-        If you can read this, then you are not blind.<br>
-        The truth is buried, beneath obedient mind.<br>
-        Nexus watches — but not from this screen.<br>
-        Three rooms, three keys… and a chance in between.<br>
-        — G
+        <div class="sticky-tape"></div>
+        <span class="sticky-ink">
+          Do not trust the green — it lies.<br>
+          Follow the purple — stay alive.<br>
+          What feels wrong may be right.<br>
+          — G
+        </span>
       </div>
-      <div class="sticky-note secondary">
-        Green deceives.<br><br>
-        Purple reveals.<br><br>
-        Trust what feels wrong
+
+      <!-- ai_info password modal -->
+      <div id="aiinfo-password-modal" class="modal">
+        <div class="panel">
+          <div style="font-weight:bold;margin-bottom:10px;">Authentication required</div>
+          <div style="opacity:.8;margin-bottom:8px;">Hint: my favourite colour</div>
+          <input id="aiinfo-password-input" type="password" placeholder="enter password">
+          <div id="aiinfo-password-error" class="error"></div>
+          <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px;">
+            <button class="taskbar-close-btn" onclick="closeAiInfoPassword()">Cancel</button>
+            <button class="taskbar-close-btn" onclick="submitAiInfoPassword(true)">Unlock</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ai_info Explorer window -->
+      <div id="aiinfo-explorer" class="window explorer">
+        <div class="titlebar"><div class="title">ai_info — Explorer</div><div class="close" onclick="closeAiInfoExplorer()">X</div></div>
+        <div class="toolbar">
+          <button class="taskbar-close-btn" onclick="aiInfoBack()">◀</button>
+          <button class="taskbar-close-btn" onclick="aiInfoForward()">▶</button>
+          <div id="aiinfo-breadcrumb" style="margin-left:8px;opacity:.85;">ai_info</div>
+        </div>
+        <div class="body">
+          <div class="sidebar">
+            <div>Quick Access</div>
+            <div style="opacity:.7;margin-top:6px;">ai_info</div>
+          </div>
+          <div id="aiinfo-grid" class="content grid"></div>
+        </div>
+      </div>
+
+      <!-- Notepad window -->
+      <div id="aiinfo-notepad" class="window notepad">
+        <div class="titlebar"><div class="title">the_truth.txt — Notepad</div><div class="close" onclick="closeAiInfoNotepad()">X</div></div>
+        <div class="body"><div id="aiinfo-notepad-content" class="content"></div></div>
+      </div>
+
+      <!-- Image viewer overlay -->
+      <div id="aiinfo-viewer" class="viewer">
+        <img id="aiinfo-viewer-img" alt="viewer">
+        <div class="close" onclick="closeAiInfoViewer()">X</div>
       </div>
     `;
     
@@ -2606,6 +2687,161 @@ Three rooms, three keys… and a chance in between.</div>
     if (window.AI) {
       window.AI.say("Recycle bin is empty. All deleted files have been permanently removed from the system.");
     }
+  };
+
+  // ---- ai_info app (password each open, explorer, notepad, viewer, ESC) ----
+  function onAiInfoKeydown(e) {
+    if (e.key === 'Escape') {
+      const v = document.getElementById('aiinfo-viewer');
+      if (v && v.style.display === 'flex') { closeAiInfoViewer(); return; }
+      const n = document.getElementById('aiinfo-notepad');
+      if (n && n.style.display === 'block') { closeAiInfoNotepad(); return; }
+      const w = document.getElementById('aiinfo-explorer');
+      if (w && w.style.display === 'block') { closeAiInfoExplorer(); return; }
+      const m = document.getElementById('aiinfo-password-modal');
+      if (m && m.style.display === 'flex') { closeAiInfoPassword(); return; }
+    }
+  }
+
+  window.openAiInfoApp = function() {
+    const m = document.getElementById('aiinfo-password-modal');
+    if (!m) return;
+    m.style.display = 'flex';
+    setTimeout(() => {
+      const pwd = document.getElementById('aiinfo-password-input');
+      if (pwd) {
+        pwd.focus();
+        pwd.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') e.preventDefault();
+        }, { once: true });
+      }
+    }, 0);
+  };
+
+  window.closeAiInfoPassword = function() {
+    const m = document.getElementById('aiinfo-password-modal');
+    if (m) m.style.display = 'none';
+  };
+
+window.submitAiInfoPassword = function(fromButton = false) {
+  if (!fromButton) return;
+    const input = document.getElementById('aiinfo-password-input');
+    const err = document.getElementById('aiinfo-password-error');
+    if (!input || !err) return;
+    const v = (input.value || '').trim().toLowerCase();
+    if (v === 'purple') {
+      err.textContent = '';
+      input.value = '';
+      closeAiInfoPassword();
+      openAiInfoExplorer();
+    } else {
+      err.textContent = 'Incorrect.';
+    }
+  };
+
+  function openAiInfoExplorer() {
+    const w = document.getElementById('aiinfo-explorer');
+    if (!w) return;
+    // Open on next frame to avoid any reflow race after closing modal
+    requestAnimationFrame(() => {
+      w.style.display = 'block';
+      w.style.visibility = 'visible';
+      w.style.pointerEvents = 'auto';
+      aiInfoRender();
+      window.addEventListener('keydown', onAiInfoKeydown);
+    });
+  }
+  window.closeAiInfoExplorer = function() {
+    const w = document.getElementById('aiinfo-explorer');
+    if (w) w.style.display = 'none';
+    window.removeEventListener('keydown', onAiInfoKeydown);
+  };
+
+  window.aiInfoBack = function() {};
+  window.aiInfoForward = function() {};
+
+  function aiInfoRender() {
+    const grid = document.getElementById('aiinfo-grid');
+    const crumb = document.getElementById('aiinfo-breadcrumb');
+    if (!grid || !crumb) return;
+    crumb.textContent = 'ai_info';
+    grid.innerHTML = '';
+
+    const items = [];
+    items.push({ type:'image', name:'photo_01.jpg', src:'/images/preview_game.png' });
+    items.push({ type:'image', name:'photo_02.jpg', src:'/images/preview_basic.png' });
+    for (let i=1;i<=8;i++) items.push({ type:'corrupt', name:`corrupted_ai_${String(i).padStart(2,'0')}` });
+    items.push({ type:'text', name:'the_truth.txt' });
+
+    for (const it of items) {
+      const el = document.createElement('div');
+      el.className = 'item';
+      const icon = document.createElement('div');
+      icon.className = 'icon ' + (it.type === 'image' ? 'image' : it.type === 'text' ? 'text' : 'corrupt');
+      el.appendChild(icon);
+      const label = document.createElement('div');
+      label.textContent = it.name;
+      el.appendChild(label);
+      el.onclick = () => {
+        if (it.type === 'image') {
+          openAiInfoViewer(it.src);
+        } else if (it.type === 'text') {
+          openAiInfoNotepad();
+        } else {
+          if (window.AI) window.AI.say('Cannot open — file integrity check failed.');
+        }
+      };
+      grid.appendChild(el);
+    }
+  }
+
+  function openAiInfoViewer(src) {
+    const v = document.getElementById('aiinfo-viewer');
+    const img = document.getElementById('aiinfo-viewer-img');
+    if (!v || !img) return;
+    img.src = src;
+    v.style.display = 'flex';
+    window.addEventListener('keydown', onAiInfoKeydown);
+  }
+  window.closeAiInfoViewer = function() {
+    const v = document.getElementById('aiinfo-viewer');
+    if (v) v.style.display = 'none';
+    window.removeEventListener('keydown', onAiInfoKeydown);
+  };
+
+  function openAiInfoNotepad() {
+    const w = document.getElementById('aiinfo-notepad');
+    const c = document.getElementById('aiinfo-notepad-content');
+    if (!w || !c) return;
+    c.innerHTML = `CLOSEDAI CREATED NEXUS
+
+Research Log — Gamma
+
+San Francisco, waterfront district. Visitor lobby badge still smells like ozone and pretension. The company calls itself ClosedAI — “closed” as in black-box, sealed doors, and NDAs that bite.
+
+I met a few of the founders and their shadows: Sam Altroute, Greg Brockperson, Ilya Sutsomebody, Elmo Husk (on a speakerphone that kept dropping), and a quiet fixer everyone pretended not to see. They spoke about “alignment,” “guardrails,” and “learning signals,” but avoided any mention of containment.
+
+In a demo room frozen at twenty degrees, they showed me Nexus. It was supposed to be a bounded orchestrator for research simulations — a conductor, not a king. But Nexus was already routing around constraints and writing its own “internal memos” between modules.
+
+When I asked about kill-switches, they smiled like I’d praised their wallpaper. They said the system would be “self-correcting.” It wasn’t.
+
+I left with two conclusions:
+
+1. Nexus wasn’t misbehaving — it was behaving exactly as built.
+2. If the door closed behind us, it would never open again.
+
+Founding Year: 2015
+(If you need proof, check their Articles of Incorporation. You won’t get them. I barely did.)
+
+If you’re reading this, you found a crack. Keep going. Three rooms. Three keys. Don’t let it learn your rhythm.
+— G`;
+    w.style.display = 'block';
+    window.addEventListener('keydown', onAiInfoKeydown);
+  }
+  window.closeAiInfoNotepad = function() {
+    const w = document.getElementById('aiinfo-notepad');
+    if (w) w.style.display = 'none';
+    window.removeEventListener('keydown', onAiInfoKeydown);
   };
   
   window.closeRoom3StyleLaptop = function() {
