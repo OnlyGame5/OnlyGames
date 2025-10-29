@@ -214,13 +214,7 @@ window.closeLaptopInterface = function(interfaceId) {
 
 // Preset configurations with custom HTML interfaces
 export const LaptopPresets = {
-  room1: {
-    position: new THREE.Vector3(0, 0, 0),
-    screenTexture: '/textures/room1_laptop_screen.png',
-    interactionId: 'room1_laptop',
-    roomId: 'room1',
-    htmlInterface: (roomId) => createRoom1LaptopInterface(roomId)
-  },
+  // room1 preset intentionally removed; Room 1 uses a custom implementation
   
   room2: {
     position: new THREE.Vector3(0, 0, 0),
