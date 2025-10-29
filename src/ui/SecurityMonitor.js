@@ -325,43 +325,19 @@ export class SecurityMonitor {
   }
   
   removeLaptopsFromClone(roomClone) {
-    // For room 2, only remove the green pedestal parts, keep the laptop workstation visible
-    // For room 4, remove the entire laptop (pedestal + workstation)
-    
+    // Recursively traverse the cloned room and remove any laptops
     const objectsToRemove = [];
     
     roomClone.traverse((child) => {
       if (child.name === 'reusable-laptop') {
-        // Check if this is room 2 or room 4
-        const roomId = child.userData?.roomId;
-        
-        if (roomId === 'room2') {
-          // For room 2, only remove the pedestal parts (green glowing cylinders)
-          // Keep the laptop workstation visible
-          const pedestalParts = [];
-          child.traverse((grandChild) => {
-            if (grandChild.geometry && grandChild.geometry.type === 'CylinderGeometry') {
-              // Check if it has green emissive material
-              if (grandChild.material) {
-                const mat = Array.isArray(grandChild.material) ? grandChild.material[0] : grandChild.material;
-                if (mat.emissive && mat.emissive.getHex && mat.emissive.getHex() === 0x00ff88) {
-                  pedestalParts.push(grandChild);
-                }
-              }
-            }
-          });
-          objectsToRemove.push(...pedestalParts);
-        } else {
-          // For room 4 and other rooms, remove the entire laptop
-          objectsToRemove.push(child);
-        }
+        objectsToRemove.push(child);
       }
     });
     
-    // Remove the objects from their parent groups
-    objectsToRemove.forEach(obj => {
-      if (obj.parent) {
-        obj.parent.remove(obj);
+    // Remove the laptops from their parent groups
+    objectsToRemove.forEach(laptop => {
+      if (laptop.parent) {
+        laptop.parent.remove(laptop);
       }
     });
   }
