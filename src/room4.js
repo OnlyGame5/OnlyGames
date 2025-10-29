@@ -68,8 +68,8 @@ export function createRoom4() {
   floor.name = 'room4-floor';
   group.add(floor);
 
-  // Wall material matching Room 3 (West room) - grayish with metallic properties
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xbbc1c9, metalness: 0.6, roughness: 0.35, side: THREE.DoubleSide });
+  // Wall material - shiny black with metallic properties
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.9, roughness: 0.1, side: THREE.DoubleSide });
 
   // Back wall (North) - Solid wall spanning full width
   const backWall = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.2), wallMat);
@@ -156,7 +156,8 @@ export function createRoom4() {
   console.log('Creating NEXUS panel...');
   const nexusPanel = new NexusPanel();
   console.log('NEXUS panel created:', nexusPanel);
-  nexusPanel.group.position.set(0, 1, -8.8); // Position slightly in front of north wall
+  // Position at top of wall: screen is 5 units tall, so center at y=1.5 makes top edge at y=4 (wall top)
+  nexusPanel.group.position.set(0, 1.5, -8.8); // Position at top of wall, slightly in front of north wall
   nexusPanel.group.rotation.y = 0; // Static - faces south (toward player)
   nexusPanel.mount(group);
   console.log('NEXUS panel mounted to group');
@@ -165,6 +166,100 @@ export function createRoom4() {
   
   // Make nexusPanel globally accessible for laptop interface
   window.room4NexusPanel = nexusPanel;
+
+  // Load decoder panel 3D model
+  const gltfLoader = new GLTFLoader();
+  let decoderPanelModel = null;
+  
+  gltfLoader.load('/models/room4_decoder_panel.glb', (gltf) => {
+    console.log('Decoder panel model loaded:', gltf);
+    decoderPanelModel = gltf.scene;
+    decoderPanelModel.name = 'room4-decoder-panel';
+    
+    // Apply textures from decoder-panel folder
+    // The GLTFLoader may have already loaded embedded textures, but we'll apply our custom ones
+    const textureLoader = new THREE.TextureLoader();
+    
+    decoderPanelModel.traverse((child) => {
+      if (child.isMesh) {
+        // Enable shadows
+        child.castShadow = true;
+        child.receiveShadow = true;
+        
+        // Apply custom textures from decoder-panel folder
+        if (child.material) {
+          // If material is an array, handle each material
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          
+          materials.forEach((material, index) => {
+            if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
+              // Load and apply textures from decoder-panel folder
+              // gltf_embedded_1.jpeg - likely the main color/diffuse map
+              const colorTexture = textureLoader.load('/textures/decoder-panel/gltf_embedded_1.jpeg');
+              colorTexture.flipY = false; // GLTF textures are typically not flipped
+              material.map = colorTexture;
+              
+              // gltf_embedded_2.jpeg - could be normal, roughness, or other map
+              const texture2 = textureLoader.load('/textures/decoder-panel/gltf_embedded_2.jpeg');
+              texture2.flipY = false;
+              // Try as normal map first
+              material.normalMap = texture2;
+              
+              // Apply channel-packed textures if available (B and G channels)
+              // These might be roughness/metallic or other PBR maps
+              const channelBTexture = textureLoader.load('/textures/decoder-panel/gltf_embedded_0@channels=B.jpeg');
+              channelBTexture.flipY = false;
+              const channelGTexture = textureLoader.load('/textures/decoder-panel/gltf_embedded_0@channels=G.jpeg');
+              channelGTexture.flipY = false;
+              
+              // Configure texture properties
+              [colorTexture, texture2, channelBTexture, channelGTexture].forEach(texture => {
+                if (texture) {
+                  texture.wrapS = THREE.RepeatWrapping;
+                  texture.wrapT = THREE.RepeatWrapping;
+                  texture.anisotropy = 4;
+                }
+              });
+              
+              // Enhance material properties for shiny black appearance
+              material.metalness = 0.9;
+              material.roughness = 0.1;
+              material.needsUpdate = true;
+            }
+          });
+        }
+      }
+    });
+    
+    // Position the panel directly in front of NexusPanel, below the screen
+    // Screen extends from y=-1.0 to y=4.0, so position panel below the screen
+    // Place it slightly in front of the NexusPanel (z=-8.8) but behind the wall (z=-9)
+    // Move up on y-axis so bottom of panel sits on floor (y=0)
+    decoderPanelModel.rotation.y = Math.PI / 2 + Math.PI; // Rotate 180° clockwise from current to face the room
+    decoderPanelModel.scale.set(3.75, 3.75, 3.75); // Further increased size
+    // Position panel - adjust y upward so bottom sits on floor
+    // With scale 5.0, estimate half-height and move panel up accordingly
+    decoderPanelModel.position.set(0, 1.0, -8.6); // Moved up so bottom sits on floor
+    
+    // Add user data for interaction
+    decoderPanelModel.userData = {
+      type: 'interactable',
+      id: 'room4-decoder-panel',
+      interact: () => {
+        // Trigger binary decoder UI interaction
+        if (nexusPanel && typeof nexusPanel.show === 'function') {
+          nexusPanel.show();
+        }
+      }
+    };
+    
+    group.add(decoderPanelModel);
+    console.log('Decoder panel model added to room');
+  }, (progress) => {
+    console.log('Loading decoder panel model...', (progress.loaded / progress.total * 100) + '%');
+  }, (error) => {
+    console.error('Error loading decoder panel model:', error);
+  });
 
   // Remove any leftover lights
   removeExistingLights(group);
@@ -218,7 +313,7 @@ export function createRoom4() {
   });
   const beamMesh = new THREE.Mesh(beamGeometry, beamMaterial);
   // Position cylinder so it extends from floor (y=0) to ceiling (y=4), matching wall height
-  beamMesh.position.set(0, 2, -3); // Center at y=2 (same as walls) - extends from y=0 to y=4
+  beamMesh.position.set(0, 2, 0); // Center at y=2 (same as walls) - extends from y=0 to y=4
   beamMesh.rotation.x = 0; // Cylinder is vertical by default
   beamMesh.name = 'holographic-beam';
   group.add(beamMesh);
@@ -239,7 +334,7 @@ export function createRoom4() {
     
     positions[i3] = Math.cos(angle) * radius;
     positions[i3 + 1] = height;
-    positions[i3 + 2] = -3 + Math.sin(angle) * radius;
+    positions[i3 + 2] = Math.sin(angle) * radius;
     
     // Green color for all particles
     colors[i3] = 0.0; // R
@@ -265,22 +360,22 @@ export function createRoom4() {
 
   // Add focused lighting on the laptop area for glow effect
   const laptopLight = new THREE.PointLight(0x00ff88, 1.5, 18);
-  laptopLight.position.set(0, 2, -3);
+  laptopLight.position.set(0, 2, 0);
   laptopLight.name = 'laptop-light';
   laptopLight.castShadow = false;
   group.add(laptopLight);
 
   // Add a subtle rim light for the laptop pedestal/base glow
   const rimLight = new THREE.PointLight(0x00ff88, 0.8, 10);
-  rimLight.position.set(0, 1, -2);
+  rimLight.position.set(0, 1, 1);
   rimLight.name = 'rim-light';
   rimLight.castShadow = false;
   group.add(rimLight);
 
   // Add a holographic green spot light beaming from the skybox
   const spotLight = new THREE.SpotLight(0x00ff88, 4.0, 30, Math.PI / 8, 0.05, 0.3);
-  spotLight.position.set(0, 10, -1);
-  spotLight.target.position.set(0, 0, -3);
+  spotLight.position.set(0, 10, 2);
+  spotLight.target.position.set(0, 0, 0);
   spotLight.castShadow = false;
   spotLight.name = 'holographic-spotlight';
   group.add(spotLight);
@@ -289,7 +384,7 @@ export function createRoom4() {
   // Add laptop to Room 4
   const laptop = createReusableLaptop({
     ...LaptopPresets.room4,
-    position: new THREE.Vector3(0, 0, -3), // Position near the back wall, center
+    position: new THREE.Vector3(0, 0, 0), // Position at center of room
     rotation: 0 // Face towards the front of the room
   });
   group.add(laptop);
@@ -471,7 +566,25 @@ export function createRoom4() {
     handleEKeyInteraction: (player) => {
       console.log('Room 4 E-key handler called with player:', player?.position);
       
-      // Check laptop interaction first
+      // Check decoder panel interaction first (more important than laptop)
+      const decoderPanel = group.getObjectByName('room4-decoder-panel');
+      if (decoderPanel && player && player.position) {
+        const panelWorldPos = new THREE.Vector3();
+        decoderPanel.getWorldPosition(panelWorldPos);
+        const distanceToPanel = player.position.distanceTo(panelWorldPos);
+        
+        console.log('Decoder panel distance:', distanceToPanel, 'threshold: 3.0');
+        
+        if (distanceToPanel < 3.0) {
+          console.log('Decoder panel interaction handled');
+          if (decoderPanel.userData && decoderPanel.userData.interact) {
+            decoderPanel.userData.interact();
+          }
+          return true;
+        }
+      }
+      
+      // Check laptop interaction
       const laptop = group.getObjectByName('reusable-laptop');
       if (laptop && player && player.position) {
         const laptopWorldPos = new THREE.Vector3();
