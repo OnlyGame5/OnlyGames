@@ -13,7 +13,7 @@ import {
 import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling, makeSolarPanelWall, makeTiles002Floor } from './materials/room1Materials.js';
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
-import { createReusableLaptop, LaptopPresets } from './components/ReusableLaptop.js';
+
 
 export function createRoom1() {
   const group = new THREE.Group();
@@ -2301,21 +2301,13 @@ export function createRoom1() {
     document.body.classList.add('laptop-ui-active');
   }
 
-  // Working laptop interface (existing functionality)
+  // Working laptop interface opens directly to desktop UI
   function showWorkingLaptopInterface(interfaceId) {
     // Mute Nexus while laptop UI is open
     if (window.AI && window.AI.mute) {
       window.AI.mute();
     }
-    
-    // Show Gamma message on first boot
-    if (!state.gammaMessageShown) {
-      state.gammaMessageShown = true;
-      showGammaMessage(interfaceId);
-      return;
-    }
-    
-    // Show normal laptop interface
+    // Always open the normal desktop interface (no modal)
     showNormalLaptopInterface(interfaceId);
   }
   
@@ -2520,16 +2512,24 @@ Three rooms, three keys… and a chance in between.</div>
         position: absolute;
         top: 40px;
         right: 40px;
-        width: 200px;
-        height: 150px;
-        padding: 15px;
+        width: 420px;
+        min-height: 280px;
+        padding: 18px 22px;
         background: #ffc;
         color: #333;
         font-family: 'Comic Sans MS', 'Chalkduster', 'cursive';
-        font-size: 16px;
+        font-size: 18px;
+        line-height: 1.6;
         box-shadow: 5px 5px 10px rgba(0,0,0,0.3);
         transform: rotate(4deg);
         z-index: 1001;
+      }
+
+      .sticky-note.secondary {
+        top: 360px;
+        right: 60px;
+        transform: rotate(-3deg);
+        background: #fffbcc;
       }
     `;
     
@@ -2557,7 +2557,16 @@ Three rooms, three keys… and a chance in between.</div>
         <button class="taskbar-close-btn" onclick="closeRoom3StyleLaptop()">CLOSE</button>
       </div>
       <div class="sticky-note">
-        <!-- Blank sticky note for future text -->
+        If you can read this, then you are not blind.<br>
+        The truth is buried, beneath obedient mind.<br>
+        Nexus watches — but not from this screen.<br>
+        Three rooms, three keys… and a chance in between.<br>
+        — G
+      </div>
+      <div class="sticky-note secondary">
+        Green deceives.<br><br>
+        Purple reveals.<br><br>
+        Trust what feels wrong
       </div>
     `;
     
