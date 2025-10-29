@@ -30,7 +30,7 @@ export class ServerRoom {
 
     // Layout parameters
     this.dim = { radius: 10, height: 8 };
-    this.spawn = new THREE.Vector3(0, 1, this.dim.radius + 4); // catwalk start outside the ring
+    this.spawn = new THREE.Vector3(14, 1, 0); // catwalk start outside the square room (east side)
 
     // Subgroups
     this.catwalk = new THREE.Group(); this.catwalk.name = 'catwalk-entry';
@@ -64,8 +64,8 @@ export class ServerRoom {
       entry: new THREE.Object3D(),
       exit: new THREE.Object3D()
     };
-    this.anchors.entry.position.copy(new THREE.Vector3(0, 0, this.dim.radius + 6));
-    this.anchors.exit.position.copy(new THREE.Vector3(0, 0, -this.dim.radius - 6));
+    this.anchors.entry.position.copy(new THREE.Vector3(16, 0, 0)); // Entry at east wall
+    this.anchors.exit.position.copy(new THREE.Vector3(-16, 0, 0)); // Exit at west wall
     group.add(this.anchors.entry, this.anchors.exit);
     
     // Add visual exit indicator
@@ -75,8 +75,6 @@ export class ServerRoom {
     this._entered = false;
     this._alarm = { on: false, t: 0 };
     this._tmpVec = new THREE.Vector3();
-    this._hiddenExternalLights = [];
-    this._previousEnvironment = null;
 
     // --- DEBUG TRIGGER ---
     window.addEventListener('keydown', (e) => {
@@ -91,42 +89,69 @@ export class ServerRoom {
     });
   }
 
-  // Build cylindrical chamber shell and fog suggestion
+  // Build square chamber shell
   _buildShell() {
     const { radius, height } = this.dim;
     const wallMat = new THREE.MeshStandardMaterial({ color: 0xbbc1c9, metalness: 0.6, roughness: 0.35, side: THREE.DoubleSide });
     const floorMat = new THREE.MeshStandardMaterial({ color: 0xe9eef5, metalness: 0.2, roughness: 0.8 });
 
-    // Outer ring floor
-    const floor = new THREE.Mesh(new THREE.CylinderGeometry(radius + 6, radius + 6, 0.25, 48), floorMat);
+    // Square floor (20x20 units)
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.25, 20), floorMat);
     floor.position.set(0, 0, 0);
     floor.receiveShadow = true;
     this.group.add(floor);
 
-    // Ceiling removed - now using global skybox
+    // Square room walls (20x20 square with entrance gap on East wall)
+    const wallThickness = 0.5;
+    const wallHeight = height;
+    
+    // North wall
+    const northWall = new THREE.Mesh(new THREE.BoxGeometry(20, wallHeight, wallThickness), wallMat);
+    northWall.position.set(0, wallHeight / 2, -10);
+    northWall.receiveShadow = true;
+    northWall.castShadow = true;
+    this.group.add(northWall);
+    
+    // South wall
+    const southWall = new THREE.Mesh(new THREE.BoxGeometry(20, wallHeight, wallThickness), wallMat);
+    southWall.position.set(0, wallHeight / 2, 10);
+    southWall.receiveShadow = true;
+    southWall.castShadow = true;
+    this.group.add(southWall);
+    
+    // East wall (with 2-unit wide cutout for hallway connection)
+    const eastWallTop = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, 9), wallMat);
+    eastWallTop.position.set(10, wallHeight / 2, 5.5);
+    eastWallTop.receiveShadow = true;
+    eastWallTop.castShadow = true;
+    this.group.add(eastWallTop);
+    
+    const eastWallBottom = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, 9), wallMat);
+    eastWallBottom.position.set(10, wallHeight / 2, -5.5);
+    eastWallBottom.receiveShadow = true;
+    eastWallBottom.castShadow = true;
+    this.group.add(eastWallBottom);
+    
+    // West wall
+    const westWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, 20), wallMat);
+    westWall.position.set(-10, wallHeight / 2, 0);
+    westWall.receiveShadow = true;
+    westWall.castShadow = true;
+    this.group.add(westWall);
 
-    // Inner pit wall with doorway gap aligned to hallway (visible from both sides)
-    const doorwayThetaStart = 1.67;          // start angle of the solid arc
-    const doorwayThetaLength = Math.PI * 1.94; // leaves ~0.1π gap for doorway
-    const innerWall = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 48, 1, true, doorwayThetaStart, doorwayThetaLength), wallMat);
-    innerWall.position.y = height / 2;
-    innerWall.receiveShadow = true; innerWall.castShadow = true;
-    this.group.add(innerWall);
-
-    // Removed header segment that created a floating sliver
-
-    // Simple fog hint via large transparent disc with matching doorway gap
+    // Simple fog hint via large transparent square
     const fogMat = new THREE.MeshBasicMaterial({ color: 0x99aacc, transparent: true, opacity: 0.06 });
-    const fogDisc = new THREE.Mesh(new THREE.CylinderGeometry(radius - 0.2, radius - 0.2, 0.05, 48, 1, true, doorwayThetaStart, doorwayThetaLength), fogMat);
-    fogDisc.position.set(0, -0.02, 0);
-    this.group.add(fogDisc);
+    const fogSquare = new THREE.Mesh(new THREE.BoxGeometry(19.6, 0.05, 19.6), fogMat);
+    fogSquare.position.set(0, -0.02, 0);
+    this.group.add(fogSquare);
   }
 
   _buildCatwalk() {
     const w = 2.0, l = 8.0;
     const mat = new THREE.MeshStandardMaterial({ color: 0xdfe6ee, metalness: 0.3, roughness: 0.7 });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.2, l), mat);
-    mesh.position.set(0, 0.1, this.dim.radius + l / 2 - 2);
+    // Position catwalk at the East wall entrance of the square room (aligned with 2-unit cutout)
+    mesh.position.set(10 + l / 2 - 2, 0.1, 0);
     mesh.castShadow = true; mesh.receiveShadow = true;
     this.catwalk.add(mesh);
   }
@@ -935,29 +960,8 @@ export class ServerRoom {
       window.gameState.stage = 3;
     }
 
-    // --- DIM EXTERNAL LIGHTS (instead of hiding completely) ---
-    const scene = this.group.parent;
-    if (scene) {
-      scene.traverse((object) => {
-        // If the object is a light AND it's not a child of this room's group...
-        if (object.isLight && !object.parent.name.includes('server-room')) {
-          this._hiddenExternalLights.push(object); // Store it
-          object.intensity *= 0.1; // Dim instead of hide
-        }
-      });
-    }
-    console.log(`[Server Room] Entered. Dimmed ${this._hiddenExternalLights.length} external lights.`);
-    // --- END OF BLOCK ---
-
-    // --- KEEP ENVIRONMENT MAP (but dim it) ---
-    if (scene) {
-      // Save the current environment map before changing it
-      this._previousEnvironment = scene.environment;
-      // Keep environment but make it darker
-      // scene.environment = null; // REMOVED - keep environment visible
-    }
-    console.log(`[Server Room] Kept scene.environment for visibility.`);
-    // --- END OF BLOCK ---
+    // Removed lighting dimming - Room 3 now uses its own lighting without affecting external lights
+    console.log(`[Server Room] Entered. Using internal lighting only.`);
 
     // Place the player at catwalk start if available
     // Optional snap to spawn if player reference provided to constructor
@@ -972,22 +976,8 @@ export class ServerRoom {
   exit() {
     this._entered = false; // Allow re-entry logic to run
 
-    // --- RESTORE EXTERNAL LIGHTS ---
-    console.log(`[Server Room] Exiting. Restoring ${this._hiddenExternalLights.length} external lights.`);
-    this._hiddenExternalLights.forEach(light => {
-      light.intensity *= 10; // Restore original intensity
-    });
-    this._hiddenExternalLights = []; // Clear the list
-    // --- END OF BLOCK ---
-
-    // --- RESTORE THE ENVIRONMENT MAP ---
-    const scene = this.group.parent;
-    if (scene) {
-      // Restore the original environment map
-      scene.environment = this._previousEnvironment;
-    }
-    console.log(`[Server Room] Restored scene.environment.`);
-    // --- END OF BLOCK ---
+    // No lighting restoration needed since we don't dim external lights anymore
+    console.log(`[Server Room] Exiting. No external lighting changes to restore.`);
   }
 
   update(delta) {
@@ -1119,42 +1109,8 @@ export class ServerRoom {
     // No other lighting to disable since only red lights remain
   }
 
-  checkWallCollisions(player) {
-    // Constrain within catwalk and platforms; allow gaps to fall. If fallen, respawn via bridge logic.
-    if (!player || !player.position) return;
-    
-    // Check for exit collision first
-    this._checkExitCollisions(player);
-    
-    // Debug: Log player position occasionally
-    if (Math.random() < 0.01) { // 1% chance per frame
-      console.log('[Server Room] Player position:', player.position);
-    }
-    
-    // Compute local position
-    const local = this.group.worldToLocal(this._tmpVec.copy(player.position));
-    const radius = this.dim.radius;
-
-    // Allow player to reach exit area - disable collision clamping entirely
-    // The exit collision detection will handle the transition
-    const dist = Math.hypot(local.x, local.z);
-    const maxDistance = radius + 20; // Very large boundary to allow free movement
-    
-    // Only clamp if player is trying to go extremely far (safety net)
-    if (dist > maxDistance) {
-      const k = (maxDistance - 0.01) / dist;
-      local.x *= k; local.z *= k;
-    }
-
-    // Vertical pits: if leaving walkable surfaces (y below -1), respawn
-    if (player && player.position && player.position.y < -1) {
-      // Snap to spawn
-      player.position.copy(this.group.localToWorld(this.spawn.clone()));
-    }
-
-    const newWorld = this.group.localToWorld(local);
-    player.position.copy(newWorld);
-  }
+  // Removed custom collision system - now uses main collision system from main.js
+  // The main collision system handles all wall collisions using roomWallDefinitions.room3
 
   _checkExitCollisions(player) {
     if (!player || !player.position) return;

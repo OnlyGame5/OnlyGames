@@ -202,8 +202,9 @@ function createCheatConsole() {
       window.wallCollisionManager.cheatMode = true;
     }
     
-    // Set global cheat flag
+    // Set global cheat flags
     window.cheatMode = true;
+    window.noclipMode = true;
   }
   
   function closeAllDoors() {
@@ -219,8 +220,9 @@ function createCheatConsole() {
       window.wallCollisionManager.cheatMode = false;
     }
     
-    // Clear global cheat flag
+    // Clear global cheat flags
     window.cheatMode = false;
+    window.noclipMode = false;
   }
   
   function toggleNoclip() {
