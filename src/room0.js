@@ -694,28 +694,62 @@ export function createRoom0() {
     screen.receiveShadow = true;
     monitorGroup.add(screen);
     
-    // Monitor frame/bezel
+    // Monitor frame/bezel - Enhanced Phong shading for dramatic lighting
     const frameGeometry = new THREE.BoxGeometry(1.9, 1.3, 0.15);
-    const frameMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x2a2a2a,
-      metalness: 0.8,
-      roughness: 0.3
+    const frameMaterial = new THREE.MeshPhysicalMaterial({ 
+      // Base properties - darker for better contrast
+      color: 0x1a1a1a,
+      metalness: 0.95,
+      roughness: 0.05,       // Very smooth for sharp reflections
+      
+      // Enhanced Phong shading features
+      clearcoat: 0.9,        // High clearcoat for dramatic gloss
+      clearcoatRoughness: 0.05, // Very smooth clearcoat
+      ior: 1.6,              // Higher IOR for more pronounced effects
+      specularIntensity: 2.5, // Much higher specular intensity
+      specularColor: new THREE.Color(0xffffff),
+      envMapIntensity: 1.5,  // Stronger environment reflections
+      
+      // Enhanced emissive for subtle glow
+      emissive: new THREE.Color(0x001122),
+      emissiveIntensity: 0.1,
+      
+      // Shadow properties
+      castShadow: true,
+      receiveShadow: true
     });
     const frame = new THREE.Mesh(frameGeometry, frameMaterial);
     frame.castShadow = true;
     frame.receiveShadow = true;
     monitorGroup.add(frame);
     
-    // Mounting bracket
+    // Mounting bracket - Ultra-enhanced Phong shading
     const bracketGeometry = new THREE.BoxGeometry(2.2, 0.1, 0.3);
-    const bracketMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x1a1a1a,
-      metalness: 0.9,
-      roughness: 0.2
+    const bracketMaterial = new THREE.MeshPhysicalMaterial({ 
+      color: 0x0f0f0f,        // Even darker for maximum contrast
+      metalness: 0.98,
+      roughness: 0.02,        // Ultra-smooth for sharpest reflections
+      
+      // Ultra-enhanced Phong shading features
+      clearcoat: 0.95,        // Maximum clearcoat
+      clearcoatRoughness: 0.02, // Ultra-smooth clearcoat
+      ior: 1.8,               // Very high IOR for dramatic effects
+      specularIntensity: 3.0, // Maximum specular intensity
+      specularColor: new THREE.Color(0xffffff),
+      envMapIntensity: 2.0,   // Maximum environment reflections
+      
+      // Enhanced emissive for subtle glow
+      emissive: new THREE.Color(0x001133),
+      emissiveIntensity: 0.15,
+      
+      // Shadow properties
+      castShadow: true,
+      receiveShadow: true
     });
     const bracket = new THREE.Mesh(bracketGeometry, bracketMaterial);
     bracket.position.set(0, -0.7, -0.1);
     bracket.castShadow = true;
+    bracket.receiveShadow = true;
     monitorGroup.add(bracket);
     
     // Status LED
