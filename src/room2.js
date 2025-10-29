@@ -4,10 +4,10 @@ import { setupModel } from './utils.js';
 import { addToInventory, getPlayerInventory, registerOriginalModel } from './player.js'; // Inventory functions
 import { AI } from './ai.js'; // AI for feedback
 import { ScaleOfBalance } from './puzzles/ScaleOfBalance.js';
-import { CandleBeamPuzzle } from './puzzles/CandleBeamPuzzle.js';
 import { gameStore } from './state/gameStore.js'; // Game state tracking
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableLaptop, LaptopPresets } from './components/ReusableLaptop.js';
+import { LogicGatePuzzle } from './puzzles/LogicGatePuzzle.js';
 
 export function createRoom2() {
   const group = new THREE.Group();
@@ -16,31 +16,34 @@ export function createRoom2() {
   const pickableObjects = []; // Array to hold objects that can be picked up
   const roomObjects = {}; // To store references to the models for cloning
   let scalePuzzle = null; // Puzzle controller
-  let candleBeamPuzzle = null; // Candle + Mirrors puzzle
+  let logicGatePuzzle = null; // Room 2 logic UI puzzle
+  let logicKeyAwarded = false; // Prevent duplicate key card grants
   let noteInkMesh = null; // Hidden ink plane (opacity 0 initially)
   let noteBaseMesh = null; // Base paper plane
   let noteRevealProgress = 0; // 0..1 fade
   let lastPromptText = '';
   const hiddenClues = []; // planes that show only with glasses selected
+  // Laptop modal element for Room 2 brief
+  let r2LaptopEl = null;
+
 
   // Room 2 completion tracking
   let room2Puzzles = {
     scalePuzzleComplete: false,
-    candleBeamPuzzleComplete: false,
     noteRevealed: false,
-    allCluesViewed: false
+    allCluesViewed: false,
+    logicPuzzleComplete: false
   };
 
   // Function to check if all Room 2 puzzles are completed
   function checkRoom2Completion() {
     const allComplete = room2Puzzles.scalePuzzleComplete && 
-                       room2Puzzles.candleBeamPuzzleComplete && 
+                       room2Puzzles.logicPuzzleComplete &&
                        room2Puzzles.noteRevealed;
     
     if (allComplete && !gameStore.rooms.room2.isComplete) {
       gameStore.rooms.room2.isComplete = true;
       gameStore.rooms.room2.puzzles.scalePuzzleComplete = true;
-      gameStore.rooms.room2.puzzles.candleBeamPuzzleComplete = true;
       gameStore.rooms.room2.puzzles.seventhObjectRevealed = true;
       
       console.log('Room 2 completed! All puzzles solved.');
@@ -159,21 +162,6 @@ export function createRoom2() {
 
   const loader = new GLTFLoader();
 
-  // Candle + Mirrors Beam Puzzle: place stand, mirrors, target, and case
-  candleBeamPuzzle = new CandleBeamPuzzle({
-    roomGroup: group,
-    // Position candle stand somewhere on the west side; target on east wall defined in class
-    onSolved: () => {
-      console.log('Candle beam puzzle solved!');
-      if (window.AI) window.AI.say('The case slides open with a click.');
-      
-      // Update game state
-      room2Puzzles.candleBeamPuzzleComplete = true;
-      checkRoom2Completion();
-    }
-  });
-  candleBeamPuzzle.attach();
-
   // Add scales model
   loader.load('/models/scales.glb', (gltf) => {
       const scales = setupModel(gltf);
@@ -208,82 +196,302 @@ export function createRoom2() {
       });
       scalePuzzle.attach();
       
-      // Add laptop to Room 2
+      // Add laptop to Room 2 (for future use)
       const laptop = createReusableLaptop({
         ...LaptopPresets.room2,
         position: new THREE.Vector3(3, 0, 2), // Position near the front wall, right side
         rotation: Math.PI // Face towards the center of the room
       });
+      // Bind laptop interaction to open the Room 2 brief
+      laptop.userData = laptop.userData || {};
+      laptop.userData.onInteract = () => openRoom2LaptopBrief();
       group.add(laptop);
   });
   
-  // Statue of Liberty
-  loader.load('/models/statue_of_liberty.glb', (gltf) => {
-      const statue = setupModel(gltf);
-      statue.position.set(-3.5, 0.5, 0);
-      statue.scale.set(0.015, 0.015, 0.015);
-      // Make it pickable
-      statue.userData.pickupId = 'liberty';
-      statue.userData.displayName = 'Statue of Liberty';
-      statue.userData.isPickable = true;
-      group.add(statue);
-      pickableObjects.push(statue);
-      roomObjects.liberty = statue;
-      
-      // Register the liberty model for dropped items
-      registerOriginalModel('liberty', statue);
+  // Create logic gate puzzle screen on left wall
+  const screenGroup = new THREE.Group();
+  screenGroup.name = 'logic-screen';
+  
+  // Screen frame
+  const screenFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(2.5, 1.8, 0.1),
+    new THREE.MeshStandardMaterial({ 
+      color: 0x1a1a1a, 
+      metalness: 0.8,
+      roughness: 0.3
+    })
+  );
+  screenFrame.position.set(-5.9, 2, 0);
+  screenFrame.rotation.y = Math.PI / 2; // Rotate to face into the room
+  screenFrame.castShadow = true;
+  screenFrame.receiveShadow = true;
+  
+  // Screen display with a logic-themed canvas texture
+  const screenCanvas = document.createElement('canvas');
+  screenCanvas.width = 768; screenCanvas.height = 512; // 3:2 aspect to match 2.2x1.5
+  const sctx = screenCanvas.getContext('2d');
+  // background gradient
+  const bgGrad = sctx.createLinearGradient(0, 0, 0, screenCanvas.height);
+  bgGrad.addColorStop(0, '#07131f');
+  bgGrad.addColorStop(1, '#0e2438');
+  sctx.fillStyle = bgGrad;
+  sctx.fillRect(0, 0, screenCanvas.width, screenCanvas.height);
+  // grid
+  sctx.strokeStyle = 'rgba(180,200,230,0.08)';
+  sctx.lineWidth = 1;
+  for (let x = 0; x < screenCanvas.width; x += 24) { sctx.beginPath(); sctx.moveTo(x, 0); sctx.lineTo(x, screenCanvas.height); sctx.stroke(); }
+  for (let y = 0; y < screenCanvas.height; y += 24) { sctx.beginPath(); sctx.moveTo(0, y); sctx.lineTo(screenCanvas.width, y); sctx.stroke(); }
+  // draw stylized gates and wires
+  const drawPort = (x,y,color='#cfeeff') => { sctx.fillStyle=color; sctx.beginPath(); sctx.arc(x,y,6,0,Math.PI*2); sctx.fill(); sctx.strokeStyle='rgba(255,255,255,0.25)'; sctx.stroke(); };
+  const wire = (x1,y1,x2,y2,color='#00e0ff') => { const dx = Math.max(50, Math.abs(x2-x1)*0.5); sctx.strokeStyle=color; sctx.lineWidth=3; sctx.beginPath(); sctx.moveTo(x1,y1); sctx.bezierCurveTo(x1+dx,y1, x2-dx,y2, x2,y2); sctx.stroke(); };
+  // XOR gate glyph
+  const drawXOR = (cx,cy,w=100,h=70) => {
+    sctx.strokeStyle = '#e6f7ff'; sctx.lineWidth = 3; sctx.fillStyle='rgba(255,255,255,0.06)';
+    sctx.beginPath();
+    sctx.moveTo(cx-w*0.2, cy-h*0.5);
+    sctx.bezierCurveTo(cx+w*0.3, cy-h*0.5, cx+w*0.5, cy+h*0.5, cx-w*0.2, cy+h*0.5);
+    sctx.bezierCurveTo(cx-w*0.35, cy+h*0.5, cx-w*0.35, cy-h*0.5, cx-w*0.2, cy-h*0.5);
+    sctx.closePath(); sctx.fill(); sctx.stroke();
+    // XOR extra curve
+    sctx.beginPath();
+    sctx.moveTo(cx-w*0.25, cy-h*0.5);
+    sctx.bezierCurveTo(cx+w*0.25, cy-h*0.45, cx+w*0.25, cy+h*0.45, cx-w*0.25, cy+h*0.5);
+    sctx.stroke();
+  };
+  // OR gate glyph
+  const drawOR = (cx,cy,w=110,h=80) => {
+    sctx.strokeStyle = '#e6f7ff'; sctx.lineWidth = 3; sctx.fillStyle='rgba(255,255,255,0.06)';
+    sctx.beginPath();
+    sctx.moveTo(cx-w*0.25, cy-h*0.5);
+    sctx.bezierCurveTo(cx+w*0.35, cy-h*0.5, cx+w*0.45, cy+h*0.5, cx-w*0.25, cy+h*0.5);
+    sctx.bezierCurveTo(cx-w*0.4, cy+h*0.5, cx-w*0.4, cy-h*0.5, cx-w*0.25, cy-h*0.5);
+    sctx.closePath(); sctx.fill(); sctx.stroke();
+    // mouth curve
+    sctx.beginPath();
+    sctx.moveTo(cx-w*0.1, cy-h*0.5);
+    sctx.bezierCurveTo(cx+w*0.55, cy-h*0.2, cx+w*0.55, cy+h*0.2, cx-w*0.1, cy+h*0.5);
+    sctx.stroke();
+  };
+  // draw scene
+  drawXOR(280, 220);
+  drawOR(500, 220);
+  // wires and ports
+  drawPort(170, 200); drawPort(170, 240);
+  wire(170,200, 230,210, '#ff3b3b');
+  wire(170,240, 230,230, '#00e0ff');
+  drawPort(230,210); drawPort(230,230);
+  drawPort(340, 220);
+  wire(340,220, 445,220, '#ff3b3b');
+  drawPort(445,220);
+  drawPort(610, 220);
+  wire(555,220, 610,220, '#00e0ff');
+  // PASS badge
+  const badgeX=580, badgeY=80, badgeW=140, badgeH=36; sctx.lineWidth=2;
+  sctx.fillStyle='rgba(0,255,120,0.15)'; sctx.strokeStyle='#3bff9a';
+  sctx.beginPath(); sctx.moveTo(badgeX, badgeY); sctx.lineTo(badgeX+badgeW, badgeY); sctx.lineTo(badgeX+badgeW, badgeY+badgeH); sctx.lineTo(badgeX, badgeY+badgeH); sctx.closePath(); sctx.fill(); sctx.stroke();
+  sctx.fillStyle='#cffff1'; sctx.font='bold 18px Segoe UI, Arial'; sctx.textAlign='center'; sctx.textBaseline='middle'; sctx.fillText('PASS LAMP', badgeX+badgeW/2, badgeY+badgeH/2);
+  // subtle vignette
+  const vignette = sctx.createRadialGradient(screenCanvas.width/2, screenCanvas.height/2, 50, screenCanvas.width/2, screenCanvas.height/2, screenCanvas.width/1.1);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)'); vignette.addColorStop(1, 'rgba(0,0,0,0.25)');
+  sctx.fillStyle = vignette; sctx.fillRect(0,0,screenCanvas.width,screenCanvas.height);
+  const screenTex = new THREE.CanvasTexture(screenCanvas); screenTex.needsUpdate = true;
+  const screenMat = new THREE.MeshStandardMaterial({ 
+    color: 0xffffff,
+    map: screenTex,
+    emissive: 0x0a1622,
+    emissiveMap: screenTex,
+    emissiveIntensity: 0.65,
+    metalness: 0.0,
+    roughness: 0.6
+  });
+  const screenDisplay = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 1.5, 0.05),
+    screenMat
+  );
+  screenDisplay.name = 'logic-screen-display';
+  screenDisplay.position.set(-5.85, 2, 0);
+  screenDisplay.rotation.y = Math.PI / 2; // Rotate to face into the room
+  
+  screenGroup.add(screenFrame, screenDisplay);
+  screenGroup.userData.isLogicScreen = true;
+  group.add(screenGroup);
+  
+  // (Removed) neon strip and AI poster
+
+  // Initialize logic gate puzzle and bind to screen interaction
+  logicGatePuzzle = new LogicGatePuzzle({
+    onSolved: () => {
+      console.log('Logic Gate Puzzle solved!');
+      if (window.AI) window.AI.say('Elegant logic. The circuit passes every case.');
+      // Mark logic puzzle complete and re-check room completion
+      room2Puzzles.logicPuzzleComplete = true;
+      checkRoom2Completion();
+      // Award a key card to the player (once)
+      try {
+        if (!logicKeyAwarded) {
+          const granted = addToInventory({ name: 'key_card', description: 'Key Card' });
+          if (granted) {
+            logicKeyAwarded = true;
+            if (window.AI) window.AI.say('Access Key Card acquired. This will be useful later.');
+            if (window.gameStore) window.gameStore.notify('room2.logicKeyCardCollected', true);
+          }
+        }
+      } catch (e) { console.warn('Failed to grant key card:', e); }
+      // Notify listeners that the room2 logic puzzle is done
+      try { if (window.gameStore) window.gameStore.notify('room2.logicPuzzleComplete', true); } catch(e) {}
+    }
+  });
+  logicGatePuzzle.attach();
+  
+  // Robot Eye - Create a simple glowing eye mesh
+  const robotEye = new THREE.Group();
+  robotEye.name = 'robot-eye-prop';
+  const eyeBall = new THREE.Mesh(
+    new THREE.SphereGeometry(0.15, 16, 16),
+    new THREE.MeshStandardMaterial({ 
+      color: 0x00ffff, 
+      emissive: 0x00ccff, 
+      emissiveIntensity: 0.5,
+      metalness: 0.8,
+      roughness: 0.2
+    })
+  );
+  const pupil = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08, 12, 12),
+    new THREE.MeshStandardMaterial({ 
+      color: 0x0066ff, 
+      emissive: 0x0044ff, 
+      emissiveIntensity: 0.8
+    })
+  );
+  pupil.position.z = 0.08;
+  robotEye.add(eyeBall, pupil);
+  robotEye.position.set(-3.5, 0.2, 0);
+  robotEye.userData.pickupId = 'robot_eye';
+  robotEye.userData.displayName = 'Robot Eye';
+  robotEye.userData.isPickable = true;
+  group.add(robotEye);
+  pickableObjects.push(robotEye);
+  roomObjects.robot_eye = robotEye;
+  registerOriginalModel('robot_eye', robotEye);
+  
+  // Store a clone for dropped items
+  const robotEyeClone = robotEye.clone();
+  robotEyeClone.traverse((child) => {
+    if (child.isMesh && child.material) {
+      child.material = child.material.clone();
+    }
   });
 
-  // Bowling Pin
-  loader.load('/models/bowling_pin.glb', (gltf) => {
-      const pin = setupModel(gltf);
-      pin.position.set(4, 0.2, -5);
-      pin.scale.set(1, 1, 1);
-      // Make it pickable
-      pin.userData.pickupId = 'bowling_pin';
-      pin.userData.displayName = 'Bowling Pin';
-      pin.userData.isPickable = true;
-      group.add(pin);
-      pickableObjects.push(pin);
-      roomObjects['bowling_pin'] = pin;
-      
-      // Register the bowling pin model for dropped items
-      registerOriginalModel('bowling_pin', pin);
+  // Circuit Board Fragment - Create a circuit board mesh
+  const circuitBoard = new THREE.Group();
+  circuitBoard.name = 'circuit-board-prop';
+  const board = new THREE.Mesh(
+    new THREE.BoxGeometry(0.4, 0.02, 0.3),
+    new THREE.MeshStandardMaterial({ 
+      color: 0x00aa00, 
+      metalness: 0.3,
+      roughness: 0.6
+    })
+  );
+  // Add some circuit traces
+  for (let i = 0; i < 3; i++) {
+    const trace = new THREE.Mesh(
+      new THREE.BoxGeometry(0.35, 0.03, 0.02),
+      new THREE.MeshStandardMaterial({ 
+        color: 0xffaa00, 
+        emissive: 0xff8800, 
+        emissiveIntensity: 0.3,
+        metalness: 0.9
+      })
+    );
+    trace.position.y = 0.02;
+    trace.position.z = (i - 1) * 0.1;
+    circuitBoard.add(trace);
+  }
+  circuitBoard.add(board);
+  circuitBoard.position.set(4, 0.2, -5);
+  circuitBoard.rotation.y = Math.PI / 6;
+  circuitBoard.userData.pickupId = 'circuit_board';
+  circuitBoard.userData.displayName = 'Circuit Board Fragment';
+  circuitBoard.userData.isPickable = true;
+  group.add(circuitBoard);
+  pickableObjects.push(circuitBoard);
+  roomObjects.circuit_board = circuitBoard;
+  registerOriginalModel('circuit_board', circuitBoard);
+  
+  // Store a clone for dropped items
+  const circuitBoardClone = circuitBoard.clone();
+  circuitBoardClone.traverse((child) => {
+    if (child.isMesh && child.material) {
+      child.material = child.material.clone();
+    }
   });
 
-  // Bowling Ball
-  loader.load('/models/bowling_ball.glb', (gltf) => {
-      const ball = setupModel(gltf);
-      ball.position.set(5, 0.5, -4);
-      ball.scale.set(0.2, 0.2, 0.2);
-       // Make it pickable
-      ball.userData.pickupId = 'bowling_ball';
-      ball.userData.displayName = 'Bowling Ball';
-      ball.userData.isPickable = true;
-      group.add(ball);
-      pickableObjects.push(ball);
-      roomObjects['bowling_ball'] = ball;
-      
-      // Register the bowling ball model for dropped items
-      registerOriginalModel('bowling_ball', ball);
+  // Robot Hand - Load from model
+  loader.load('/models/hand_sculpt.glb', (gltf) => {
+      const robotHand = setupModel(gltf);
+      robotHand.position.set(5, 0.3, -4);
+      robotHand.scale.set(1, 1, 1);
+      robotHand.rotation.x = Math.PI / 2; // Make it horizontal (lying flat)
+      robotHand.rotation.y = Math.PI / 4; // Slight angle for presentation
+      robotHand.name = 'robot-hand-prop';
+      robotHand.userData.pickupId = 'robot_hand';
+      robotHand.userData.displayName = 'Robot Hand';
+      robotHand.userData.isPickable = true;
+      group.add(robotHand);
+      pickableObjects.push(robotHand);
+      roomObjects.robot_hand = robotHand;
+      registerOriginalModel('robot_hand', robotHand);
   });
 
-  // Book
-  loader.load('/models/book.glb', (gltf) => {
-      const book = setupModel(gltf);
-      book.position.set(-5, 0.15, 3.5);
-      book.scale.set(0.3, 0.3, 0.3);
-      book.rotation.y = Math.PI / 8;
-      // Make it pickable
-      book.userData.pickupId = 'book';
-      book.userData.displayName = 'Book';
-      book.userData.isPickable = true;
-      group.add(book);
-      pickableObjects.push(book);
-      roomObjects.book = book;
-      
-      // Register the book model for dropped items
-      registerOriginalModel('book', book);
+  // AI Manual - Create a book with AI theme
+  const aiBook = new THREE.Group();
+  aiBook.name = 'ai-book-prop';
+  const bookCover = new THREE.Mesh(
+    new THREE.BoxGeometry(0.25, 0.35, 0.04),
+    new THREE.MeshStandardMaterial({ 
+      color: 0x1a1a3e, 
+      metalness: 0.2,
+      roughness: 0.7
+    })
+  );
+  const bookPages = new THREE.Mesh(
+    new THREE.BoxGeometry(0.24, 0.34, 0.03),
+    new THREE.MeshStandardMaterial({ 
+      color: 0xf0f0f0,
+      roughness: 0.9
+    })
+  );
+  bookPages.position.z = -0.005;
+  // Add AI symbol on cover
+  const aiSymbol = new THREE.Mesh(
+    new THREE.CircleGeometry(0.08, 16),
+    new THREE.MeshStandardMaterial({ 
+      color: 0x00ffff, 
+      emissive: 0x00ccff, 
+      emissiveIntensity: 0.4
+    })
+  );
+  aiSymbol.position.z = 0.021;
+  aiBook.add(bookCover, bookPages, aiSymbol);
+  aiBook.position.set(-5, 0.2, 3.5);
+  aiBook.rotation.y = Math.PI / 8;
+  aiBook.rotation.x = Math.PI / 2;
+  aiBook.userData.pickupId = 'ai_book';
+  aiBook.userData.displayName = 'AI Manual';
+  aiBook.userData.isPickable = true;
+  group.add(aiBook);
+  pickableObjects.push(aiBook);
+  roomObjects.ai_book = aiBook;
+  registerOriginalModel('ai_book', aiBook);
+  
+  // Store a clone for dropped items
+  const aiBookClone = aiBook.clone();
+  aiBookClone.traverse((child) => {
+    if (child.isMesh && child.material) {
+      child.material = child.material.clone();
+    }
   });
 
   // Hidden note: base + invisible ink
@@ -301,26 +509,6 @@ export function createRoom2() {
   noteInkMesh.position.copy(noteBaseMesh.position).add(new THREE.Vector3(0, 0.001, 0));
   noteInkMesh.name = 'room2-note-ink';
   group.add(noteInkMesh);
-
-  // Candle pickup (simple mesh)
-  const candle = new THREE.Group();
-  candle.name = 'candle-prop';
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.25, 12), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.1, 8), new THREE.MeshStandardMaterial({ color: 0xffcc55, emissive: 0xffaa33, emissiveIntensity: 0.8 }));
-  body.position.y = 0.125;
-  flame.position.y = 0.25;
-  candle.add(body);
-  candle.add(flame);
-  candle.position.set(-1.5, 0.2, -1.6);
-  candle.userData.pickupId = 'candle';
-  candle.userData.displayName = 'Candle';
-  candle.userData.itemMeta = { lightSource: true };
-  candle.userData.isPickable = true;
-  group.add(candle);
-  pickableObjects.push(candle);
-  
-  // Register the candle model for dropped items
-  registerOriginalModel('candle', candle);
 
   // Glasses pickup (simple mesh)
   const glasses = new THREE.Group();
@@ -365,10 +553,10 @@ export function createRoom2() {
   const clueGeo = new THREE.PlaneGeometry(1.0, 0.25);
   const wallZ = -5.9; // near the south wall
   const cluesData = [
-    { text: 'Bowling Ball = 12', pos: new THREE.Vector3(-3.5, 1.4, wallZ) },
-    { text: 'Liberty = 5', pos: new THREE.Vector3(-1.2, 1.1, wallZ) },
-    { text: 'Pin = 4', pos: new THREE.Vector3(1.2, 0.9, wallZ) },
-    { text: 'Book = 3', pos: new THREE.Vector3(3.2, 0.8, wallZ) }
+    { text: 'Robot Hand = 12', pos: new THREE.Vector3(-3.5, 1.4, wallZ) },
+    { text: 'Circuit Board = 5', pos: new THREE.Vector3(-1.2, 1.1, wallZ) },
+    { text: 'AI Manual = 4', pos: new THREE.Vector3(1.2, 0.9, wallZ) },
+    { text: 'Robot Eye = 3', pos: new THREE.Vector3(3.2, 0.8, wallZ) }
   ];
   cluesData.forEach(({ text, pos }) => {
     const m = clueMat.clone();
@@ -396,6 +584,34 @@ export function createRoom2() {
     hiddenClues.push(mesh);
   });
 
+  // Additional cryptic hidden messages (visible with glasses)
+  const addHiddenMessage = (text, position, scale = new THREE.Vector2(0.9, 0.22)) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512; canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.shadowColor = '#0aefff'; ctx.shadowBlur = 12;
+    ctx.fillStyle = '#8fe9ff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 38px Segoe UI';
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    const tex = new THREE.CanvasTexture(canvas); tex.needsUpdate = true;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.0, color: 0xffffff });
+    const geo = new THREE.PlaneGeometry(scale.x, scale.y);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(position);
+    mesh.rotation.y = 0;
+    mesh.name = `room2-hidden-${text.replace(/\W+/g, '-')}`;
+    group.add(mesh);
+    hiddenClues.push(mesh);
+  };
+
+  addHiddenMessage("DON'T TRUST ITS VOICE", new THREE.Vector3(2.2, 1.2, -5.85));
+  addHiddenMessage('HELP', new THREE.Vector3(-0.2, 0.7, -5.85), new THREE.Vector2(0.5, 0.2));
+  addHiddenMessage('I AM IN THE WIRES', new THREE.Vector3(-3.2, 1.5, -5.85));
+  // (Removed) overturned chair, restraint loops, caution tape, and hologram projector
+
+
   // UI prompt helper
   function ensurePrompt() {
     let prompt = document.getElementById('interactPrompt');
@@ -406,6 +622,117 @@ export function createRoom2() {
       document.body.appendChild(prompt);
     }
     return prompt;
+  }
+
+  // ================================
+  // Room 2 Laptop Brief UI
+  // ================================
+  function openRoom2LaptopBrief() {
+    if (window.disablePlayerControls) return;
+    if (!r2LaptopEl) {
+      r2LaptopEl = document.createElement('div');
+      r2LaptopEl.id = 'room2-laptop-brief';
+      r2LaptopEl.style.cssText = 'position:fixed; inset:0; z-index:9998; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); font-family:Segoe UI,system-ui,Arial; color:#eaf2ff;';
+      r2LaptopEl.innerHTML = `
+        <div style="width:720px; background:#0d1219; border:1px solid #1d2734; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.5);">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid #1d2734;">
+            <div>Terminal: Room 2 — Equilibrium Node</div>
+            <div>
+              <button id="r2lb-check" style="margin-right:8px;padding:6px 10px;background:#162132;border:1px solid #29354a;color:#cfe3ff;border-radius:6px;cursor:pointer;">Refresh</button>
+              <button id="r2lb-close" style="padding:6px 10px;background:#1e2a3d;border:1px solid #2c3a52;color:#eaf2ff;border-radius:6px;cursor:pointer;">Close</button>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 260px; gap:12px; padding:14px;">
+            <div>
+              <div id="r2lb-status" style="background:#0b1017;border:1px solid #1a2330;border-radius:8px;padding:10px;margin-bottom:10px;"></div>
+              <div style="background:#0b1017;border:1px solid #1a2330;border-radius:8px;padding:10px;">
+                <div style="opacity:.85;margin-bottom:6px;">Riddle</div>
+                <div style="font-style:italic;color:#cddcff">
+                  “When numbers wear shapes and truth rides the wire,<br/>
+                  the wall will listen only once the scales stop to breathe.”
+                </div>
+              </div>
+            </div>
+            <div style="background:#0b1017;border:1px solid #1a2330;border-radius:8px;padding:10px;">
+              <div style="opacity:.85;margin-bottom:6px;">Schematic Doodle</div>
+              <canvas id="r2lb-canvas" width="240" height="160" style="width:240px;height:160px;background:#0a0f16;border-radius:6px;border:1px solid #1a2330;"></canvas>
+              <div style="opacity:.65;font-size:12px;margin-top:6px;">A whisper: pair differs, then invite the third.</div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(r2LaptopEl);
+
+      // Draw tiny XOR→OR doodle (no spoilers, just theme)
+      const c = r2LaptopEl.querySelector('#r2lb-canvas');
+      const ctx = c.getContext('2d');
+      const grid = () => {
+        ctx.strokeStyle = 'rgba(180,200,230,0.08)'; ctx.lineWidth = 1;
+        for (let x=0;x<c.width;x+=16){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,c.height);ctx.stroke();}
+        for (let y=0;y<c.height;y+=16){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(c.width,y);ctx.stroke();}
+      };
+      const port = (x,y)=>{ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();ctx.stroke();};
+      const wire = (x1,y1,x2,y2,color='#cfe3ff')=>{
+        const dx=Math.max(20,Math.abs(x2-x1)*.5);
+        ctx.strokeStyle=color; ctx.lineWidth=3; ctx.beginPath();
+        ctx.moveTo(x1,y1); ctx.bezierCurveTo(x1+dx,y1, x2-dx,y2, x2,y2); ctx.stroke();
+      };
+      const orGate=(x,y)=>{ctx.strokeStyle='#000';ctx.fillStyle='#fff';ctx.lineWidth=3;
+        ctx.beginPath();ctx.moveTo(x-18,y-12);ctx.bezierCurveTo(x+13,y-12,x+18,y+12,x-18,y+12);ctx.bezierCurveTo(x-26,y+12,x-26,y-12,x-18,y-12);ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(x-8,y-12);ctx.bezierCurveTo(x+26,y-5,x+26,y+5,x-8,y+12);ctx.stroke();
+        port(x-22,y-8);port(x-22,y+8);port(x+20,y);
+      };
+      const xorGate=(x,y)=>{ctx.strokeStyle='#000';ctx.fillStyle='#fff';ctx.lineWidth=3;
+        ctx.beginPath();ctx.moveTo(x-16,y-12);ctx.bezierCurveTo(x+10,y-12,x+16,y+12,x-16,y+12);ctx.bezierCurveTo(x-24,y+12,x-24,y-12,x-16,y-12);ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(x-20,y-12);ctx.bezierCurveTo(x+2,y-11,x+2,y+11,x-20,y+12);ctx.stroke();
+        port(x-20,y-8);port(x-20,y+8);port(x+18,y);
+      };
+      grid(); xorGate(90,80); orGate(170,80);
+      port(40,64); port(40,96); wire(40,64,70,68,'#ff6262'); wire(40,96,70,92,'#cfe3ff');
+      wire(108,80,140,80,'#ff6262'); wire(188,80,220,80,'#cfe3ff');
+
+      // Close/Refresh
+      const closeBtn = r2LaptopEl.querySelector('#r2lb-close');
+      const refreshBtn = r2LaptopEl.querySelector('#r2lb-check');
+      closeBtn.addEventListener('click', () => closeRoom2LaptopBrief());
+      refreshBtn.addEventListener('click', () => renderLaptopStatus());
+    }
+
+    renderLaptopStatus();
+    r2LaptopEl.style.display = 'flex';
+    window.disablePlayerControls = true;
+    const crosshair = document.getElementById('crosshair');
+    if (crosshair) crosshair.style.display = 'none';
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+    document.body.style.cursor = 'default';
+  }
+
+  function closeRoom2LaptopBrief() {
+    if (!r2LaptopEl) return;
+    r2LaptopEl.style.display = 'none';
+    window.disablePlayerControls = false;
+    const crosshair = document.getElementById('crosshair');
+    if (crosshair) crosshair.style.display = '';
+  }
+
+  function renderLaptopStatus() {
+    if (!r2LaptopEl) return;
+    const s = room2Puzzles.scalePuzzleComplete ? 'Still' : 'Wanders';
+    const wall = room2Puzzles.scalePuzzleComplete ? 'Awakened' : 'Asleep';
+    const pass = room2Puzzles.logicPuzzleComplete ? 'Open' : 'Awaiting';
+    const html = `
+      <div style="display:grid;grid-template-columns:140px 1fr;row-gap:6px;column-gap:10px;">
+        <div style="opacity:.75">Equilibrium</div><div>${s}</div>
+        <div style="opacity:.75">Wall Screen</div><div>${wall}</div>
+        <div style="opacity:.75">Pass Latch</div><div>${pass}</div>
+      </div>
+      <div style="opacity:.7;font-size:12px;margin-top:8px">
+        “The wall sleeps until the scales fall still.”
+      </div>
+    `;
+    r2LaptopEl.querySelector('#r2lb-status').innerHTML = html;
   }
 
   const raycaster = new THREE.Raycaster();
@@ -437,18 +764,29 @@ export function createRoom2() {
     return player.position.distanceTo(world) <= 1.6;
   }
 
-  function playerNearCandlePuzzle(player) {
-    if (!candleBeamPuzzle || !player) return false;
-    const pts = [];
-    if (candleBeamPuzzle.objects.stand) pts.push(candleBeamPuzzle.objects.stand.getWorldPosition(new THREE.Vector3()));
-    if (candleBeamPuzzle.objects.aimer) pts.push(candleBeamPuzzle.objects.aimer.getWorldPosition(new THREE.Vector3()));
-    return pts.some(p => player.position.distanceTo(p) <= 1.8);
-  }
-
   function handleEKeyInteraction(player) {
     if (window.disablePlayerControls) return false;
 
-    // Check laptop interaction first
+    // Check logic screen interaction first (use actual display mesh world position)
+    const screenMesh = group.getObjectByName('logic-screen-display') || group.getObjectByName('logic-screen');
+    if (screenMesh) {
+      const screenWorldPos = new THREE.Vector3();
+      screenMesh.getWorldPosition(screenWorldPos);
+      const distanceToScreen = player.position.distanceTo(screenWorldPos);
+      
+      if (distanceToScreen < 3.0) {
+        if (!room2Puzzles.scalePuzzleComplete) {
+          if (window.AI) window.AI.say('When the scales hold their breath, the wall will find its voice.');
+          return true; // consume interaction
+        }
+        if (logicGatePuzzle) {
+          logicGatePuzzle.open();
+        }
+        return true;
+      }
+    }
+
+    // Check laptop interaction (for future use)
     const laptop = group.getObjectByName('reusable-laptop');
     if (laptop) {
       const laptopWorldPos = new THREE.Vector3();
@@ -500,12 +838,6 @@ export function createRoom2() {
       if (opened) return true;
     }
 
-    // 3) If near candle beam puzzle, open its UI
-    if (candleBeamPuzzle && playerNearCandlePuzzle(player)) {
-      const opened = candleBeamPuzzle.tryOpenUI(player);
-      if (opened) return true;
-    }
-
     return false;
   }
 
@@ -518,15 +850,7 @@ export function createRoom2() {
     const dist = player.position.distanceTo(notePos);
     if (dist > 1.1) return false;
 
-    // Check inventory for a light source
-    const inv = getPlayerInventory();
-    const hasLight = inv.slots.some((it) => it && (it.lightSource === true || it.name === 'candle' || it.name === 'flashlight'));
-    if (!hasLight) {
-      AI.say('I need a light source to read this.');
-      return true; // handled
-    }
-
-    // Begin reveal
+    // Simply reveal the note when F is pressed near it
     noteRevealProgress = Math.max(noteRevealProgress, 0.01);
     if (window.AI) {
       window.AI.say('Balance the four objects upon the scale. Equilibrium reveals the secret.');
@@ -551,9 +875,10 @@ export function createRoom2() {
       }
     }
 
+    // (Removed) flicker and hologram pulse animations
+
     // Update scale puzzle animations
     if (scalePuzzle) scalePuzzle.update(deltaTime);
-  if (candleBeamPuzzle) candleBeamPuzzle.update(deltaTime);
 
     // Toggle hidden clues based on glasses selection
     const inv = getPlayerInventory();
@@ -577,15 +902,37 @@ export function createRoom2() {
       return;
     }
 
+    // Logic screen prompt (use display mesh position)
+    const screenMesh2 = group.getObjectByName('logic-screen-display') || group.getObjectByName('logic-screen');
+    if (screenMesh2) {
+      const sp = new THREE.Vector3();
+      screenMesh2.getWorldPosition(sp);
+      const dScreen = activePlayer.position.distanceTo(sp);
+      if (dScreen < 3.0) {
+        if (room2Puzzles.scalePuzzleComplete) {
+          showPrompt('[E] Open Logic Puzzle');
+        } else {
+          showPrompt('The wall sleeps until the scales fall still');
+        }
+        return;
+      }
+    }
+
+    // Laptop prompt (for future use)
+    const laptop = group.getObjectByName('reusable-laptop');
+    if (laptop) {
+      const lp = new THREE.Vector3();
+      laptop.getWorldPosition(lp);
+      const dLaptop = activePlayer.position.distanceTo(lp);
+      if (dLaptop < 3.0) {
+        showPrompt('[E] Use Laptop');
+        return;
+      }
+    }
+
     // Check scale prompt
     if (playerNearScale(activePlayer)) {
       showPrompt('[E] Use Scale');
-      return;
-    }
-
-    // Check candle aimer prompt
-    if (playerNearCandlePuzzle(activePlayer)) {
-      showPrompt('[E] Aim Beam');
       return;
     }
 
@@ -610,12 +957,8 @@ export function createRoom2() {
       const pos = noteBaseMesh.getWorldPosition(tmpVec.set(0, 0, 0));
       const d = activePlayer.position.distanceTo(pos);
       if (d <= 1.1) {
-        const inv = getPlayerInventory();
-        const hasLight = inv.slots.some((it) => it && (it.lightSource === true || it.name === 'candle' || it.name === 'flashlight'));
-        if (hasLight) {
-          showPrompt('[F] Shine Light');
-          return;
-        }
+        showPrompt('[F] Read Note');
+        return;
       }
     }
 
@@ -624,26 +967,32 @@ export function createRoom2() {
 
   // Dispose method for cleanup
   function dispose() {
+    // Remove laptop brief if present
+    if (r2LaptopEl && r2LaptopEl.parentNode) {
+      r2LaptopEl.parentNode.removeChild(r2LaptopEl);
+      r2LaptopEl = null;
+    }
     // Import dispose helper
     import('./utils/DisposeHelper.js').then(({ disposeGroup, removeElement }) => {
       disposeGroup(group);
       
       // Remove prompt element if it exists
       removeElement('interactPrompt');
+      removeElement('room2-laptop-brief');
     });
     
     // Dispose of puzzles
     if (scalePuzzle && typeof scalePuzzle.dispose === 'function') {
       scalePuzzle.dispose();
     }
-    
-    if (candleBeamPuzzle && typeof candleBeamPuzzle.dispose === 'function') {
-      candleBeamPuzzle.dispose();
+    if (logicGatePuzzle && typeof logicGatePuzzle.dispose === 'function') {
+      logicGatePuzzle.dispose();
     }
     
     // Clear arrays
     pickableObjects.length = 0;
     hiddenClues.length = 0;
+  // (Removed) flicker/hologram state cleanup
     
     // Clear room2Puzzles
     Object.keys(room2Puzzles).forEach(key => {
