@@ -6,11 +6,12 @@ import {
   buildStandardLightRig,
   removeExistingLights,
 } from './lighting/standardLighting.js';
-import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling } from './materials/room4Materials.js';
+import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling, makeTiles002Floor } from './materials/room4Materials.js';
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { FloatingBinary } from './rooms/Room4/FloatingBinary.js';
 import { NexusPanel } from './rooms/Room4/NexusPanel.js';
+import { HologramDisplay } from './rooms/Room4/HologramDisplay.js';
 import { createReusableLaptop, LaptopPresets } from './components/ReusableLaptop.js';
 
 export function createRoom4() {
@@ -26,7 +27,15 @@ export function createRoom4() {
     hasShownDecoderDialogue: false
   };
 
-  // Tiles136C texture files for Room 4 (same as Room 1)
+  // Tiles002 texture files for Room 4 floor (same as Room 1)
+  const tiles002Files = {
+    color: "/textures/tiles002/Tiles002_1K-JPG_Color.jpg",
+    normal: "/textures/tiles002/Tiles002_1K-JPG_NormalGL.jpg",
+    rough: "/textures/tiles002/Tiles002_1K-JPG_Roughness.jpg",
+    displacement: "/textures/tiles002/Tiles002_1K-JPG_Displacement.jpg"
+  };
+
+  // Tiles136C texture files for Room 4 (keeping for reference)
   const tiles136cFiles = {
     color: "/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
     normal: "/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
@@ -43,16 +52,92 @@ export function createRoom4() {
     disp: "/textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
   };
 
-  // Black floor
+  // Tiles002 floor for Room 4 (same as Room 1, but with black color)
   const floorGeometry = new THREE.BoxGeometry(18, 0.2, 18);
-  const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.9, metalness: 0.0 });
+  const floorMaterial = makeTiles002Floor(18, 18, tiles002Files, {
+    tileSizeMeters: 1.0,
+    anisotropy: 16,
+    metalness: 0.0,
+    roughness: 0.8,
+    normalScale: new THREE.Vector2(0.6, 0.6)
+  });
+  // Set floor color to black (like Room 1 when lights are off)
+  floorMaterial.color.setHex(0x111111); // Dark gray so lights can influence the floor
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+  floor.position.set(0, 0, 0);
   floor.receiveShadow = true;
   floor.name = 'room4-floor';
   group.add(floor);
 
-  // Wall material matching Room 3 (West room) - grayish with metallic properties
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xbbc1c9, metalness: 0.6, roughness: 0.35, side: THREE.DoubleSide });
+  // Helper: briefly "glitch" the floor by rapidly pulsing red emissive
+  // Exposed globally so UI logic (decoder panel) can trigger it without tight coupling
+  window.triggerRoom4FloorGlow = (durationMs = 2000) => {
+    try {
+      if (!floor.material) return;
+      const mat = floor.material;
+      const originalEmissive = mat.emissive ? mat.emissive.clone() : new THREE.Color(0x000000);
+      const originalEmissiveIntensity = mat.emissiveIntensity ?? 0;
+      const originalColor = mat.color ? mat.color.clone() : new THREE.Color(0x111111);
+      if (!mat.emissive) mat.emissive = new THREE.Color(0x000000);
+
+      // Add a temporary flickering red point light for stronger scene glow
+      const glitchLight = new THREE.PointLight(0xff3344, 0, 18, 2.0);
+      glitchLight.position.set(0, 1.0, 0);
+      glitchLight.name = 'room4-floor-glitch-light';
+      group.add(glitchLight);
+
+      // Start rapid flicker similar to UI glitch cadence (faster ticks)
+      const start = performance.now();
+      const tickMs = 30;
+      const interval = setInterval(() => {
+        const elapsed = performance.now() - start;
+        if (elapsed >= durationMs || !floor.material) {
+          clearInterval(interval);
+          // Restore
+          const m = floor.material;
+          if (!m) return;
+          if (!m.emissive) m.emissive = new THREE.Color(0x000000);
+          m.emissive.copy(originalEmissive);
+          m.emissiveIntensity = originalEmissiveIntensity;
+          if (m.color) m.color.copy(originalColor);
+          m.needsUpdate = true;
+          // Remove light
+          if (glitchLight && glitchLight.parent) {
+            glitchLight.parent.remove(glitchLight);
+          }
+          return;
+        }
+
+        // Randomized emissive pulse: mostly red, occasional cyan inversion for harsher glitch
+        const isInvertFrame = Math.random() < 0.12; // 12% of ticks invert to cyan-ish
+        const baseHex = isInvertFrame ? 0x00ffff : 0xff0000;
+        const jitterG = Math.floor(Math.random() * 0x40) << 8; // broader green jitter
+        const jitterB = isInvertFrame ? (Math.floor(Math.random() * 0x40)) : 0x00; // add blue jitter only on invert
+        const colorHex = baseHex | jitterG | jitterB;
+        mat.emissive.setHex(colorHex);
+        mat.emissiveIntensity = 1.0 + Math.random() * 1.6; // 1.0-2.6 (brighter)
+        if (mat.color) {
+          // Subtle tinting to amplify perceived glitch
+          const base = 0x111111;
+          const mix = 0.15 + Math.random() * 0.35; // stronger tint 0.15-0.5
+          const r = ((base >> 16) & 0xff) * (1 - mix) + 255 * mix;
+          const g = ((base >> 8) & 0xff) * (1 - mix) + ((colorHex >> 8) & 0xff) * mix;
+          const b = (base & 0xff) * (1 - mix);
+          mat.color.setRGB(r / 255, g / 255, b / 255);
+        }
+        // Light intensity and slight position jitter to simulate electrical surge
+        glitchLight.intensity = 1.5 + Math.random() * 4.5; // 1.5-6.0
+        glitchLight.position.x = (Math.random() - 0.5) * 2.0; // small wobble
+        glitchLight.position.z = (Math.random() - 0.5) * 2.0;
+        mat.needsUpdate = true;
+      }, tickMs);
+    } catch (e) {
+      console.warn('triggerRoom4FloorGlow failed:', e);
+    }
+  };
+
+  // Wall material - shiny black with metallic properties
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.9, roughness: 0.1, side: THREE.DoubleSide });
 
   // Back wall (North) - Solid wall spanning full width
   const backWall = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.2), wallMat);
@@ -139,15 +224,72 @@ export function createRoom4() {
   console.log('Creating NEXUS panel...');
   const nexusPanel = new NexusPanel();
   console.log('NEXUS panel created:', nexusPanel);
-  nexusPanel.group.position.set(0, 1, -8.8); // Position slightly in front of north wall
-  nexusPanel.group.rotation.y = 0; // Static - faces south (toward player)
-  nexusPanel.mount(group);
-  console.log('NEXUS panel mounted to group');
-  console.log('Panel final position:', nexusPanel.group.position);
-  console.log('Panel final rotation:', nexusPanel.group.rotation);
-  
+  // Headless mode: do not mount the 3D screen; UI logic only
+   
   // Make nexusPanel globally accessible for laptop interface
   window.room4NexusPanel = nexusPanel;
+
+  // Load decoder panel 3D model
+  const gltfLoader = new GLTFLoader();
+  let decoderPanelModel = null;
+  
+  gltfLoader.load('/models/room4_decoder_panel.glb', (gltf) => {
+    console.log('Decoder panel model loaded:', gltf);
+    decoderPanelModel = gltf.scene;
+    decoderPanelModel.name = 'room4-decoder-panel';
+    
+    // Keep embedded GLTF materials; only enable shadows on meshes
+    decoderPanelModel.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    
+    // Position the panel directly in front of NexusPanel, below the screen
+    // Screen extends from y=-1.0 to y=4.0, so position panel below the screen
+    // Place it slightly in front of the NexusPanel (z=-8.8) but behind the wall (z=-9)
+    // Move up on y-axis so bottom of panel sits on floor (y=0)
+    decoderPanelModel.rotation.y = Math.PI / 2 + Math.PI; // Rotate 180° clockwise from current to face the room
+    decoderPanelModel.scale.set(3.5, 3.5, 3.5); // Further increased size
+    // Position panel - adjust y upward so bottom sits on floor
+    // With scale 5.0, estimate half-height and move panel up accordingly
+    decoderPanelModel.position.set(0, 0.75
+      , -8.6); // Moved up so bottom sits on floor
+    
+    // Add user data for interaction
+    decoderPanelModel.userData = {
+      type: 'interactable',
+      id: 'room4-decoder-panel',
+      interact: () => {
+        // Trigger binary decoder UI interaction
+        if (nexusPanel && typeof nexusPanel.show === 'function') {
+          nexusPanel.show();
+        }
+      }
+    };
+    
+    group.add(decoderPanelModel);
+    console.log('Decoder panel model added to room');
+
+    // Mount hologram display above the table center
+    const hologram = new HologramDisplay({ position: new THREE.Vector3(0, 0.9, -8.6) });
+    hologram.mount(group);
+    window.room4Hologram = hologram; // expose for NexusPanel integration
+
+    // Add soft green spotlight near the NEXUS panel to illuminate the floor
+    const panelSpot = new THREE.SpotLight(0x00ff88, 2.0, 12, Math.PI / 6, 0.3, 1.0);
+    panelSpot.position.set(0, 1.4, -8.2); // Slightly in front of the panel and above it
+    panelSpot.target.position.set(0, 0.1, -8.6); // Aim toward the floor just in front of panel
+    panelSpot.castShadow = true;
+    panelSpot.name = 'nexus-panel-spot';
+    group.add(panelSpot);
+    group.add(panelSpot.target);
+  }, (progress) => {
+    console.log('Loading decoder panel model...', (progress.loaded / progress.total * 100) + '%');
+  }, (error) => {
+    console.error('Error loading decoder panel model:', error);
+  });
 
   // Remove any leftover lights
   removeExistingLights(group);
@@ -201,7 +343,7 @@ export function createRoom4() {
   });
   const beamMesh = new THREE.Mesh(beamGeometry, beamMaterial);
   // Position cylinder so it extends from floor (y=0) to ceiling (y=4), matching wall height
-  beamMesh.position.set(0, 2, -3); // Center at y=2 (same as walls) - extends from y=0 to y=4
+  beamMesh.position.set(0, 2, 0); // Center at y=2 (same as walls) - extends from y=0 to y=4
   beamMesh.rotation.x = 0; // Cylinder is vertical by default
   beamMesh.name = 'holographic-beam';
   group.add(beamMesh);
@@ -222,7 +364,7 @@ export function createRoom4() {
     
     positions[i3] = Math.cos(angle) * radius;
     positions[i3 + 1] = height;
-    positions[i3 + 2] = -3 + Math.sin(angle) * radius;
+    positions[i3 + 2] = Math.sin(angle) * radius;
     
     // Green color for all particles
     colors[i3] = 0.0; // R
@@ -248,22 +390,22 @@ export function createRoom4() {
 
   // Add focused lighting on the laptop area for glow effect
   const laptopLight = new THREE.PointLight(0x00ff88, 1.5, 18);
-  laptopLight.position.set(0, 2, -3);
+  laptopLight.position.set(0, 2, 0);
   laptopLight.name = 'laptop-light';
   laptopLight.castShadow = false;
   group.add(laptopLight);
 
   // Add a subtle rim light for the laptop pedestal/base glow
   const rimLight = new THREE.PointLight(0x00ff88, 0.8, 10);
-  rimLight.position.set(0, 1, -2);
+  rimLight.position.set(0, 1, 1);
   rimLight.name = 'rim-light';
   rimLight.castShadow = false;
   group.add(rimLight);
 
   // Add a holographic green spot light beaming from the skybox
   const spotLight = new THREE.SpotLight(0x00ff88, 4.0, 30, Math.PI / 8, 0.05, 0.3);
-  spotLight.position.set(0, 10, -1);
-  spotLight.target.position.set(0, 0, -3);
+  spotLight.position.set(0, 10, 2);
+  spotLight.target.position.set(0, 0, 0);
   spotLight.castShadow = false;
   spotLight.name = 'holographic-spotlight';
   group.add(spotLight);
@@ -272,7 +414,7 @@ export function createRoom4() {
   // Add laptop to Room 4
   const laptop = createReusableLaptop({
     ...LaptopPresets.room4,
-    position: new THREE.Vector3(0, 0, -3), // Position near the back wall, center
+    position: new THREE.Vector3(0, 0, 0), // Position at center of room
     rotation: 0 // Face towards the front of the room
   });
   group.add(laptop);
@@ -404,6 +546,11 @@ export function createRoom4() {
       if (nexusPanel) {
         nexusPanel.update(delta);
       }
+
+      // Update hologram animation
+      if (window.room4Hologram) {
+        window.room4Hologram.update(delta);
+      }
       
       // Update laptop screen activation
       const laptop = group.getObjectByName('reusable-laptop');
@@ -454,7 +601,25 @@ export function createRoom4() {
     handleEKeyInteraction: (player) => {
       console.log('Room 4 E-key handler called with player:', player?.position);
       
-      // Check laptop interaction first
+      // Check decoder panel interaction first (more important than laptop)
+      const decoderPanel = group.getObjectByName('room4-decoder-panel');
+      if (decoderPanel && player && player.position) {
+        const panelWorldPos = new THREE.Vector3();
+        decoderPanel.getWorldPosition(panelWorldPos);
+        const distanceToPanel = player.position.distanceTo(panelWorldPos);
+        
+        console.log('Decoder panel distance:', distanceToPanel, 'threshold: 3.0');
+        
+        if (distanceToPanel < 3.0) {
+          console.log('Decoder panel interaction handled');
+          if (decoderPanel.userData && decoderPanel.userData.interact) {
+            decoderPanel.userData.interact();
+          }
+          return true;
+        }
+      }
+      
+      // Check laptop interaction
       const laptop = group.getObjectByName('reusable-laptop');
       if (laptop && player && player.position) {
         const laptopWorldPos = new THREE.Vector3();
@@ -472,27 +637,8 @@ export function createRoom4() {
         }
       }
       
-      // Check if player is near the NEXUS panel
-      if (nexusPanel && player && player.position) {
-        const playerLocal = group.worldToLocal(player.position.clone());
-        const panelDistance = playerLocal.distanceTo(new THREE.Vector3(0, 1, -8.8));
-        
-        console.log('Player distance from panel:', panelDistance);
-        
-        // If player is within 3 units of the panel
-        if (panelDistance < 3) {
-          console.log('Opening NEXUS panel...');
-          nexusPanel.show();
-          // Trigger decoder dialogue when panel is opened
-          triggerBinaryDecoderDialogue();
-          return true; // Interaction handled
-        } else {
-          console.log('Player too far from panel (distance:', panelDistance, ')');
-        }
-      } else {
-        console.log('Missing nexusPanel or player position');
-      }
-      return false; // No interaction
+      // If nothing else handled, return false
+      return false;
     }
   };
 }
