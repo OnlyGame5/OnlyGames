@@ -14,7 +14,7 @@ export function createBookshelfDoor() {
   
   // Configuration
   const slideDistance = 1.6;
-  const scale = 1.0;
+  const scale = 0.25;
   
   // Sliding group (moves on local +X when open)
   const slidingGroup = new THREE.Group();
@@ -26,7 +26,7 @@ export function createBookshelfDoor() {
   const loader = new GLTFLoader();
   let modelLoaded = false;
   
-  loader.load('/models/shelf.glb', (gltf) => {
+  loader.load('/models/sci-fi_office_desk.glb', (gltf) => {
     const model = gltf.scene;
     
     // Enable shadows for the model
@@ -39,9 +39,58 @@ export function createBookshelfDoor() {
     
     slidingGroup.add(model);
     modelLoaded = true;
-    console.log('BookshelfDoor GLB model loaded successfully');
+    console.log('BookshelfDoor GLB model (sci-fi office desk) loaded successfully');
+
+    // Try to find drawer meshes; pick the lowest as the bottom drawer
+    const candidateDrawers = [];
+    model.traverse((n) => {
+      const nm = (n.name || '').toLowerCase();
+      if (n.isMesh && (nm.includes('drawer') || nm.includes('draw'))) {
+        candidateDrawers.push(n);
+      }
+    });
+
+    if (candidateDrawers.length > 0) {
+      const worldPos = new THREE.Vector3();
+      let bottomDrawer = candidateDrawers[0];
+      let minY = Infinity;
+      for (const d of candidateDrawers) {
+        d.getWorldPosition(worldPos);
+        if (worldPos.y < minY) {
+          minY = worldPos.y;
+          bottomDrawer = d;
+        }
+      }
+
+      // Set up simple open animation for bottom drawer
+      const baseMatrix = bottomDrawer.matrix.clone();
+      let drawerTarget = 1; // open by default
+      let drawerT = 0;
+      const drawerDamp = 6;
+      const openDistance = 0.28; // meters
+      const localAxis = new THREE.Vector3(0, 0, 1); // adjust if desk uses different axis
+
+      const prevAnimate = group.userData.animate;
+      group.userData.animate = (dt) => {
+        if (prevAnimate) prevAnimate(dt);
+        drawerT = THREE.MathUtils.damp(drawerT, drawerTarget, drawerDamp, dt);
+
+        // reset to base then apply offset along local axis
+        bottomDrawer.matrix.copy(baseMatrix);
+        bottomDrawer.matrix.decompose(bottomDrawer.position, bottomDrawer.quaternion, bottomDrawer.scale);
+        const offset = localAxis.clone().multiplyScalar(openDistance * drawerT).applyQuaternion(bottomDrawer.quaternion);
+        bottomDrawer.position.add(offset);
+        bottomDrawer.updateMatrix();
+        bottomDrawer.updateMatrixWorld(true);
+      };
+
+      group.userData.setBottomDrawerOpen = (open) => { drawerTarget = open ? 1 : 0; };
+      group.userData.toggleBottomDrawer = () => { drawerTarget = drawerTarget < 0.5 ? 1 : 0; };
+    } else {
+      console.warn('No drawer meshes found in sci-fi office desk model; cannot animate bottom drawer.');
+    }
   }, undefined, (error) => {
-    console.error('Error loading BookshelfDoor GLB model:', error);
+    console.error('Error loading BookshelfDoor GLB model (sci-fi office desk):', error);
   });
   
   // Animation state
