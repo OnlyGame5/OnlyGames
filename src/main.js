@@ -1898,7 +1898,7 @@ function animate(currentTime) {
   // Room 3 access door is handled by room0.js westDoor
 
   // Enter Room 3 logic and stage progression
-  if (insideRoom3 && gameState.stage < 3 && gameState.room3 && typeof gameState.room3.enter === 'function') {
+  if (insideRoom3 && gameState.stage <  3 && gameState.room3 && typeof gameState.room3.enter === 'function') {
     gameState.room3.enter(2);
   }
   
@@ -1963,7 +1963,7 @@ function animate(currentTime) {
   levelManager.update(deltaTime);
   
   // Stage 0: Update camera
-  attachCamera(camera, player);
+  attachCamera(camera, player, scene);
   
   // Performance debugger removed
   
