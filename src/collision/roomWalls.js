@@ -170,8 +170,7 @@ export const roomWallDefinitions = {
       // Book (position: -5, 0.15, 3.5) -> World: (-5, 0.15, 27.0)
       { position: new THREE.Vector3(-5, 0.15, 27.0), size: new THREE.Vector3(0.6, 0.3, 0.4), type: 'book' },
       
-      // Note (position: -2.2, 0.205, -1.8) -> World: (-2.2, 0.205, 21.7)
-      { position: new THREE.Vector3(-2.2, 0.205, 21.7), size: new THREE.Vector3(0.4, 0.1, 0.6), type: 'note' },
+      // Note sheet: no collision (removed collider to allow smooth pickup and movement)
       
       // Candle (position: -1.5, 0.2, -1.6) -> World: (-1.5, 0.2, 21.9)
       { position: new THREE.Vector3(-1.5, 0.2, 21.9), size: new THREE.Vector3(0.2, 0.4, 0.2), type: 'candle' },

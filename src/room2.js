@@ -213,11 +213,13 @@ export function createRoom2() {
       const laptop = createReusableLaptop({
         ...LaptopPresets.room2,
         position: new THREE.Vector3(3, 0, 2), // Position near the front wall, right side
-        rotation: Math.PI // Face towards the center of the room
+        rotation: Math.PI, // Face towards the center of the room
+        // Render a gothic "G" on the physical laptop screen using Old English/Cloister Black
+        screenContent: (display, material) => drawOldEnglishGTexture(display, material)
       });
-      // Bind laptop interaction to open the Room 2 brief
+      // Bind laptop interaction to open a desktop-style UI (like Room 1)
       laptop.userData = laptop.userData || {};
-      laptop.userData.onInteract = () => openRoom2LaptopBrief();
+      laptop.userData.onInteract = () => openRoom2DesktopUI();
       group.add(laptop);
   });
   
@@ -661,6 +663,205 @@ export function createRoom2() {
     return prompt;
   }
 
+  // Prefer Old English/Cloister Black for the "G". Fallback to Unifraktur webfont if unavailable.
+  async function ensureOldEnglishFont() {
+    if (!document || !document.fonts) return;
+    if (ensureOldEnglishFont.loaded) return;
+    try {
+      // Attempt to load locally installed fonts first (non-blocking if missing)
+      await Promise.race([
+        document.fonts.load('64px "Old English Text MT"'),
+        document.fonts.load('64px "Cloister Black"')
+      ]);
+    } catch (_) {}
+    // Add a reliable fallback (Unifraktur) via Google Fonts
+    try {
+      if (!document.getElementById('unifraktur-font-link')) {
+        const link = document.createElement('link');
+        link.id = 'unifraktur-font-link';
+        link.rel = 'stylesheet';
+        link.href = 'https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap';
+        document.head.appendChild(link);
+      }
+      await document.fonts.load('64px "UnifrakturMaguntia"');
+    } catch (_) {}
+    ensureOldEnglishFont.loaded = true;
+  }
+
+  async function drawOldEnglishGTexture(display, material) {
+    try { await ensureOldEnglishFont(); } catch (_) {}
+    const w = 1024, h = 768;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+
+    // Soft CRT-like greenish background with vignette
+    const grad = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.1, w/2, h/2, Math.min(w,h)*0.75);
+    grad.addColorStop(0, '#cfe2d6');
+    grad.addColorStop(1, '#0a192f');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Gothic "G" using Old English/Cloister, fallback to Unifraktur
+    const fontFamily = '"Old English Text MT","Cloister Black","UnifrakturMaguntia",serif';
+    ctx.fillStyle = 'rgba(20,30,25,0.95)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${Math.floor(h*0.85)}px ${fontFamily}`;
+    ctx.fillText('G', w/2, h/2);
+
+    // Outer vignette for depth
+    const vignette = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.25, w/2, h/2, Math.min(w,h)*0.95);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, w, h);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    material.map = tex;
+    material.emissiveMap = tex;
+    material.needsUpdate = true;
+  }
+
+  // ================================
+  // Room 2 Desktop-style Laptop UI (matches Room 1 style)
+  // ================================
+  function openRoom2DesktopUI() {
+    if (window.disablePlayerControls) return;
+    const interfaceId = 'room2-desktop-ui';
+    if (document.getElementById(interfaceId)) return; // already open
+
+    const uiContainer = document.createElement('div');
+    uiContainer.id = interfaceId;
+
+    const style = document.createElement('style');
+    style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
+      #${interfaceId} { position: fixed; inset: 0; background:#0a192f; z-index:10000; font-family:'Courier New','Consolas', monospace; overflow:hidden; }
+      #${interfaceId} .desktop-bg { position:absolute; inset:0; z-index:0; background: radial-gradient(ellipse at center, rgba(207,226,214,0.92) 0%, rgba(10,25,47,1) 72%); }
+      #${interfaceId} .g-logo { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family: 'Old English Text MT','Cloister Black','UnifrakturMaguntia',serif; font-size: 32vw; line-height:0.8; color: rgba(20,30,25,0.92); text-shadow: 0 0 30px rgba(0,0,0,0.35), 0 0 80px rgba(0,0,0,0.25); pointer-events:none; user-select:none; }
+      #${interfaceId} #desktop-icons { position:absolute; top:40px; left:40px; display:grid; grid-template-columns:1fr; gap:20px; z-index:1; }
+      #${interfaceId} .icon { width:90px; color:#fff; text-align:center; font-size:12px; cursor:pointer; transition:all .2s; }
+      #${interfaceId} .icon:hover { background: rgba(0,255,127,.1); border-radius:4px; }
+      #${interfaceId} .icon img { width:50px; height:50px; margin-bottom:5px; opacity:.7; }
+      #${interfaceId} .laptop-taskbar { position:absolute; left:0; bottom:0; width:100%; height:40px; background:rgba(5,15,30,.9); border-top:1px solid #00ff7f; display:flex; align-items:center; padding:0 20px; }
+      #${interfaceId} .taskbar-close-btn { background:transparent; border:1px solid #00ff7f; color:#00ff7f; padding:8px 16px; cursor:pointer; font-size:12px; }
+      #${interfaceId} .taskbar-close-btn:hover { background:#00ff7f; color:#051018; }
+      /* Sticky notes styling (like Room 1) */
+      #${interfaceId} .sticky-note { position:absolute; width: 360px; min-height: 140px; padding: 16px 18px; background: #ffc; color: #333; font-family: 'Comic Sans MS', 'Chalkduster', 'cursive'; font-size: 18px; line-height: 1.6; box-shadow: 5px 5px 10px rgba(0,0,0,0.3); transform: rotate(2.0deg); z-index: 1001; }
+      #${interfaceId} .sticky-note .sticky-tape { position: absolute; top: -12px; left: 30%; width: 110px; height: 24px; background: rgba(255,255,255,0.7); transform: rotate(-6deg); box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
+      #${interfaceId} .sticky-ink { color: #6a1b9a; }
+      /* Simple explorer window for folders */
+      #${interfaceId} .r2-window { position:absolute; top:80px; left:120px; width:520px; height:360px; background:#0b1524; border:1px solid #1b2a41; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:10020; color:#cfe3ff; display:none; }
+      #${interfaceId} .r2-window .titlebar { height:34px; background:#0e223a; display:flex; align-items:center; padding:0 10px; border-bottom:1px solid #203756; }
+      #${interfaceId} .r2-window .title { flex:1; font-weight:bold; color:#9fc2ff; }
+      #${interfaceId} .r2-window .close { cursor:pointer; padding:6px 10px; border:1px solid #304d73; color:#9fc2ff; }
+      #${interfaceId} .r2-window .body { height: calc(100% - 34px); padding:12px; overflow:auto; }
+      #${interfaceId} .r2-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; }
+      #${interfaceId} .r2-item { text-align:center; cursor:pointer; padding:8px; border:1px solid transparent; }
+      #${interfaceId} .r2-item:hover { border-color:#304d73; background:#0e1b2c; }
+      #${interfaceId} .r2-ico { width:44px; height:44px; margin:0 auto 6px; opacity:.85; }
+      #${interfaceId} .r2-ico.folder { background:linear-gradient(180deg,#8fb3ff,#5a86cf); border-radius:6px; }
+      #${interfaceId} .r2-ico.file { background:linear-gradient(180deg,#ffffff,#dddddd); border-radius:4px; }
+    `;
+
+    uiContainer.innerHTML = `
+      <div class="desktop-bg"><div class="g-logo">G</div></div>
+      <div id="desktop-icons">
+        <div class="icon" onclick="window.r2OpenAiInfo && window.r2OpenAiInfo()">
+          <div style="width:50px;height:50px;margin:0 auto 5px;background:linear-gradient(180deg,#cbd5e1,#64748b); border-radius:8px;"></div>
+          <span>ai_info</span>
+        </div>
+        <div class="icon" onclick="window.r2OpenLogs && window.r2OpenLogs()">
+          <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z'/></svg>">
+          <span>system_logs</span>
+        </div>
+        <div class="icon" onclick="window.r2OpenFolder && window.r2OpenFolder('XOR')">
+          <div class="r2-ico folder" style="width:50px;height:50px;margin:0 auto 5px;"></div>
+          <span>XOR</span>
+        </div>
+        <div class="icon" onclick="window.r2OpenFolder && window.r2OpenFolder('OR')">
+          <div class="r2-ico folder" style="width:50px;height:50px;margin:0 auto 5px;"></div>
+          <span>OR</span>
+        </div>
+      </div>
+      <div class="laptop-taskbar">
+        <button class="taskbar-close-btn" onclick="window.closeRoom2DesktopUI && window.closeRoom2DesktopUI()">CLOSE</button>
+      </div>
+      <div class="sticky-note" style="top: 40px; right: 40px;">
+        <div class="sticky-tape"></div>
+        <span class="sticky-ink">Seek my glasses, and you’ll see the balance that eludes you.<br>— G</span>
+      </div>
+      <div class="sticky-note" style="top: 210px; right: 60px; transform: rotate(-1.8deg);">
+        <div class="sticky-tape" style="left: 20%; transform: rotate(5deg);"></div>
+        <span class="sticky-ink">The logic you seek is stored here — open the folders, and uncover the truth.<br>— G</span>
+      </div>
+    `;
+
+    document.body.appendChild(style);
+    document.body.appendChild(uiContainer);
+    window.disablePlayerControls = true;
+    const crosshair = document.getElementById('crosshair');
+    if (crosshair) crosshair.style.display = 'none';
+    if (document.pointerLockElement) { document.exitPointerLock(); }
+    document.body.style.cursor = 'default';
+
+    window.r2OpenAiInfo = function() {
+      if (window.AI) window.AI.say('AI Info is restricted on this terminal.');
+    };
+    window.r2OpenLogs = function() {
+      if (window.AI) window.AI.say('System logs: South Sector terminal online.');
+    };
+    // Simple folder explorer
+    window.r2OpenFolder = function(name) {
+      const id = `r2-folder-${name}`;
+      if (document.getElementById(id)) {
+        document.getElementById(id).style.display = 'block';
+        return;
+      }
+      const win = document.createElement('div');
+      win.className = 'r2-window';
+      win.id = id;
+      win.innerHTML = `
+        <div class="titlebar"><div class="title">${name}</div><div class="close" onclick="document.getElementById('${id}').style.display='none'">X</div></div>
+        <div class="body"><div class="r2-grid" id="${id}-grid"></div></div>
+      `;
+      uiContainer.appendChild(win);
+      const grid = win.querySelector(`#${id}-grid`);
+      const addFile = (label) => {
+        const el = document.createElement('div');
+        el.className = 'r2-item';
+        el.innerHTML = `<div class='r2-ico file'></div><div>${label}</div>`;
+        el.onclick = () => { if (window.AI) window.AI.say(`${label}: file is encrypted.`); };
+        grid.appendChild(el);
+      };
+      const addFolder = (label, target) => {
+        const el = document.createElement('div');
+        el.className = 'r2-item';
+        el.innerHTML = `<div class='r2-ico folder'></div><div>${label}</div>`;
+        el.onclick = () => window.r2OpenFolder(target || label);
+        grid.appendChild(el);
+      };
+      if (name === 'XOR') {
+        addFile('A');
+        addFile('B');
+      } else if (name === 'OR') {
+        addFile('C');
+        addFolder('XOR', 'XOR');
+      }
+      win.style.display = 'block';
+    };
+    window.closeRoom2DesktopUI = function() {
+      const el = document.getElementById(interfaceId);
+      if (el) el.remove();
+      window.disablePlayerControls = false;
+      const cross = document.getElementById('crosshair');
+      if (cross) cross.style.display = '';
+      document.body.style.cursor = 'none';
+    };
+  }
+
   // ================================
   // Room 2 Laptop Brief UI
   // ================================
@@ -857,6 +1058,15 @@ export function createRoom2() {
             const item = { name: pickupId, description: displayName, ...meta };
             if (addToInventory(item)) {
               AI.showInteractionFeedback(`Picked up: ${displayName}`);
+              // Remove nearby collision box for this item so the floor is no longer blocked
+              try {
+                const worldPos = new THREE.Vector3();
+                root.getWorldPosition(worldPos);
+                if (window.wallCollisionManager && typeof window.wallCollisionManager.removeObjectsNear === 'function') {
+                  // Use a slightly larger radius to robustly catch the nearby collision box
+                  window.wallCollisionManager.removeObjectsNear(worldPos, 1.2);
+                }
+              } catch (_) {}
               if (root.parent) root.parent.remove(root);
               const idx = pickableObjects.indexOf(root);
               if (idx >= 0) pickableObjects.splice(idx, 1);

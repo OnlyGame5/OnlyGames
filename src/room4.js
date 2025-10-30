@@ -348,7 +348,7 @@ export function createRoom4() {
   beamMesh.name = 'holographic-beam';
   group.add(beamMesh);
 
-  // Add holographic particles for beam visibility
+  // Add holographic particles for beam visibility (GPU-animated)
   const particleGeometry = new THREE.BufferGeometry();
   const particleCount = 200;
   const positions = new Float32Array(particleCount * 3);
@@ -374,19 +374,94 @@ export function createRoom4() {
   
   particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  
+
+  // Simple points material (pre-optimization behavior)
   const particleMaterial = new THREE.PointsMaterial({
     size: 0.05,
     transparent: true,
     opacity: 0.6,
     vertexColors: true,
-    blending: THREE.AdditiveBlending
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
   });
-  
+
   const particles = new THREE.Points(particleGeometry, particleMaterial);
   particles.position.set(0, 0, 0);
   particles.name = 'holographic-particles';
   group.add(particles);
+
+  // Restore classic per-particle motion (cheap: 200 points): upward scroll + gentle X/Z sway
+  const posAttr = particleGeometry.getAttribute('position');
+  const posArray = posAttr.array; // Float32Array
+  const count = particleCount;
+  const baseX = new Float32Array(count);
+  const baseY = new Float32Array(count);
+  const baseZ = new Float32Array(count);
+  const speedY = new Float32Array(count);
+  const swayAmp = new Float32Array(count);
+  const swayFreq = new Float32Array(count);
+  const phase = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const j = i * 3;
+    baseX[i] = posArray[j];
+    baseY[i] = posArray[j + 1];
+    baseZ[i] = posArray[j + 2];
+    speedY[i] = 0.4 + Math.random() * 0.6; // 0.4..1.0 m/s upward
+    swayAmp[i] = 0.05 + Math.random() * 0.12; // gentle sway radius
+    swayFreq[i] = 0.6 + Math.random() * 1.2; // Hz-ish factor
+    phase[i] = Math.random() * Math.PI * 2;
+  }
+  particles.userData._p = { posAttr, posArray, baseX, baseY, baseZ, speedY, swayAmp, swayFreq, phase, t: 0 };
+  particles.userData.cpuUpdate = (dt) => {
+    const p = particles.userData._p; if (!p) return;
+    p.t += dt;
+    const h = beamHeight;
+    for (let i = 0; i < count; i++) {
+      const j = i * 3;
+      const t = p.t + phase[i];
+      // Upward with wrap
+      let y = baseY[i] + p.t * speedY[i];
+      y = y % h; if (y < 0) y += h;
+      // Gentle circular sway
+      const ax = Math.sin(t * swayFreq[i]) * swayAmp[i];
+      const az = Math.cos(t * (swayFreq[i] * 0.8)) * swayAmp[i];
+      p.posArray[j]     = baseX[i] + ax;
+      p.posArray[j + 1] = y;
+      p.posArray[j + 2] = baseZ[i] + az;
+    }
+    p.posAttr.needsUpdate = true;
+  };
+
+  // Global, room-independent animation ticker to ensure motion even when Room 4 isn't the active room
+  if (!window.__room4MotionTicker) {
+    let __last = performance.now();
+    const __tick = () => {
+      const now = performance.now();
+      let dt = (now - __last) / 1000;
+      __last = now;
+      // Cap dt to avoid large jumps after tab switches
+      if (dt > 0.05) dt = 0.05;
+      try {
+        // Update beam particles
+        if (particles && particles.userData && particles.userData.cpuUpdate) {
+          particles.userData.cpuUpdate(dt);
+        }
+        // Update floating binary text/letters
+        if (floatingBinary && typeof floatingBinary.update === 'function') {
+          floatingBinary.update(dt);
+        }
+        // Update hologram near the decoder desk regardless of room activity
+        if (window.room4Hologram && typeof window.room4Hologram.update === 'function') {
+          window.room4Hologram.update(dt);
+        }
+      } catch (e) {
+        // Fail-safe: never break the ticker
+      }
+      requestAnimationFrame(__tick);
+    };
+    window.__room4MotionTicker = true;
+    requestAnimationFrame(__tick);
+  }
 
   // Add focused lighting on the laptop area for glow effect
   const laptopLight = new THREE.PointLight(0x00ff88, 1.5, 18);
@@ -522,6 +597,12 @@ export function createRoom4() {
     update: (delta) => {
       // Update dialogue system
       updateRoom4Dialogue();
+      
+      // Animate beam particles only when this room is active/visible
+      const particlesMesh = group.getObjectByName('holographic-particles');
+      if (particlesMesh && particlesMesh.userData && particlesMesh.userData.cpuUpdate) {
+        particlesMesh.userData.cpuUpdate(delta);
+      }
       
       // Check if player has truth filter glasses selected (glasses from Room 2)
       const inv = getPlayerInventory();

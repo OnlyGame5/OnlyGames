@@ -7,6 +7,7 @@ export class WallCollisionManager {
     this.hallways = [];
     this.hallwayWalls = [];
     this.objects = [];
+    this.removedObjectIds = new Set(); // Persistently removed object IDs
     this.debugMode = false;
     this.debugMeshes = [];
     this.scene = null;
@@ -101,6 +102,10 @@ export class WallCollisionManager {
    * @param {boolean} dynamic - Whether this object can change state
    */
   addObject(position, size, id, type = 'object', dynamic = false) {
+    // Skip adding if this object id was previously removed (e.g., item picked up)
+    if (this.removedObjectIds.has(id)) {
+      return;
+    }
     this.objects.push({
       id,
       type,
@@ -118,6 +123,52 @@ export class WallCollisionManager {
         position.z + size.z / 2
       )
     });
+  }
+
+  /**
+   * Remove a collision object by its id
+   * @param {string} id - Identifier used when adding the object
+   * @returns {boolean} - True if an object was removed
+   */
+  removeObjectById(id) {
+    // Remember removal so future room collision setups don't re-add it
+    this.removedObjectIds.add(id);
+    const before = this.objects.length;
+    this.objects = this.objects.filter(obj => obj.id !== id);
+    if (before !== this.objects.length && this.debugMode) {
+      // Also remove any debug mesh with matching id
+      this.debugMeshes = this.debugMeshes.filter(mesh => {
+        const match = mesh.userData && mesh.userData.id === id && mesh.userData.type === 'object';
+        if (match && mesh.parent) {
+          mesh.parent.remove(mesh);
+          mesh.geometry.dispose();
+          mesh.material.dispose();
+        }
+        return !match;
+      });
+    }
+    return before !== this.objects.length;
+  }
+
+  /**
+   * Remove collision objects near a world position (useful for picked-up items)
+   * @param {THREE.Vector3} position - World position to search around
+   * @param {number} radius - Removal radius
+   * @param {(obj: any)=>boolean} predicate - Optional filter function
+   * @returns {number} - Count of removed objects
+   */
+  removeObjectsNear(position, radius = 0.75, predicate = null) {
+    const toRemove = [];
+    for (const obj of this.objects) {
+      if (predicate && !predicate(obj)) continue;
+      const d = position.distanceTo(obj.position);
+      if (d <= radius) toRemove.push(obj.id);
+    }
+    let removed = 0;
+    for (const id of toRemove) {
+      if (this.removeObjectById(id)) removed += 1;
+    }
+    return removed;
   }
 
   /**
