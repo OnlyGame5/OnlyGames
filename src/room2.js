@@ -903,6 +903,11 @@ export function createRoom2() {
   }
 
   function update(deltaTime) {
+    // Skip heavy updates when Room 2 is not the active room or not visible
+    const isActiveRoom = (window.gameStore && window.gameStore.getCurrentRoom && window.gameStore.getCurrentRoom() === 'room2');
+    if (!isActiveRoom || (group && group.visible === false)) {
+      return;
+    }
     // Safety: if both core puzzles are complete but completion flow hasn't run (e.g., after a reload), trigger it.
     try {
       if (!gameStore.rooms.room2.isComplete && room2Puzzles.scalePuzzleComplete && room2Puzzles.logicPuzzleComplete && !logicKeyAwarded) {
