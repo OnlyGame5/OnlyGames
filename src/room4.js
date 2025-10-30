@@ -11,6 +11,7 @@ import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { FloatingBinary } from './rooms/Room4/FloatingBinary.js';
 import { NexusPanel } from './rooms/Room4/NexusPanel.js';
+import { HologramDisplay } from './rooms/Room4/HologramDisplay.js';
 import { createReusableLaptop, LaptopPresets } from './components/ReusableLaptop.js';
 
 export function createRoom4() {
@@ -61,7 +62,7 @@ export function createRoom4() {
     normalScale: new THREE.Vector2(0.6, 0.6)
   });
   // Set floor color to black (like Room 1 when lights are off)
-  floorMaterial.color.setHex(0x000000);
+  floorMaterial.color.setHex(0x111111); // Dark gray so lights can influence the floor
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
   floor.position.set(0, 0, 0);
   floor.receiveShadow = true;
@@ -156,14 +157,8 @@ export function createRoom4() {
   console.log('Creating NEXUS panel...');
   const nexusPanel = new NexusPanel();
   console.log('NEXUS panel created:', nexusPanel);
-  // Position at top of wall: screen is 5 units tall, so center at y=1.5 makes top edge at y=4 (wall top)
-  nexusPanel.group.position.set(0, 1.5, -8.8); // Position at top of wall, slightly in front of north wall
-  nexusPanel.group.rotation.y = 0; // Static - faces south (toward player)
-  nexusPanel.mount(group);
-  console.log('NEXUS panel mounted to group');
-  console.log('Panel final position:', nexusPanel.group.position);
-  console.log('Panel final rotation:', nexusPanel.group.rotation);
-  
+  // Headless mode: do not mount the 3D screen; UI logic only
+   
   // Make nexusPanel globally accessible for laptop interface
   window.room4NexusPanel = nexusPanel;
 
@@ -176,58 +171,11 @@ export function createRoom4() {
     decoderPanelModel = gltf.scene;
     decoderPanelModel.name = 'room4-decoder-panel';
     
-    // Apply textures from decoder-panel folder
-    // The GLTFLoader may have already loaded embedded textures, but we'll apply our custom ones
-    const textureLoader = new THREE.TextureLoader();
-    
+    // Keep embedded GLTF materials; only enable shadows on meshes
     decoderPanelModel.traverse((child) => {
       if (child.isMesh) {
-        // Enable shadows
         child.castShadow = true;
         child.receiveShadow = true;
-        
-        // Apply custom textures from decoder-panel folder
-        if (child.material) {
-          // If material is an array, handle each material
-          const materials = Array.isArray(child.material) ? child.material : [child.material];
-          
-          materials.forEach((material, index) => {
-            if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshPhysicalMaterial) {
-              // Load and apply textures from decoder-panel folder
-              // gltf_embedded_1.jpeg - likely the main color/diffuse map
-              const colorTexture = textureLoader.load('/textures/decoder-panel/gltf_embedded_1.jpeg');
-              colorTexture.flipY = false; // GLTF textures are typically not flipped
-              material.map = colorTexture;
-              
-              // gltf_embedded_2.jpeg - could be normal, roughness, or other map
-              const texture2 = textureLoader.load('/textures/decoder-panel/gltf_embedded_2.jpeg');
-              texture2.flipY = false;
-              // Try as normal map first
-              material.normalMap = texture2;
-              
-              // Apply channel-packed textures if available (B and G channels)
-              // These might be roughness/metallic or other PBR maps
-              const channelBTexture = textureLoader.load('/textures/decoder-panel/gltf_embedded_0@channels=B.jpeg');
-              channelBTexture.flipY = false;
-              const channelGTexture = textureLoader.load('/textures/decoder-panel/gltf_embedded_0@channels=G.jpeg');
-              channelGTexture.flipY = false;
-              
-              // Configure texture properties
-              [colorTexture, texture2, channelBTexture, channelGTexture].forEach(texture => {
-                if (texture) {
-                  texture.wrapS = THREE.RepeatWrapping;
-                  texture.wrapT = THREE.RepeatWrapping;
-                  texture.anisotropy = 4;
-                }
-              });
-              
-              // Enhance material properties for shiny black appearance
-              material.metalness = 0.9;
-              material.roughness = 0.1;
-              material.needsUpdate = true;
-            }
-          });
-        }
       }
     });
     
@@ -236,10 +184,11 @@ export function createRoom4() {
     // Place it slightly in front of the NexusPanel (z=-8.8) but behind the wall (z=-9)
     // Move up on y-axis so bottom of panel sits on floor (y=0)
     decoderPanelModel.rotation.y = Math.PI / 2 + Math.PI; // Rotate 180° clockwise from current to face the room
-    decoderPanelModel.scale.set(3.75, 3.75, 3.75); // Further increased size
+    decoderPanelModel.scale.set(3.5, 3.5, 3.5); // Further increased size
     // Position panel - adjust y upward so bottom sits on floor
     // With scale 5.0, estimate half-height and move panel up accordingly
-    decoderPanelModel.position.set(0, 1.0, -8.6); // Moved up so bottom sits on floor
+    decoderPanelModel.position.set(0, 0.75
+      , -8.6); // Moved up so bottom sits on floor
     
     // Add user data for interaction
     decoderPanelModel.userData = {
@@ -255,6 +204,20 @@ export function createRoom4() {
     
     group.add(decoderPanelModel);
     console.log('Decoder panel model added to room');
+
+    // Mount hologram display above the table center
+    const hologram = new HologramDisplay({ position: new THREE.Vector3(0, 0.9, -8.6) });
+    hologram.mount(group);
+    window.room4Hologram = hologram; // expose for NexusPanel integration
+
+    // Add soft green spotlight near the NEXUS panel to illuminate the floor
+    const panelSpot = new THREE.SpotLight(0x00ff88, 2.0, 12, Math.PI / 6, 0.3, 1.0);
+    panelSpot.position.set(0, 1.4, -8.2); // Slightly in front of the panel and above it
+    panelSpot.target.position.set(0, 0.1, -8.6); // Aim toward the floor just in front of panel
+    panelSpot.castShadow = true;
+    panelSpot.name = 'nexus-panel-spot';
+    group.add(panelSpot);
+    group.add(panelSpot.target);
   }, (progress) => {
     console.log('Loading decoder panel model...', (progress.loaded / progress.total * 100) + '%');
   }, (error) => {
@@ -516,6 +479,11 @@ export function createRoom4() {
       if (nexusPanel) {
         nexusPanel.update(delta);
       }
+
+      // Update hologram animation
+      if (window.room4Hologram) {
+        window.room4Hologram.update(delta);
+      }
       
       // Update laptop screen activation
       const laptop = group.getObjectByName('reusable-laptop');
@@ -602,27 +570,8 @@ export function createRoom4() {
         }
       }
       
-      // Check if player is near the NEXUS panel
-      if (nexusPanel && player && player.position) {
-        const playerLocal = group.worldToLocal(player.position.clone());
-        const panelDistance = playerLocal.distanceTo(new THREE.Vector3(0, 1, -8.8));
-        
-        console.log('Player distance from panel:', panelDistance);
-        
-        // If player is within 3 units of the panel
-        if (panelDistance < 3) {
-          console.log('Opening NEXUS panel...');
-          nexusPanel.show();
-          // Trigger decoder dialogue when panel is opened
-          triggerBinaryDecoderDialogue();
-          return true; // Interaction handled
-        } else {
-          console.log('Player too far from panel (distance:', panelDistance, ')');
-        }
-      } else {
-        console.log('Missing nexusPanel or player position');
-      }
-      return false; // No interaction
+      // If nothing else handled, return false
+      return false;
     }
   };
 }

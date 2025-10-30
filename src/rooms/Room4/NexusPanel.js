@@ -103,7 +103,7 @@ export class NexusPanel {
     const startX = (canvas.width - totalWidth) / 2 + boxWidth / 2; // Center the first box
     letters.forEach((letter, index) => {
       const x = startX + (index * spacing);
-      const y = 225; // Scaled up
+      const y = 160; // Raised higher so boxes sit above the 3D panel
       
       // Draw letter box with dark background - larger for bigger text
       ctx.fillStyle = '#1a1a1a';
@@ -135,6 +135,7 @@ export class NexusPanel {
     this.group.add(textMesh);
     
     this.panelText = textMesh;
+
   }
 
   /**
@@ -375,6 +376,11 @@ export class NexusPanel {
     
     // Trigger flicker effect
     this._triggerFlickerEffect();
+
+    // Notify hologram display (if present)
+    if (window.room4Hologram && typeof window.room4Hologram.onRevealLetter === 'function') {
+      window.room4Hologram.onRevealLetter(letter);
+    }
     
     // Check if all letters are revealed
     if (this._isComplete()) {
@@ -427,7 +433,7 @@ export class NexusPanel {
     const startX = (canvas.width - totalWidth) / 2 + boxWidth / 2; // Center the first box
     letters.forEach((letter, index) => {
       const x = startX + (index * spacing);
-      const y = 225; // Scaled up
+      const y = 160; // Raised higher so boxes sit above the 3D panel
       
       // Draw letter box with dark background - larger for bigger text
       ctx.fillStyle = '#1a1a1a';
@@ -831,13 +837,10 @@ export class NexusPanel {
    * Update animation
    */
   update(delta) {
+    // Keep a stable, non-holographic screen; no per-frame visual changes required
     this.animationTime += delta;
-    
-    // Simple pulsing glow for the panel text
     if (this.panelText && this.panelText.material) {
-      const glowIntensity = 0.5 + 0.3 * Math.sin(this.animationTime * 2);
-      this.panelText.material.opacity = 0.9 + 0.1 * glowIntensity;
-      this.panelText.material.needsUpdate = true;
+      this.panelText.material.opacity = 1.0;
     }
   }
 
