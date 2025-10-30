@@ -26,6 +26,7 @@ const textureCache = {
  * @param {number} options.positionZ - Z position of hallway center (default: -18)
  * @param {string} options.name - Name for the hallway group (default: 'reusable-hallway')
  * @param {boolean} options.addLighting - Whether to add atmospheric lighting (default: true)
+ * @param {boolean} options.addCeiling - Whether to add a physical ceiling mesh (default: false)
  * @param {number} options.lightIntensity - Intensity of hallway lights (default: 0.3)
  * @param {number} options.ambientIntensity - Ambient light intensity (default: 0.1)
  * @param {string} options.textureSet - Texture set to use ('concrete031' or 'tiles136c') (default: 'concrete031')
@@ -41,6 +42,7 @@ export function createReusableHallway(options = {}) {
     positionZ: -18,
     name: 'reusable-hallway',
     addLighting: true,
+    addCeiling: false,
     lightIntensity: 0.3,
     ambientIntensity: 0.1,
     textureSet: 'concrete031',
@@ -214,23 +216,22 @@ export function createReusableHallway(options = {}) {
   hallwayWall2.name = 'hallway-wall-right';
   hallway.add(hallwayWall2);
 
-  // Hallway ceiling - Performance optimized
-  const hallwayCeilingGeo = new THREE.BoxGeometry(config.width, 0.3, config.length);
-  const hallwayCeiling = new THREE.Mesh(
-    hallwayCeilingGeo,
-    createMaterial(config.width, config.length, {
-      uScale: 0.4,
-      vScale: 0.4
-    })
-  );
-  hallwayCeiling.position.set(
-    0, 
-    config.height + 0.15, 
-    0
-  );
-  hallwayCeiling.receiveShadow = true;
-  hallwayCeiling.name = 'hallway-ceiling';
-  hallway.add(hallwayCeiling);
+  // Hallway ceiling (optional) - disabled by default to avoid visuals over door headers
+  if (config.addCeiling) {
+    const ceilingTrim = 0.6; // meters trimmed from total length (0.3 each end)
+    const hallwayCeilingGeo = new THREE.BoxGeometry(config.width, 0.3, Math.max(0, config.length - ceilingTrim));
+    const hallwayCeiling = new THREE.Mesh(
+      hallwayCeilingGeo,
+      createMaterial(config.width, config.length, {
+        uScale: 0.4,
+        vScale: 0.4
+      })
+    );
+    hallwayCeiling.position.set(0, config.height + 0.15, 0);
+    hallwayCeiling.receiveShadow = true;
+    hallwayCeiling.name = 'hallway-ceiling';
+    hallway.add(hallwayCeiling);
+  }
 
   // Add minimal ambient lighting for visibility (5% intensity)
   if (config.addLighting) {

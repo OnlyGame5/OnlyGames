@@ -269,6 +269,10 @@ export class SecurityMonitor {
     const roomClone = roomGroup.clone();
     roomClone.position.set(0, 0, 0);
     roomClone.rotation.set(0, 0, 0);
+    
+    // Remove laptops from the cloned room to prevent them from appearing on security screens
+    this.removeLaptopsFromClone(roomClone);
+    
     this.securityScene.add(roomClone);
     
     // Add basic lighting to the security scene
@@ -318,6 +322,24 @@ export class SecurityMonitor {
       default: 
         return null;
     }
+  }
+  
+  removeLaptopsFromClone(roomClone) {
+    // Recursively traverse the cloned room and remove any laptops
+    const objectsToRemove = [];
+    
+    roomClone.traverse((child) => {
+      if (child.name === 'reusable-laptop') {
+        objectsToRemove.push(child);
+      }
+    });
+    
+    // Remove the laptops from their parent groups
+    objectsToRemove.forEach(laptop => {
+      if (laptop.parent) {
+        laptop.parent.remove(laptop);
+      }
+    });
   }
   
   

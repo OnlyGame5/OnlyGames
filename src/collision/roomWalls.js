@@ -194,45 +194,29 @@ export const roomWallDefinitions = {
   room3: {
     name: 'Server Room',
     walls: [
-      // Circular room - use multiple wall segments
+      // Square room - clean, simple wall boundaries
+      // Room 3 is at (-30, 0, 0), so walls are positioned around a 20x20 square
+      
       // North wall
       { position: new THREE.Vector3(-30, 2, -10), size: new THREE.Vector3(20, 4, 0.5) },
       
       // South wall
       { position: new THREE.Vector3(-30, 2, 10), size: new THREE.Vector3(20, 4, 0.5) },
       
-      // East wall
-      { position: new THREE.Vector3(-20, 2, 0), size: new THREE.Vector3(0.5, 4, 20) },
+      // East wall (with 2-unit wide cutout for hallway connection)
+      { position: new THREE.Vector3(-20, 2, 5.5), size: new THREE.Vector3(0.5, 4, 9) }, // Top part
+      { position: new THREE.Vector3(-20, 2, -5.5), size: new THREE.Vector3(0.5, 4, 9) }, // Bottom part
       
-      // West wall (with hub connection)
-      { position: new THREE.Vector3(-40, 2, 4.0), size: new THREE.Vector3(0.5, 4, 6) },
-      { position: new THREE.Vector3(-40, 2, -4.0), size: new THREE.Vector3(0.5, 4, 6) }
+      // West wall
+      { position: new THREE.Vector3(-40, 2, 0), size: new THREE.Vector3(0.5, 4, 20) }
     ],
     objects: [
-      // Server racks and equipment collision boxes
-      // Server rack 1 (position: -5, 0, -5) -> World: (-35, 1, -5)
-      { position: new THREE.Vector3(-35, 1, -5), size: new THREE.Vector3(1.0, 2.0, 0.8), type: 'serverRack' },
+      // Only the laptop workstation and central CPU core should have collision
+      // Laptop workstation (position: -7, 0, 0) -> World: (-37, 0.8, 0)
+      { position: new THREE.Vector3(-37, 0.8, 0), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' },
       
-      // Server rack 2 (position: -5, 0, 5) -> World: (-35, 1, 5)
-      { position: new THREE.Vector3(-35, 1, 5), size: new THREE.Vector3(1.0, 2.0, 0.8), type: 'serverRack' },
-      
-      // Server rack 3 (position: 5, 0, -5) -> World: (-25, 1, -5)
-      { position: new THREE.Vector3(-25, 1, -5), size: new THREE.Vector3(1.0, 2.0, 0.8), type: 'serverRack' },
-      
-      // Server rack 4 (position: 5, 0, 5) -> World: (-25, 1, 5)
-      { position: new THREE.Vector3(-25, 1, 5), size: new THREE.Vector3(1.0, 2.0, 0.8), type: 'serverRack' },
-      
-      // Central console (position: 0, 0, 0) -> World: (-30, 0.5, 0)
-      { position: new THREE.Vector3(-30, 0.5, 0), size: new THREE.Vector3(2.0, 1.0, 1.5), type: 'console' },
-      
-      // Data storm puzzle console (position: 0, 0, -3) -> World: (-30, 0.5, -3)
-      { position: new THREE.Vector3(-30, 0.5, -3), size: new THREE.Vector3(1.5, 1.0, 1.0), type: 'dataStormConsole' },
-      
-      // Purge minigame console (position: 0, 0, 3) -> World: (-30, 0.5, 3)
-      { position: new THREE.Vector3(-30, 0.5, 3), size: new THREE.Vector3(1.5, 1.0, 1.0), type: 'purgeConsole' },
-      
-      // Light fixture (position: 0, 4.0, 0) -> World: (-30, 4.0, 0)
-      { position: new THREE.Vector3(-30, 4.0, 0), size: new THREE.Vector3(1.0, 0.5, 1.0), type: 'lightFixture' }
+      // Central CPU core cube (position: 0, 2.2, 0) -> World: (-30, 2.2, 0)
+      { position: new THREE.Vector3(-30, 2.2, 0), size: new THREE.Vector3(1.2, 1.2, 1.2), type: 'cpuCore' }
     ],
     hallways: [
       // Hub connection

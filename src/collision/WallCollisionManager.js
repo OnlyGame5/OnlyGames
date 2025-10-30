@@ -188,7 +188,7 @@ export class WallCollisionManager {
    */
   checkDoorCollision(doorObj, playerMin, playerMax) {
     // Check for cheat mode - if doors are opened via cheat, bypass collision
-    if (this.cheatMode || window.cheatMode) {
+    if (this.cheatMode || window.cheatMode || window.wallCollisionManager?.cheatMode) {
       return false; // No door collision in cheat mode
     }
 

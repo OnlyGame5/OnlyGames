@@ -12,8 +12,8 @@ export class LogicGatePuzzle {
     this.pendingFrom = null; // { id }
     this.dragWire = null; // { fromId, start:{x,y}, path }
 
-  // Simplified palette: puzzle is solvable with just 2 gates
-  this.inventory = { XOR:1, AND:0, OR:1, NOT:0 };
+  // Give one of each gate, even though the puzzle is solvable with XOR + OR
+  this.inventory = { XOR:1, AND:1, OR:1, NOT:1 };
     this.inputVals = { A:0, B:0, C:0 };
     this.ids = { next:1 };
 
@@ -59,6 +59,7 @@ export class LogicGatePuzzle {
       #logicSchematic .io .badge.on{background:#dff7e7;border-color:#1b5e20}
   #logicSchematic .hint{font-size:12px;color:#555;margin-left:6px}
       .gate-body{fill:#fff;stroke:#000;stroke-width:2}
+      .gate-label{font-family:'Segoe UI', Arial;font-size:12px;font-weight:700;fill:#000;pointer-events:none}
       .port{fill:#fff;stroke:#000;stroke-width:2;cursor:crosshair}
       .wire{fill:none;stroke:#b7bdc9;stroke-width:4;stroke-linecap:round}
       .wire.on{stroke:#c01616}
@@ -191,6 +192,14 @@ export class LogicGatePuzzle {
       const mouth=document.createElementNS('http://www.w3.org/2000/svg','path'); mouth.setAttribute('d',`M ${left+34} ${top} C ${left+78} ${top+H*0.25} ${left+78} ${top+H*0.75} ${left+34} ${top+H}`); mouth.setAttribute('class','gate-body'); mouth.setAttribute('fill','none');
       g.appendChild(main); if(kind==='XOR'){ const xor=document.createElementNS('http://www.w3.org/2000/svg','path'); xor.setAttribute('d',`M ${left+28} ${top} C ${left+72} ${top+H*0.25} ${left+72} ${top+H*0.75} ${left+28} ${top+H}`); xor.setAttribute('class','gate-body'); xor.setAttribute('fill','none'); g.appendChild(xor);} g.appendChild(mouth);
     }
+    // Add gate label in the center of the gate body
+    const label=document.createElementNS('http://www.w3.org/2000/svg','text');
+    label.setAttribute('x', left + W/2);
+    label.setAttribute('y', top + H/2 + 5);
+    label.setAttribute('text-anchor','middle');
+    label.setAttribute('class','gate-label');
+    label.textContent = kind;
+    g.appendChild(label);
     // ports
     const inputs = (kind==='NOT'?1:2);
     for(let i=0;i<inputs;i++){ const py = top + (inputs===1? H/2 : (H*0.33 + i*H*0.34)); g.appendChild(this.makePort(left-8, py, 'in', id, i)); }
@@ -248,8 +257,8 @@ export class LogicGatePuzzle {
     // remove all user-placed gates and connections
     for(const [id,n] of [...this.nodes]){ if(n.kind.startsWith('INPUT')||n.kind==='OUTPUT_PASS') continue; n.el.remove(); this.nodes.delete(id); }
     this.connections.forEach(c=>c.path.remove()); this.connections=[];
-    // reset simplified inventory
-    this.inventory={XOR:1,AND:0,OR:1,NOT:0};
+  // Reset inventory: provide one of each gate
+  this.inventory={XOR:1,AND:1,OR:1,NOT:1};
     ['XOR','AND','OR','NOT'].forEach(k=>{ 
       const elCount=this.ui.querySelector(`[data-count="${k}"]`);
       const pill=this.ui.querySelector(`[data-kind="${k}"]`);

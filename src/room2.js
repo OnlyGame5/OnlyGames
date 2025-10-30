@@ -37,9 +37,10 @@ export function createRoom2() {
 
   // Function to check if all Room 2 puzzles are completed
   function checkRoom2Completion() {
+    // Award completion (and key card) when the two core puzzles are done.
+    // Note reveal is helpful lore but no longer required for completion.
     const allComplete = room2Puzzles.scalePuzzleComplete && 
-                       room2Puzzles.logicPuzzleComplete &&
-                       room2Puzzles.noteRevealed;
+                       room2Puzzles.logicPuzzleComplete;
     
     if (allComplete && !gameStore.rooms.room2.isComplete) {
       gameStore.rooms.room2.isComplete = true;
@@ -51,35 +52,47 @@ export function createRoom2() {
         window.AI.say('Room 2 is complete. The path to Room 3 is now accessible.');
       }
       
+      // Grant the player the access key card once all puzzles are complete
+      try {
+        if (!logicKeyAwarded) {
+          const granted = addToInventory({ name: 'key_card', description: 'Access Key Card', type: 'key' });
+          if (granted) {
+            logicKeyAwarded = true;
+            if (window.AI) window.AI.say('Access Key Card issued. You may need this later.');
+            if (window.gameStore) window.gameStore.notify('room2.keyCardAwarded', true);
+          }
+        }
+      } catch (e) { console.warn('Failed to grant key card at completion:', e); }
+
       // Notify game state listeners
       gameStore.notify('room2Complete', true);
       gameStore.notify('room3AccessGranted', true);
     }
   }
 
-  // Concrete031 texture files for Room 2
-  const concrete031Files = {
-    color: "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
-    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
-    rough: "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
-    ao: "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg"
+  // Wood067 texture files for Room 2
+  const wood067Files = {
+    color: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_Color.jpg",
+    normal: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_NormalGL.jpg",
+    rough: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_Roughness.jpg",
+    // AO not provided in set
   };
 
   // Create concrete material for walls
-  const wallMaterial = makeConcrete031MaterialFlexible(12, 4, concrete031Files, {
-    uScale: 0.8,
-    vScale: 0.8,
-    metalness: 0.1,
-    roughness: 0.8,
+  const wallMaterial = makeConcrete031MaterialFlexible(12, 4, wood067Files, {
+    uScale: 0.5,
+    vScale: 0.5,
+    metalness: 0.0,
+    roughness: 0.6,
     anisotropy: 4
   });
 
   // Create concrete material for floor
-  const floorMaterial = makeConcrete031MaterialFlexible(12, 12, concrete031Files, {
-    uScale: 1.0,
-    vScale: 1.0,
+  const floorMaterial = makeConcrete031MaterialFlexible(12, 12, wood067Files, {
+    uScale: 0.8,
+    vScale: 0.8,
     metalness: 0.0,
-    roughness: 0.9,
+    roughness: 0.65,
     anisotropy: 4
   });
 
@@ -315,6 +328,25 @@ export function createRoom2() {
   screenGroup.add(screenFrame, screenDisplay);
   screenGroup.userData.isLogicScreen = true;
   group.add(screenGroup);
+
+  // --- Lighting: brighten Room 2 ---
+  {
+    // Soft ambient to lift overall brightness
+    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+    ambient.name = 'room2-ambient-light';
+    group.add(ambient);
+
+    // Central ceiling point light
+    const ceiling = new THREE.PointLight(0xffffff, 1.25, 26);
+    ceiling.position.set(0, 4, 0);
+    ceiling.name = 'room2-ceiling-light';
+    ceiling.castShadow = true;
+    ceiling.shadow.mapSize.width = 512;
+    ceiling.shadow.mapSize.height = 512;
+    ceiling.shadow.camera.near = 0.1;
+    ceiling.shadow.camera.far = 28;
+    group.add(ceiling);
+  }
   
   // (Removed) neon strip and AI poster
 
@@ -326,17 +358,6 @@ export function createRoom2() {
       // Mark logic puzzle complete and re-check room completion
       room2Puzzles.logicPuzzleComplete = true;
       checkRoom2Completion();
-      // Award a key card to the player (once)
-      try {
-        if (!logicKeyAwarded) {
-          const granted = addToInventory({ name: 'key_card', description: 'Key Card' });
-          if (granted) {
-            logicKeyAwarded = true;
-            if (window.AI) window.AI.say('Access Key Card acquired. This will be useful later.');
-            if (window.gameStore) window.gameStore.notify('room2.logicKeyCardCollected', true);
-          }
-        }
-      } catch (e) { console.warn('Failed to grant key card:', e); }
       // Notify listeners that the room2 logic puzzle is done
       try { if (window.gameStore) window.gameStore.notify('room2.logicPuzzleComplete', true); } catch(e) {}
     }
@@ -445,53 +466,69 @@ export function createRoom2() {
       registerOriginalModel('robot_hand', robotHand);
   });
 
-  // AI Manual - Create a book with AI theme
-  const aiBook = new THREE.Group();
-  aiBook.name = 'ai-book-prop';
-  const bookCover = new THREE.Mesh(
-    new THREE.BoxGeometry(0.25, 0.35, 0.04),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x1a1a3e, 
-      metalness: 0.2,
-      roughness: 0.7
-    })
-  );
-  const bookPages = new THREE.Mesh(
-    new THREE.BoxGeometry(0.24, 0.34, 0.03),
-    new THREE.MeshStandardMaterial({ 
-      color: 0xf0f0f0,
-      roughness: 0.9
-    })
-  );
-  bookPages.position.z = -0.005;
-  // Add AI symbol on cover
-  const aiSymbol = new THREE.Mesh(
-    new THREE.CircleGeometry(0.08, 16),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x00ffff, 
-      emissive: 0x00ccff, 
-      emissiveIntensity: 0.4
-    })
-  );
-  aiSymbol.position.z = 0.021;
-  aiBook.add(bookCover, bookPages, aiSymbol);
-  aiBook.position.set(-5, 0.2, 3.5);
-  aiBook.rotation.y = Math.PI / 8;
-  aiBook.rotation.x = Math.PI / 2;
-  aiBook.userData.pickupId = 'ai_book';
-  aiBook.userData.displayName = 'AI Manual';
-  aiBook.userData.isPickable = true;
-  group.add(aiBook);
-  pickableObjects.push(aiBook);
-  roomObjects.ai_book = aiBook;
-  registerOriginalModel('ai_book', aiBook);
-  
-  // Store a clone for dropped items
-  const aiBookClone = aiBook.clone();
-  aiBookClone.traverse((child) => {
-    if (child.isMesh && child.material) {
-      child.material = child.material.clone();
-    }
+  // AI Manual - Load real book model
+  loader.load('/models/book.glb', (gltf) => {
+      const aiBook = setupModel(gltf);
+      aiBook.name = 'ai-book-prop';
+    // Start at desired X/Z; Y will be set after we compute the base
+    aiBook.position.set(-5, 0.0, 3.5);
+    // Reset rotation; we'll orient to lay flat, then apply a small yaw
+    aiBook.rotation.set(0, 0, 0);
+      // Auto-scale: make the longest side ~0.3m so it fits hand-sized
+      try {
+        // Auto-scale: target 30cm longest side
+        aiBook.updateMatrixWorld(true);
+        let box = new THREE.Box3().setFromObject(aiBook);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const currentMax = Math.max(size.x, size.y, size.z);
+        const targetMax = 0.3;
+        if (currentMax > 0) {
+          const s = targetMax / currentMax;
+          aiBook.scale.setScalar(s);
+        }
+
+        // Orient to lay flat on the ground: make the thinnest dimension vertical (Y)
+        box = new THREE.Box3().setFromObject(aiBook);
+        box.getSize(size);
+        const dims = [ {axis:'x', v:size.x}, {axis:'y', v:size.y}, {axis:'z', v:size.z} ];
+        dims.sort((a,b)=>a.v-b.v);
+        const thinnest = dims[0].axis;
+        if (thinnest === 'x') {
+          // Rotate so X (thickness) becomes up (Y)
+          aiBook.rotation.z = Math.PI / 2;
+        } else if (thinnest === 'z') {
+          // Rotate so Z (thickness) becomes up (Y)
+          aiBook.rotation.x = -Math.PI / 2;
+        } // if 'y', already vertical
+
+        // Apply a small yaw to angle it slightly
+        aiBook.rotation.y += Math.PI / 8;
+
+        // Now place it so the bottom sits exactly on the floor top
+        aiBook.updateMatrixWorld(true);
+        box = new THREE.Box3().setFromObject(aiBook);
+        const min = box.min;
+        const targetY = (floor?.position?.y || 0) + 0.1; // floor is 0.2 thick, centered at y=0 -> top at 0.1
+        const dy = targetY - min.y;
+        aiBook.position.y += dy + 0.001; // small epsilon to avoid z-fighting
+      } catch (e) {
+        // Fallback orientation & scale
+        aiBook.rotation.x = Math.PI / 2;
+        aiBook.rotation.y = Math.PI / 8;
+        aiBook.scale.set(0.06, 0.06, 0.06);
+        aiBook.position.y = ((floor?.position?.y || 0) + 0.101);
+      }
+
+      // Pickup metadata
+      aiBook.userData.pickupId = 'ai_book';
+      aiBook.userData.displayName = 'AI Manual';
+      aiBook.userData.isPickable = true;
+
+      group.add(aiBook);
+      pickableObjects.push(aiBook);
+      roomObjects.ai_book = aiBook;
+      registerOriginalModel('ai_book', aiBook);
   });
 
   // Hidden note: base + invisible ink
@@ -866,6 +903,13 @@ export function createRoom2() {
   }
 
   function update(deltaTime) {
+    // Safety: if both core puzzles are complete but completion flow hasn't run (e.g., after a reload), trigger it.
+    try {
+      if (!gameStore.rooms.room2.isComplete && room2Puzzles.scalePuzzleComplete && room2Puzzles.logicPuzzleComplete && !logicKeyAwarded) {
+        checkRoom2Completion();
+      }
+    } catch(e) {}
+
     // Animate note ink fade if in progress
     if (noteInkMesh && noteRevealProgress < 1) {
       if (noteRevealProgress > 0) {
