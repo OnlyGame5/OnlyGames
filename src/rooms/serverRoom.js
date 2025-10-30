@@ -6,7 +6,7 @@ import { gameStore } from '../state/gameStore.js';
 import { buildStandardLightRig, removeExistingLights } from '../lighting/standardLighting.js';
 import { DataStormPuzzle } from './Room3/DataStormPuzzle.js';
 import { PurgeMinigame } from './Room3/PurgeMinigame.js';
-import { getPlayerInventory } from '../player.js';
+import { getPlayerInventory, addToInventory, removeFromInventory } from '../player.js';
 import { room3Audio } from '../audio/room3Audio.js';
 
 // Server Room – The Core
@@ -41,6 +41,7 @@ export class ServerRoom {
     this._buildShell();
     this._buildCatwalk();
     this._buildCenterPlatform();
+    this._buildAccessPanels();
     this._buildLaptopWorkstation();
 
     // Local lighting
@@ -850,6 +851,84 @@ export class ServerRoom {
     };
   }
 
+  // Three access panels (tables) around the CPU core, each accepts one card
+  _buildAccessPanels() {
+    this.accessPanels = [];
+    const radius = 4.2; // move panels closer to the core
+    const yTop = 0.55; // table top height (slightly taller)
+    // Use exactly three panels; align one with hallway (east, angle=0), two sides
+    const angles = [0, (2*Math.PI)/3, (4*Math.PI)/3];
+    const makePanel = (angle) => {
+      const g = new THREE.Group();
+      g.name = 'access-panel';
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      g.position.set(x, 0, z);
+      // Face the panel outward so the glow strip (+Z) points away from the core.
+      // For a panel placed at polar angle 'angle' (x=cos a, z=sin a),
+      // outward direction requires yaw = PI/2 - angle so forward (+Z) aligns with radial vector.
+      g.rotation.set(0, Math.PI/2 - angle, 0);
+
+      // Table
+      const table = new THREE.Mesh(
+        new THREE.BoxGeometry(1.0, 0.6, 0.6),
+        new THREE.MeshStandardMaterial({ color: 0x1a2a2a, metalness: 0.5, roughness: 0.35, emissive: 0x001a12, emissiveIntensity: 0.3 })
+      );
+      table.position.y = yTop;
+      table.castShadow = true; table.receiveShadow = true;
+      g.add(table);
+
+      // Cavity
+      const cavity = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 0.35, 0.4),
+        new THREE.MeshStandardMaterial({ color: 0x0a0f12, metalness: 0.2, roughness: 0.9 })
+      );
+      cavity.position.set(0, yTop + 0.05, 0);
+      g.add(cavity);
+
+      // Glow strip
+      const glow = new THREE.Mesh(
+        new THREE.BoxGeometry(0.95, 0.01, 0.05),
+        new THREE.MeshStandardMaterial({ color: 0xff3344, emissive: 0x330000, emissiveIntensity: 0.8 })
+      );
+      glow.position.set(0, yTop + 0.31, 0.22);
+      g.add(glow);
+
+      // Target slot position (floating above)
+      const slotPos = new THREE.Vector3(0, yTop + 0.45, 0);
+
+      this.centerPlatform.add(g);
+      try {
+        console.log('[ServerRoom] Access panel created', { angle, x: x.toFixed(2), z: z.toFixed(2) });
+      } catch {}
+      return { group: g, slot: null, slotPos, angle, glow };
+    };
+
+    angles.forEach(a => this.accessPanels.push(makePanel(a)));
+  }
+
+  _createPanelCardMesh() {
+    const group = new THREE.Group();
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(0.54, 0.86, 0.02),
+      new THREE.MeshStandardMaterial({ color: 0x003311, emissive: 0x00ff88, emissiveIntensity: 1.2, metalness: 0.3, roughness: 0.4 })
+    );
+    const stripe = new THREE.Mesh(
+      new THREE.BoxGeometry(0.54, 0.1, 0.01),
+      new THREE.MeshStandardMaterial({ color: 0x002211, emissive: 0x00dd77, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.3 })
+    );
+    stripe.position.set(0, 0.25, 0.012);
+    const led = new THREE.Mesh(
+      new THREE.SphereGeometry(0.015, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0x00ff99, emissive: 0x00ff99, emissiveIntensity: 1.0 })
+    );
+    led.position.set(0.2, -0.2, 0.012);
+    body.material.side = THREE.DoubleSide; stripe.material.side = THREE.DoubleSide;
+    group.add(body, stripe, led);
+    group.castShadow = true; group.receiveShadow = true;
+    return group;
+  }
+
   _buildLaptopWorkstation() {
     const workstation = new THREE.Group();
     workstation.name = 'laptop-workstation';
@@ -1229,6 +1308,38 @@ export class ServerRoom {
       }
     }
     
+    // Access panels: proximity prompts
+    if (this.accessPanels && this.player) {
+      const inv = getPlayerInventory ? getPlayerInventory() : null;
+      const selected = inv && inv.getSelectedItem ? inv.getSelectedItem() : null;
+      let nearestPanel = null;
+      let nearestDist = Infinity;
+      const tmp = new THREE.Vector3();
+      this.accessPanels.forEach(p => {
+        const d = p.group.getWorldPosition(tmp).distanceTo(this.player.position);
+        if (d < nearestDist) { nearestDist = d; nearestPanel = p; }
+      });
+      if (nearestPanel && nearestDist < 2.2) {
+        if (selected && selected.name === 'key_card') {
+          AI.showInteractionFeedback?.('Press E to insert the card');
+        } else if (nearestPanel.slot) {
+          AI.showInteractionFeedback?.('Press E to pick up the card');
+        }
+      }
+    }
+
+    // Lift animations for panel cards
+    if (this.accessPanels) {
+      this.accessPanels.forEach(p => {
+        if (p._lift && p._lift.mesh) {
+          p._lift.t = Math.min(1, p._lift.t + delta * 1.5);
+          const k = 1 - Math.pow(1 - p._lift.t, 3);
+          p._lift.mesh.position.y = p._lift.startY + (p._lift.endY - p._lift.startY) * k;
+          if (p._lift.t >= 1) delete p._lift;
+        }
+      });
+    }
+
     // Animate exit indicator
     if (this.exitIndicator) {
       this.exitIndicator.rotation.y += delta * 0.5;
@@ -1300,7 +1411,64 @@ export class ServerRoom {
   }
 
   handleEKeyInteraction(player) {
-    if (!player || !this.laptopObject) return false;
+    if (!player) return false;
+
+    // First: card access panels (insert/pickup)
+    if (this.accessPanels && this.accessPanels.length > 0) {
+      const inv = getPlayerInventory ? getPlayerInventory() : null;
+      const selected = inv && inv.getSelectedItem ? inv.getSelectedItem() : null;
+      const tmp = new THREE.Vector3();
+      let nearest = null; let nearestDist = Infinity;
+      this.accessPanels.forEach(p => {
+        const d = p.group.getWorldPosition(tmp).distanceTo(player.position);
+        if (d < nearestDist) { nearest = p; nearestDist = d; }
+      });
+      if (nearest && nearestDist < 2.2) {
+        if (selected && selected.name === 'key_card') {
+          if (!nearest.slot) {
+            const removed = removeFromInventory('key_card');
+            if (removed) {
+              const card = this._createPanelCardMesh();
+              card.position.set(nearest.slotPos.x, 0.6, nearest.slotPos.z);
+              nearest.group.add(card);
+              // lift animation
+              nearest._lift = { mesh: card, t: 0, startY: card.position.y, endY: nearest.slotPos.y };
+              nearest.slot = card;
+              // Set glow to green when inserted
+              if (nearest.glow && nearest.glow.material) {
+                nearest.glow.material.color.setHex(0x00ff88);
+                nearest.glow.material.emissive.setHex(0x003322);
+                nearest.glow.material.emissiveIntensity = 0.9;
+                nearest.glow.material.needsUpdate = true;
+              }
+              AI.say?.('Card inserted.');
+            }
+          } else {
+            AI.showInteractionFeedback?.('Panel already has a card');
+          }
+          return true;
+        } else if (nearest.slot) {
+          const ok = addToInventory({ name: 'key_card', description: 'Access Key Card', type: 'key' });
+          if (ok) {
+            if (nearest.slot.parent) nearest.slot.parent.remove(nearest.slot);
+            nearest.slot = null;
+            // Set glow to red when removed
+            if (nearest.glow && nearest.glow.material) {
+              nearest.glow.material.color.setHex(0xff3344);
+              nearest.glow.material.emissive.setHex(0x330000);
+              nearest.glow.material.emissiveIntensity = 0.8;
+              nearest.glow.material.needsUpdate = true;
+            }
+            AI.showInteractionFeedback?.('Picked up: Access Key Card');
+          } else {
+            AI.showInteractionFeedback?.('My inventory is full.');
+          }
+          return true;
+        }
+      }
+    }
+
+    if (!this.laptopObject) return false;
 
     const dist = this.laptopObject.getWorldPosition(new THREE.Vector3()).distanceTo(player.position);
     if (dist > 2.5) return false; // Slightly larger interaction radius
