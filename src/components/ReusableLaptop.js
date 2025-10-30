@@ -879,22 +879,21 @@ window.submitNexusPassword = function(interfaceId) {
     // Don't hide the password section - we want to show the success message
     // The success message is now part of the content, not a separate section
     
-    // Add key to inventory
-    const keyAdded = addToInventory({
-      name: 'room4-nexus-key',
-      description: 'Nexus Key - Essential for escape'
+    // Add access card to inventory (reuse Room 2 card)
+    const cardAdded = addToInventory({
+      name: 'key_card',
+      description: 'Access Key Card'
     });
     
-    if (keyAdded) {
-      console.log('Nexus key added to inventory successfully');
-      // Show notification about key
+    if (cardAdded) {
+      console.log('Access key card added to inventory successfully');
       if (window.AI) {
-        window.AI.say('A mysterious key has been added to your inventory. It may be essential for your escape.');
+        window.AI.say('Access Key Card issued. You may need this later.');
       }
     } else {
-      console.log('Failed to add key to inventory - inventory may be full');
-      if (window.AI) {
-        window.AI.say('Inventory is full. Make room for the key!');
+      console.log('Failed to add access key card to inventory - inventory may be full');
+      if (window.AI && window.AI.say) {
+        window.AI.say("My inventory is full. I can’t take the card.");
       }
     }
     
