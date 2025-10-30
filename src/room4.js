@@ -69,6 +69,73 @@ export function createRoom4() {
   floor.name = 'room4-floor';
   group.add(floor);
 
+  // Helper: briefly "glitch" the floor by rapidly pulsing red emissive
+  // Exposed globally so UI logic (decoder panel) can trigger it without tight coupling
+  window.triggerRoom4FloorGlow = (durationMs = 2000) => {
+    try {
+      if (!floor.material) return;
+      const mat = floor.material;
+      const originalEmissive = mat.emissive ? mat.emissive.clone() : new THREE.Color(0x000000);
+      const originalEmissiveIntensity = mat.emissiveIntensity ?? 0;
+      const originalColor = mat.color ? mat.color.clone() : new THREE.Color(0x111111);
+      if (!mat.emissive) mat.emissive = new THREE.Color(0x000000);
+
+      // Add a temporary flickering red point light for stronger scene glow
+      const glitchLight = new THREE.PointLight(0xff3344, 0, 18, 2.0);
+      glitchLight.position.set(0, 1.0, 0);
+      glitchLight.name = 'room4-floor-glitch-light';
+      group.add(glitchLight);
+
+      // Start rapid flicker similar to UI glitch cadence (faster ticks)
+      const start = performance.now();
+      const tickMs = 30;
+      const interval = setInterval(() => {
+        const elapsed = performance.now() - start;
+        if (elapsed >= durationMs || !floor.material) {
+          clearInterval(interval);
+          // Restore
+          const m = floor.material;
+          if (!m) return;
+          if (!m.emissive) m.emissive = new THREE.Color(0x000000);
+          m.emissive.copy(originalEmissive);
+          m.emissiveIntensity = originalEmissiveIntensity;
+          if (m.color) m.color.copy(originalColor);
+          m.needsUpdate = true;
+          // Remove light
+          if (glitchLight && glitchLight.parent) {
+            glitchLight.parent.remove(glitchLight);
+          }
+          return;
+        }
+
+        // Randomized emissive pulse: mostly red, occasional cyan inversion for harsher glitch
+        const isInvertFrame = Math.random() < 0.12; // 12% of ticks invert to cyan-ish
+        const baseHex = isInvertFrame ? 0x00ffff : 0xff0000;
+        const jitterG = Math.floor(Math.random() * 0x40) << 8; // broader green jitter
+        const jitterB = isInvertFrame ? (Math.floor(Math.random() * 0x40)) : 0x00; // add blue jitter only on invert
+        const colorHex = baseHex | jitterG | jitterB;
+        mat.emissive.setHex(colorHex);
+        mat.emissiveIntensity = 1.0 + Math.random() * 1.6; // 1.0-2.6 (brighter)
+        if (mat.color) {
+          // Subtle tinting to amplify perceived glitch
+          const base = 0x111111;
+          const mix = 0.15 + Math.random() * 0.35; // stronger tint 0.15-0.5
+          const r = ((base >> 16) & 0xff) * (1 - mix) + 255 * mix;
+          const g = ((base >> 8) & 0xff) * (1 - mix) + ((colorHex >> 8) & 0xff) * mix;
+          const b = (base & 0xff) * (1 - mix);
+          mat.color.setRGB(r / 255, g / 255, b / 255);
+        }
+        // Light intensity and slight position jitter to simulate electrical surge
+        glitchLight.intensity = 1.5 + Math.random() * 4.5; // 1.5-6.0
+        glitchLight.position.x = (Math.random() - 0.5) * 2.0; // small wobble
+        glitchLight.position.z = (Math.random() - 0.5) * 2.0;
+        mat.needsUpdate = true;
+      }, tickMs);
+    } catch (e) {
+      console.warn('triggerRoom4FloorGlow failed:', e);
+    }
+  };
+
   // Wall material - shiny black with metallic properties
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.9, roughness: 0.1, side: THREE.DoubleSide });
 

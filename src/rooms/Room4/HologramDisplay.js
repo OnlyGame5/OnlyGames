@@ -15,7 +15,7 @@ export class HologramDisplay {
 
     // Layout constants (tweakable)
     this.baseOffset = 0.2; // raise cone base slightly above the table
-    this.height = 1.8;     // decrease height
+    this.height = 1.8;     // revert to previous height
     this.radiusTop = 1.6;  // widen top to fit all slots comfortably
 
     this._buildCone();

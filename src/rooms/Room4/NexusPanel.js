@@ -152,6 +152,58 @@ export class NexusPanel {
       .binary-ui-active * {
         cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="%2300ff00" stroke-width="2"/><circle cx="10" cy="10" r="2" fill="%2300ff00"/></svg>'), auto !important;
       }
+
+      /* Binary UI red glitch effect (mirrors AI dialogue error glitch) */
+      #binaryUI.binary-ui-glitch {
+        border-color: #ff0040 !important;
+        color: #ffb8d1 !important;
+        box-shadow: 0 0 25px rgba(255, 0, 64, 0.6), inset 0 0 30px rgba(0, 0, 0, 0.6);
+        animation: binaryErrorGlitch 0.3s ease-in-out infinite;
+      }
+      #binaryUI.binary-ui-glitch #binaryDisplay,
+      #binaryUI.binary-ui-glitch input,
+      #binaryUI.binary-ui-glitch button {
+        border-color: #ff0040 !important;
+        color: #ffb8d1 !important;
+      }
+      #binaryUI .glitching-text {
+        text-shadow: 2px 0 0 rgba(255, 0, 0, 0.5), -2px 0 0 rgba(0, 255, 255, 0.5);
+        animation: binaryTextGlitch 0.3s ease-in-out infinite;
+      }
+      /* Important: do not animate transform; it overrides translate(-50%, -50%) and moves the panel. */
+      @keyframes binaryErrorGlitch {
+        0%   { filter: hue-rotate(0deg) brightness(1); }
+        10%  { filter: hue-rotate(30deg) brightness(1.15); }
+        20%  { filter: hue-rotate(90deg) brightness(0.9); }
+        30%  { filter: hue-rotate(150deg) brightness(1.2); }
+        40%  { filter: hue-rotate(210deg) brightness(0.95); }
+        50%  { filter: hue-rotate(270deg) brightness(1.25); }
+        60%  { filter: hue-rotate(330deg) brightness(0.9); }
+        100% { filter: hue-rotate(360deg) brightness(1); }
+      }
+      /* Text glitch: animate only text-shadow intensity/colors, never transform */
+      @keyframes binaryTextGlitch {
+        0%, 100% {
+          text-shadow:
+            2px 0 0 rgba(255, 0, 0, 0.4),
+            -2px 0 0 rgba(0, 255, 255, 0.4);
+        }
+        25% {
+          text-shadow:
+            2px 0 0 rgba(255, 0, 0, 0.8),
+            -2px 0 0 rgba(0, 255, 255, 0.2);
+        }
+        50% {
+          text-shadow:
+            2px 0 0 rgba(255, 0, 0, 0.2),
+            -2px 0 0 rgba(0, 255, 255, 0.8);
+        }
+        75% {
+          text-shadow:
+            2px 0 0 rgba(255, 0, 0, 0.7),
+            -2px 0 0 rgba(0, 255, 255, 0.7);
+        }
+      }
     `;
     document.head.appendChild(style);
 
@@ -274,6 +326,23 @@ export class NexusPanel {
   }
 
   /**
+   * Briefly glitch the binary UI in red (error state)
+   */
+  _triggerBinaryUIGlitch(duration = 2000) {
+    try {
+      if (!this.binaryUI) return;
+      this.binaryUI.classList.add('binary-ui-glitch');
+      if (this.binaryDisplay) this.binaryDisplay.classList.add('glitching-text');
+      setTimeout(() => {
+        if (this.binaryUI) this.binaryUI.classList.remove('binary-ui-glitch');
+        if (this.binaryDisplay) this.binaryDisplay.classList.remove('glitching-text');
+      }, duration);
+    } catch (e) {
+      console.warn('Failed to glitch binary UI:', e);
+    }
+  }
+
+  /**
    * Setup event listeners (like Room 1 keypad)
    */
   _setupEventListeners() {
@@ -377,6 +446,24 @@ export class NexusPanel {
     // Trigger flicker effect
     this._triggerFlickerEffect();
 
+    // Momentarily force Nexus AI dialogue box into red/glitch state
+    try {
+      // Use gameStore listener path to set tone if available
+      if (window.gameStore && typeof window.gameStore.set === 'function') {
+        window.gameStore.set('setDialogueTone', 'error');
+        // Also add a quick glitch effect to the text if the element exists
+        const textEl = document.querySelector('.ai-dialogue-text');
+        if (textEl) textEl.classList.add('glitching');
+        setTimeout(() => {
+          window.gameStore.set('setDialogueTone', 'neutral');
+          const t = document.querySelector('.ai-dialogue-text');
+          if (t) t.classList.remove('glitching');
+        }, 2000);
+      }
+    } catch (e) {
+      console.warn('Failed to flash AI dialogue error/glitch:', e);
+    }
+
     // Notify hologram display (if present)
     if (window.room4Hologram && typeof window.room4Hologram.onRevealLetter === 'function') {
       window.room4Hologram.onRevealLetter(letter);
@@ -462,12 +549,24 @@ export class NexusPanel {
     this.incorrectAttempts++;
     const remainingAttempts = this.maxAttempts - this.incorrectAttempts;
     this.binaryDisplay.textContent = `WRONG! Attempts remaining: ${remainingAttempts}`;
+
+    // Flash the Room 4 floor red briefly
+    try {
+      if (typeof window.triggerRoom4FloorGlow === 'function') {
+        window.triggerRoom4FloorGlow(2000);
+      }
+    } catch (e) {
+      console.warn('Failed to trigger floor glow:', e);
+    }
     
     // Check if max attempts reached
     if (this.incorrectAttempts >= this.maxAttempts) {
       this.hasFailed = true;
       this._triggerGameFailure();
     }
+
+    // Glitch the binary UI in red briefly
+    this._triggerBinaryUIGlitch(2000);
   }
 
   /**
