@@ -141,15 +141,47 @@ function getItemIcon(itemName) {
     case 'robot_eye':
       return '👁️';
     case 'circuit_board':
-      return '🔌';
+      return '🪟';
     case 'robot_hand':
       return '✋';
     case 'ai_book':
-      return '📚';
+      return '📖';
     case 'key_card':
       return '💳';
     default:
       return '📦';
+  }
+}
+
+// Simple procedural "matrix" texture for fallback when a GLB has no embedded texture
+function createMatrixCanvasTexture() {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    // background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // columns of digits
+    const cols = 24; const rows = 24;
+    ctx.font = 'bold 12px monospace';
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        const ch = Math.random() < 0.5 ? '0' : '1';
+        const x = (c + 0.5) * (canvas.width / cols);
+        const y = (r + 0.5) * (canvas.height / rows);
+        const a = 0.4 + Math.random() * 0.6;
+        ctx.fillStyle = `rgba(0,255,140,${a.toFixed(2)})`;
+        ctx.fillText(ch, x, y);
+      }
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(1, 1);
+    tex.needsUpdate = true;
+    return tex;
+  } catch (e) {
+    return null;
   }
 }
 
@@ -399,6 +431,71 @@ function createItemMesh(item) {
         }
         
         mesh = keyGroup;
+      }
+      break;
+    
+    case 'key_card':
+      // Use loaded GLB for held card; fallback to simple geometry
+      if (window.globalModelRegistry && window.globalModelRegistry['key_card']) {
+        // If someone exposed registry globally
+        try {
+          const clone = window.globalModelRegistry['key_card'].clone();
+          mesh = clone;
+        } catch {}
+      }
+      if (!mesh && typeof global !== 'undefined') {
+        // no-op for SSR
+      }
+      if (!mesh && typeof globalModelRegistry !== 'undefined' && globalModelRegistry['key_card']) {
+        mesh = globalModelRegistry['key_card'].clone();
+      }
+      if (mesh) {
+        try {
+          const box = new THREE.Box3().setFromObject(mesh);
+          const size = new THREE.Vector3();
+          box.getSize(size);
+          const currentMax = Math.max(size.x, size.y, size.z) || 1;
+          const targetMax = 0.18;
+          const s = targetMax / currentMax;
+          mesh.scale.multiplyScalar(s);
+        } catch {}
+        mesh.rotation.x = -Math.PI / 6;
+        mesh.rotation.y = Math.PI / 12;
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              // Show artwork on both sides if the card is a single plane
+              child.material.side = THREE.DoubleSide;
+              // If the model has no diffuse map, apply a small matrix-like fallback
+              if (!child.material.map) {
+                const mt = createMatrixCanvasTexture();
+                if (mt) {
+                  child.material.map = mt;
+                  // Make sure the base color doesn't tint too much
+                  child.material.color = new THREE.Color(0xffffff);
+                }
+              }
+              child.material.needsUpdate = true;
+            }
+          }
+        });
+      } else {
+        const card = new THREE.Group();
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(0.12, 0.005, 0.08),
+          new THREE.MeshStandardMaterial({ color: 0x113355, metalness: 0.2, roughness: 0.8 })
+        );
+        const stripe = new THREE.Mesh(
+          new THREE.BoxGeometry(0.12, 0.002, 0.02),
+          new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.7, roughness: 0.3 })
+        );
+        stripe.position.set(0, 0.004, 0.02);
+        card.add(body, stripe);
+        card.rotation.x = -Math.PI / 6;
+        card.rotation.y = Math.PI / 12;
+        mesh = card;
       }
       break;
     
@@ -893,6 +990,7 @@ let droppedItemsGroup = null; // THREE.Group to hold all dropped item meshes
 // Global model registry for all pickable items
 let globalModelRegistry = {
   'stage0-key': null,
+  'key_card': null,
   'book': null,
   'liberty': null,
   'bowling_ball': null,
@@ -924,12 +1022,14 @@ export function registerOriginalModel(itemName, model) {
 export async function loadGlobalPickableModels() {
   console.log('Loading global pickable models...');
   
-  const loader = new THREE.GLTFLoader();
+  // Use the imported GLTFLoader (examples/jsm), not THREE.GLTFLoader
+  const loader = new GLTFLoader();
   const modelPromises = [];
   
   // Load all pickable item models with timeout
   const modelPaths = {
     'stage0-key': '/models/key.glb',
+    'key_card': '/models/card.glb',
     'book': '/models/book.glb',
     'liberty': '/models/statue_of_liberty.glb',
     'bowling_ball': '/models/bowling_ball.glb',
@@ -1176,30 +1276,59 @@ function createDroppedItemMesh(item, player) {
       break;
 
     case 'key_card': {
-      // Simple rectangular card with a stripe
-      const cardGroup = new THREE.Group();
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(0.86, 0.02, 0.54),
-        new THREE.MeshStandardMaterial({ color: 0x113355, metalness: 0.2, roughness: 0.8 })
-      );
-      const stripe = new THREE.Mesh(
-        new THREE.BoxGeometry(0.86, 0.005, 0.1),
-        new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.7, roughness: 0.3 })
-      );
-      stripe.position.set(0, 0.012, 0.15);
-      // tiny LED dot
-      const led = new THREE.Mesh(
-        new THREE.SphereGeometry(0.015, 8, 8),
-        new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00aaff, emissiveIntensity: 0.6 })
-      );
-      led.position.set(0.3, 0.015, -0.1);
-      cardGroup.add(body, stripe, led);
-      cardGroup.position.copy(dropPosition);
-      cardGroup.rotation.x = -Math.PI / 2; // lay flat on floor
-      cardGroup.userData.isDroppedItem = true;
-      cardGroup.userData.itemName = item.name;
-      cardGroup.userData.itemDescription = item.description || item.name;
-      mesh = cardGroup;
+      // Prefer the GLB model if available
+      if (globalModelRegistry['key_card']) {
+        const cardModel = globalModelRegistry['key_card'].clone();
+        cardModel.position.copy(dropPosition);
+        // Lay it flat on the floor
+        cardModel.rotation.x = -Math.PI / 2;
+        cardModel.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.material) {
+              child.material.side = THREE.DoubleSide;
+              if (!child.material.map) {
+                const mt = createMatrixCanvasTexture();
+                if (mt) {
+                  child.material.map = mt;
+                  child.material.color = new THREE.Color(0xffffff);
+                }
+              }
+              child.material.needsUpdate = true;
+            }
+          }
+        });
+        cardModel.userData.isDroppedItem = true;
+        cardModel.userData.itemName = item.name;
+        cardModel.userData.itemDescription = item.description || item.name;
+        mesh = cardModel;
+      } else {
+        // Fallback rectangular card with stripe
+        const cardGroup = new THREE.Group();
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(0.86, 0.02, 0.54),
+          new THREE.MeshStandardMaterial({ color: 0x113355, metalness: 0.2, roughness: 0.8 })
+        );
+        const stripe = new THREE.Mesh(
+          new THREE.BoxGeometry(0.86, 0.005, 0.1),
+          new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.7, roughness: 0.3 })
+        );
+        stripe.position.set(0, 0.012, 0.15);
+        // tiny LED dot
+        const led = new THREE.Mesh(
+          new THREE.SphereGeometry(0.015, 8, 8),
+          new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00aaff, emissiveIntensity: 0.6 })
+        );
+        led.position.set(0.3, 0.015, -0.1);
+        cardGroup.add(body, stripe, led);
+        cardGroup.position.copy(dropPosition);
+        cardGroup.rotation.x = -Math.PI / 2; // lay flat on floor
+        cardGroup.userData.isDroppedItem = true;
+        cardGroup.userData.itemName = item.name;
+        cardGroup.userData.itemDescription = item.description || item.name;
+        mesh = cardGroup;
+      }
       break;
     }
       
