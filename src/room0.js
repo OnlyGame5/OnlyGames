@@ -199,44 +199,8 @@ export function createRoom0() {
   frontWallRight.userData = { type: 'wall', side: 'front-right' };
   group.add(frontWallRight);
 
-  // --- ADD HEADER PANELS FOR HALLWAY OPENINGS ---
-  const headerMaterial = new THREE.MeshStandardMaterial({ color: 0xbbc1c9, metalness: 0.8, roughness: 0.3 });
-  const headerHeight = 0.5; // Assuming a standard wall height of 4.5, adjust if needed
-  const hallwayWidth = 3; // Changed from 2 to 3 to match the door opening width
-
-  // Header for Room 1 Opening (East Wall / Right Wall)
-  const headerEast = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, headerHeight, hallwayWidth), // Swapped width and depth
-    headerMaterial
-  );
-  headerEast.position.set(10, 4.25, 0); // Positioned above the opening
-  headerEast.rotation.y = Math.PI / 2; // Rotate to align with Z-axis
-  group.add(headerEast);
-
-  // Header for Room 2 Opening (South Wall / Back Wall)
-  const headerSouth = new THREE.Mesh(
-    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
-    headerMaterial
-  );
-  headerSouth.position.set(0, 4.25, -7.5);
-  group.add(headerSouth);
-
-  // Header for Room 3 Opening (West Wall / Left Wall)
-  const headerWest = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, headerHeight, hallwayWidth), // Swapped width and depth
-    headerMaterial
-  );
-  headerWest.position.set(-10, 4.25, 0);
-  headerWest.rotation.y = Math.PI / 2; // Rotate to align with Z-axis
-  group.add(headerWest);
-
-  // Header for Room 4 Opening (North Wall / Front Wall)
-  const headerNorth = new THREE.Mesh(
-    new THREE.BoxGeometry(hallwayWidth, headerHeight, wallThickness),
-    headerMaterial
-  );
-  headerNorth.position.set(0, 4.25, 7.5);
-  group.add(headerNorth);
+  // Headers above hallway openings removed to avoid visual obstruction over doorways
+  const hallwayWidth = 3; // kept for collision math below
   
   // Add invisible collision walls for front wall (matching the visible panels)
   const frontCollisionWallLeft = new THREE.Mesh(

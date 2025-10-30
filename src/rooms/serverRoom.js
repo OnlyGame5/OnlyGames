@@ -92,8 +92,22 @@ export class ServerRoom {
   // Build square chamber shell
   _buildShell() {
     const { radius, height } = this.dim;
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xbbc1c9, metalness: 0.6, roughness: 0.35, side: THREE.DoubleSide });
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0xe9eef5, metalness: 0.2, roughness: 0.8 });
+    // Start with basic materials; apply pizza texture after it loads to avoid no-image warnings
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: 0xbbc1c9,
+      metalness: 0.2,
+      roughness: 0.85,
+      emissive: 0x0c0c0c,
+      emissiveIntensity: 0.05,
+      side: THREE.DoubleSide
+    });
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0xe9eef5,
+      metalness: 0.05,
+      roughness: 0.9,
+      emissive: 0x0c0c0c,
+      emissiveIntensity: 0.05
+    });
 
     // Square floor (20x20 units)
     const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.25, 20), floorMat);
@@ -144,15 +158,142 @@ export class ServerRoom {
     const fogSquare = new THREE.Mesh(new THREE.BoxGeometry(19.6, 0.05, 19.6), fogMat);
     fogSquare.position.set(0, -0.02, 0);
     this.group.add(fogSquare);
+
+    // Load and apply Chip006 (walls) + Chip005 (floor) textures
+    const texLoader = new THREE.TextureLoader();
+    const wallBase = '/textures/Chip005_1K-JPG/';
+    const floorBase = '/textures/Chip005_1K-JPG/';
+    const wallPaths = {
+      color: wallBase + 'Chip005_1K-JPG_Color.jpg',
+      normal: wallBase + 'Chip005_1K-JPG_NormalGL.jpg',
+      rough: wallBase + 'Chip005_1K-JPG_Roughness.jpg',
+      metal: wallBase + 'Chip005_1K-JPG_Metalness.jpg'
+    };
+    const floorPaths = {
+      color: floorBase + 'Chip005_1K-JPG_Color.jpg',
+      normal: floorBase + 'Chip005_1K-JPG_NormalGL.jpg',
+      rough: floorBase + 'Chip005_1K-JPG_Roughness.jpg',
+      metal: floorBase + 'Chip005_1K-JPG_Metalness.jpg'
+    };
+
+    // Prepare maps; assign as each loads
+    const wallRepeat = new THREE.Vector2(2, 2);
+    const floorRepeat = new THREE.Vector2(4, 4);
+
+    // Color
+    texLoader.load(
+      wallPaths.color,
+      (tex) => {
+        if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace; else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+        const wallTex = tex.clone(); wallTex.repeat.copy(wallRepeat); wallTex.needsUpdate = true;
+        wallMat.map = wallTex; wallMat.color.setHex(0xffffff); wallMat.needsUpdate = true;
+        console.log('[ServerRoom] Chip006 color applied (walls)');
+      },
+      undefined,
+      (err) => console.error('[ServerRoom] Failed to load Chip006 color', wallPaths.color, err)
+    );
+
+    // Floor color (Chip005)
+    texLoader.load(
+      floorPaths.color,
+      (tex) => {
+        if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace; else if (THREE.sRGBEncoding) tex.encoding = THREE.sRGBEncoding;
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+        const floorTex = tex.clone(); floorTex.repeat.copy(floorRepeat); floorTex.needsUpdate = true;
+        floorMat.map = floorTex; floorMat.color.setHex(0xffffff); floorMat.needsUpdate = true;
+        console.log('[ServerRoom] Chip005 color applied (floor)');
+      },
+      undefined,
+      (err) => console.error('[ServerRoom] Failed to load Chip005 color', floorPaths.color, err)
+    );
+
+    // Normal
+    texLoader.load(
+      wallPaths.normal,
+      (tex) => {
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+        const wallTex = tex.clone(); wallTex.repeat.copy(wallRepeat); wallTex.needsUpdate = true;
+        wallMat.normalMap = wallTex; wallMat.needsUpdate = true;
+        console.log('[ServerRoom] Chip006 normal applied (walls)');
+      },
+      undefined,
+      (err) => console.error('[ServerRoom] Failed to load Chip006 normal', wallPaths.normal, err)
+    );
+
+    // Floor normal (Chip005)
+    texLoader.load(
+      floorPaths.normal,
+      (tex) => {
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+        const floorTex = tex.clone(); floorTex.repeat.copy(floorRepeat); floorTex.needsUpdate = true;
+        floorMat.normalMap = floorTex; floorMat.needsUpdate = true;
+        console.log('[ServerRoom] Chip005 normal applied (floor)');
+      },
+      undefined,
+      (err) => console.error('[ServerRoom] Failed to load Chip005 normal', floorPaths.normal, err)
+    );
+
+    // Roughness
+    texLoader.load(
+      wallPaths.rough,
+      (tex) => {
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+        const wallTex = tex.clone(); wallTex.repeat.copy(wallRepeat); wallTex.needsUpdate = true;
+        wallMat.roughnessMap = wallTex; wallMat.roughness = 0.8; wallMat.needsUpdate = true;
+        console.log('[ServerRoom] Chip006 roughness applied (walls)');
+      },
+      undefined,
+      (err) => console.error('[ServerRoom] Failed to load Chip006 roughness', wallPaths.rough, err)
+    );
+
+    // Floor roughness (Chip005)
+    texLoader.load(
+      floorPaths.rough,
+      (tex) => {
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+        const floorTex = tex.clone(); floorTex.repeat.copy(floorRepeat); floorTex.needsUpdate = true;
+        floorMat.roughnessMap = floorTex; floorMat.roughness = 0.8; floorMat.needsUpdate = true;
+        console.log('[ServerRoom] Chip005 roughness applied (floor)');
+      },
+      undefined,
+      (err) => console.error('[ServerRoom] Failed to load Chip005 roughness', floorPaths.rough, err)
+    );
+
+    // Metalness (walls Chip006)
+    texLoader.load(
+      wallPaths.metal,
+      (tex) => {
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+        const wallTex = tex.clone(); wallTex.repeat.copy(wallRepeat); wallTex.needsUpdate = true;
+        wallMat.metalnessMap = wallTex; wallMat.metalness = 0.5; wallMat.needsUpdate = true;
+        console.log('[ServerRoom] Chip006 metalness applied (walls)');
+      },
+      undefined,
+      (err) => console.error('[ServerRoom] Failed to load Chip006 metalness', wallPaths.metal, err)
+    );
+
+    // Metalness (floor Chip005)
+    texLoader.load(
+      floorPaths.metal,
+      (tex) => {
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+        const floorTex = tex.clone(); floorTex.repeat.copy(floorRepeat); floorTex.needsUpdate = true;
+        floorMat.metalnessMap = floorTex; floorMat.metalness = 0.5; floorMat.needsUpdate = true;
+        console.log('[ServerRoom] Chip005 metalness applied (floor)');
+      },
+      undefined,
+      (err) => console.error('[ServerRoom] Failed to load Chip005 metalness', floorPaths.metal, err)
+    );
   }
 
   _buildCatwalk() {
-    const w = 2.0, l = 8.0;
+    const w = 2.0, l = 6.0; // shorten to avoid poking through hub doorway
     const mat = new THREE.MeshStandardMaterial({ color: 0xdfe6ee, metalness: 0.3, roughness: 0.7 });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.2, l), mat);
-    // Position catwalk at the East wall entrance of the square room (aligned with 2-unit cutout)
-    mesh.position.set(10 + l / 2 - 2, 0.1, 0);
-    mesh.castShadow = true; mesh.receiveShadow = true;
+    // Position catwalk fully inside the server room to prevent hallway bleed into hub
+    mesh.position.set(9.4, 0.1, 0); // pulled back from east wall (x=10)
+    mesh.castShadow = false; mesh.receiveShadow = true;
     this.catwalk.add(mesh);
   }
 
