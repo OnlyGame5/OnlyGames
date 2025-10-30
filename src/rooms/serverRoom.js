@@ -288,12 +288,12 @@ export class ServerRoom {
   }
 
   _buildCatwalk() {
-    const w = 2.0, l = 8.0;
+    const w = 2.0, l = 6.0; // shorten to avoid poking through hub doorway
     const mat = new THREE.MeshStandardMaterial({ color: 0xdfe6ee, metalness: 0.3, roughness: 0.7 });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.2, l), mat);
-    // Position catwalk at the East wall entrance of the square room (aligned with 2-unit cutout)
-    mesh.position.set(10 + l / 2 - 2, 0.1, 0);
-    mesh.castShadow = true; mesh.receiveShadow = true;
+    // Position catwalk fully inside the server room to prevent hallway bleed into hub
+    mesh.position.set(9.4, 0.1, 0); // pulled back from east wall (x=10)
+    mesh.castShadow = false; mesh.receiveShadow = true;
     this.catwalk.add(mesh);
   }
 
