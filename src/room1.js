@@ -13,6 +13,7 @@ import {
 import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling, makeSolarPanelWall, makeTiles002Floor } from './materials/room1Materials.js';
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
+import { DrawerManager } from './components/DrawerManager.js';
 
 
 export function createRoom1() {
@@ -31,7 +32,8 @@ export function createRoom1() {
     laptopPowered: false,  // Track if laptop has power
     chargerFound: false,   // Track if charger has been found
     laptopInspected: false, // Track if laptop has been inspected while unpowered
-    gammaMessageShown: false // Track if Gamma's first message has been shown
+    gammaMessageShown: false, // Track if Gamma's first message has been shown
+    tableDrawer: null // Drawer animation state: { mixer, actions, topOpened, bottomOpened, topDrawerObj, bottomDrawerObj }
   };
 
   // Solar Panel texture files for Room 1 walls
@@ -540,10 +542,29 @@ export function createRoom1() {
   
   // Bookshelf Door - positioned on left wall, away from light switch
   const bookshelfDoor = createBookshelfDoor();
-  bookshelfDoor.position.set(-8.5, 0, -4.5); // Left wall, moved further from light switch
+  bookshelfDoor.position.set(-8.2, 0, -4.5); // Nudge into room slightly to avoid wall clipping
   bookshelfDoor.rotation.y = Math.PI / 2; // Rotate to face into the room
   bookshelfDoor.name = 'bookshelfDoor';
   group.add(bookshelfDoor);
+
+  // Add an office chair in front of the sci-fi desk (Room 1)
+  gltfLoader.load('/models/office_chair.glb', (gltf) => {
+    const chair = gltf.scene;
+    chair.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    // Position in front of desk on the room side; match desk z
+    chair.position.set(-7.4, 0.9, -4.5);
+    chair.rotation.y = -Math.PI / 2; 
+    chair.scale.set(1.1, 1.1, 1.1);
+    chair.name = 'desk-chair';
+    group.add(chair);
+  }, undefined, (err) => {
+    console.error('Failed to load office_chair.glb', err);
+  });
   
   
   // Add floating tooltip for locked Simon Stand
@@ -697,6 +718,8 @@ export function createRoom1() {
     if (simonStand.userData.update) {
       simonStand.userData.update(dt);
     }
+    // Update desk drawer animations
+    if (state.drawerManager) state.drawerManager.update(dt);
   }
   
   // Optimized light flicker effect (reduced frequency for performance)
@@ -894,8 +917,8 @@ export function createRoom1() {
 
   // Removed pedestal, panel, and keypad to keep only table and safe in this room
 
-  // Load sci-fi table (independent of safe placement)
-  gltfLoader.load('/models/sci_fi_table.glb', (gltf) => {
+  // Load sci-fi office desk with animated drawers
+  gltfLoader.load('/models/sci_fi_office_desk.glb', (gltf) => {
     const sciFiTable = gltf.scene;
     sciFiTable.traverse((child) => {
       if (child.isMesh) {
@@ -903,12 +926,58 @@ export function createRoom1() {
         child.receiveShadow = true;
       }
     });
-    // Move the table near the back wall but not clipping (centered)
-    sciFiTable.position.set(0, 0, -7.5);
+    // Place the desk on the left wall near the chair and scale down
+    sciFiTable.position.set(-8.2, 0, -4.5);
+    sciFiTable.rotation.y = Math.PI / 2;
+    sciFiTable.scale.set(0.3, 0.3, 0.3);
     sciFiTable.name = 'admin-desk'; // Add name for easier identification
     group.add(sciFiTable);
+
+    // Initialize DrawerManager with GLTF animations
+    console.log('[DEBUG] Sci-fi table loaded, checking for animations...');
+    if (gltf.animations && gltf.animations.length > 0) {
+      // Robust drawer/node/clip binding to accommodate exporter name variations
+      const findNode = (cands) => cands.map(n => sciFiTable.getObjectByName(n)).find(Boolean);
+      const findClip = (cands) => cands.map(n => THREE.AnimationClip.findByName(gltf.animations, n)).find(Boolean);
+
+      const topNodeNames = ['top-draw', 'Top_Drawer', 'Drawer_Top', 'TopDrawer', 'top_draw'];
+      const bottomNodeNames = ['bottom-draw', 'Bottom_Drawer', 'Drawer_Bottom', 'BottomDrawer', 'bottom_draw'];
+      const topClipNames = ['top-draw-open', 'Top_Drawer|Open', 'Top_Drawer|Action', 'TopDrawer_Open', 'Top_DrawerAction'];
+      const bottomClipNames = ['bottom-draw-open', 'Bottom_Drawer|Open', 'Bottom_Drawer|Action', 'BottomDrawer_Open', 'Bottom_DrawerAction'];
+
+      const topNode = findNode(topNodeNames);
+      const bottomNode = findNode(bottomNodeNames);
+      const topClip = findClip(topClipNames);
+      const bottomClip = findClip(bottomClipNames);
+
+      const drawerConfigs = [];
+      if (topNode && topClip) drawerConfigs.push({ objectName: topNode.name, clipName: topClip.name });
+      if (bottomNode && bottomClip) drawerConfigs.push({ objectName: bottomNode.name, clipName: bottomClip.name, onFirstOpen: () => {
+        state.bottomDrawerFirstOpened = true;
+        if (window.AI) window.AI.showInteractionFeedback('A charger glints inside.');
+      } });
+
+      if (drawerConfigs.length) {
+        state.drawerManager = new DrawerManager({ scene: sciFiTable, animations: gltf.animations, drawers: drawerConfigs });
+        console.log('[DEBUG] DrawerManager initialized; clips:', gltf.animations.map(a => a.name));
+      } else {
+        console.warn('[DEBUG] Could not bind any drawers. Available clips:', gltf.animations.map(a => a.name));
+        const drawerish = [];
+        sciFiTable.traverse(n => { if (n.name && /draw|drawer/i.test(n.name)) drawerish.push(n.name); });
+        console.warn('[DEBUG] Drawerish node names:', drawerish);
+      }
+
+      const prevAnimate = group.userData && group.userData.animate;
+      group.userData = group.userData || {};
+      group.userData.animate = (dt) => {
+        if (prevAnimate) prevAnimate(dt);
+        if (state.drawerManager) state.drawerManager.update(dt);
+      };
+    } else {
+      console.warn('[DEBUG] No animations found in sci-fi office desk model');
+    }
   }, undefined, (err) => {
-    console.error('Failed to load sci_fi_table.glb', err);
+    console.error('Failed to load sci_fi_office_desk.glb', err);
   });
   
   
@@ -1039,6 +1108,58 @@ export function createRoom1() {
   panelMesh.renderOrder = 1;
 
   group.add(panelMesh);
+
+  // Hologram table/display in front of the research sign
+  console.log('[DEBUG] Loading hologram model...');
+  gltfLoader.load('/models/hologram.glb', (gltf) => {
+    const holo = gltf.scene;
+    
+    // Debug: check if model loaded
+    console.log('[DEBUG] Hologram model loaded:', holo);
+    console.log('[DEBUG] Hologram children count:', holo.children.length);
+    
+    let meshCount = 0;
+    holo.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        meshCount++;
+        console.log('[DEBUG] Hologram mesh found:', child.name, 'at', child.position.clone(), 'visible:', child.visible);
+      }
+    });
+    
+    console.log('[DEBUG] Total hologram meshes:', meshCount);
+    
+    // Check model bounding box for size reference
+    const box = new THREE.Box3().setFromObject(holo);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    console.log('[DEBUG] Hologram bounding box:', {
+      size: size.clone(),
+      center: center.clone(),
+      min: box.min.clone(),
+      max: box.max.clone()
+    });
+    
+    // Position elevated - higher and closer to viewer
+    holo.position.set(0, 1.8, -7.0);  // Higher Y, closer Z
+    holo.rotation.y = 0;
+    holo.scale.set(0.6, 0.6, 0.6);  // Larger scale for visibility
+    holo.name = 'research-hologram';
+    holo.visible = true;
+    
+    group.add(holo);
+    
+    console.log('[DEBUG] Hologram added to scene:', {
+      position: holo.position.clone(),
+      rotation: holo.rotation.clone(),
+      scale: holo.scale.clone(),
+      visible: holo.visible,
+      worldPosition: holo.getWorldPosition(new THREE.Vector3())
+    });
+  }, undefined, (err) => {
+    console.error('[ERROR] Failed to load hologram.glb', err);
+  });
 
   // Paper examination system
   let paperExaminationOpen = false;
@@ -1274,12 +1395,145 @@ export function createRoom1() {
       }
     }
 
-    // Check admin desk drawer for charger discovery
-    console.log('Checking admin desk drawer interaction...');
-    if (handleAdminDeskDrawerInteraction(playerObject)) {
-      console.log('Admin desk drawer interaction handled');
-      return true;
+    // Check sci-fi desk drawer interactions via DrawerManager
+    console.log('[DEBUG] Checking sci-fi desk drawer interactions...');
+    const desk = group.getObjectByName('admin-desk');
+    if (desk && state.drawerManager) {
+      const deskWorld = new THREE.Vector3();
+      desk.getWorldPosition(deskWorld);
+      const distToDesk = playerObject.position.distanceTo(deskWorld);
+      
+      console.log('[DEBUG] Desk proximity check:', { deskFound: !!desk, hasDrawerManager: !!state.drawerManager, distanceToDesk: distToDesk, threshold: 2.5 });
+      
+    if (distToDesk < 3.0) {
+        // Raycast precise target first
+        const cam = window.camera;
+        let targetedObject = null;
+        if (cam) {
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(new THREE.Vector2(0, 0), cam);
+          const hits = raycaster.intersectObjects([desk, ...desk.children], true);
+          if (hits && hits.length) targetedObject = hits[0].object;
+        }
+        if (targetedObject) {
+          const toggled = state.drawerManager.tryToggle(targetedObject);
+          if (toggled) return true;
+        }
+
+        const topDrawerObj = desk.getObjectByName('top-draw');
+        const bottomDrawerObj = desk.getObjectByName('bottom-draw');
+        const topOpened = state.drawerManager.getOpenState('top-draw');
+        const bottomOpened = state.drawerManager.getOpenState('bottom-draw');
+        
+        console.log('[DEBUG] Within desk range, checking drawers:', {
+          topDrawerObjExists: !!topDrawerObj,
+          bottomDrawerObjExists: !!bottomDrawerObj,
+          topOpened,
+          bottomOpened
+        });
+        
+        // Check top drawer interaction
+        if (topDrawerObj && !topOpened) {
+          const topWorld = new THREE.Vector3();
+          topDrawerObj.getWorldPosition(topWorld);
+          const distToTop = playerObject.position.distanceTo(topWorld);
+          
+          console.log('[DEBUG] Top drawer check:', {
+            drawerFound: !!topDrawerObj,
+            drawerName: topDrawerObj ? topDrawerObj.name : 'NULL',
+            drawerWorldPos: topWorld.clone(),
+            playerPos: playerObject.position.clone(),
+            distanceToTop: distToTop,
+            threshold: 2.0,
+            alreadyOpened: topOpened,
+            willTrigger: distToTop < 2.0
+          });
+          
+          if (distToTop < 2.0) {
+            console.log('[DEBUG] Opening top drawer...');
+            if (state.drawerManager.tryToggle(topDrawerObj)) {
+              if (window.AI) window.AI.showInteractionFeedback('Top drawer opened.');
+              console.log('[DEBUG] Top drawer toggled via DrawerManager');
+              return true;
+            }
+            return false;
+          }
+        } else if (!topDrawerObj && !topOpened) {
+          // No named top drawer mesh; skip
+        }
+        
+        // Check bottom drawer interaction
+        if (bottomDrawerObj && !bottomOpened) {
+          const bottomWorld = new THREE.Vector3();
+          bottomDrawerObj.getWorldPosition(bottomWorld);
+          const distToBottom = playerObject.position.distanceTo(bottomWorld);
+          
+          console.log('[DEBUG] Bottom drawer check:', {
+            drawerFound: !!bottomDrawerObj,
+            drawerName: bottomDrawerObj ? bottomDrawerObj.name : 'NULL',
+            drawerWorldPos: bottomWorld.clone(),
+            playerPos: playerObject.position.clone(),
+            distanceToBottom: distToBottom,
+            threshold: 2.0,
+            alreadyOpened: bottomOpened,
+            willTrigger: distToBottom < 2.0
+          });
+          
+          if (distToBottom < 2.0) {
+            console.log('[DEBUG] Opening bottom drawer...');
+            if (state.drawerManager.tryToggle(bottomDrawerObj)) {
+              if (window.AI) window.AI.showInteractionFeedback('Bottom drawer opened.');
+              console.log('[DEBUG] Bottom drawer toggled via DrawerManager');
+              return true;
+            }
+            return false;
+          }
+        } else if (!bottomDrawerObj && !bottomOpened) {
+          // No named bottom drawer mesh; skip
+        }
+        
+        // Charger pickup ONLY if bottom drawer is open
+        if (state.drawerManager.getOpenState('bottom-draw') && !state.chargerFound) {
+          const p = new THREE.Vector3();
+          const src = bottomDrawerObj || desk;
+          src.getWorldPosition(p);
+          const d = playerObject.position.distanceTo(p);
+          console.log('[DEBUG] Charger pickup check:', { d, threshold: 2.0 });
+          if (d < 2.0) {
+            state.chargerFound = true;
+            const chargerItem = { name: 'laptop-charger', description: 'A laptop charger found inside the bottom drawer.', type: 'charger' };
+            addToInventory(chargerItem);
+            window.AI?.showInteractionFeedback?.('You found a laptop charger.');
+            setTimeout(() => { window.AI?.say?.('Just some old wiring, dear. Nothing that concerns us here.', { tone: 'maternal' }); }, 1000);
+            console.log('[DEBUG] Charger found and added to inventory');
+            return true;
+          } else {
+            window.AI?.showInteractionFeedback?.('Move closer to the bottom drawer to pick up the charger.');
+            return true;
+          }
+        }
+        
+        // If drawers are already open but charger already found
+        if (bottomOpened && state.chargerFound) {
+          const pickupWorld = bottomDrawerObj ? (() => {
+            const w = new THREE.Vector3();
+            bottomDrawerObj.getWorldPosition(w);
+            return w;
+          })() : deskWorld.clone();
+          const distToPickup = playerObject.position.distanceTo(pickupWorld);
+          
+          if (distToPickup < 2.0) {
+            if (window.AI) {
+              window.AI.showInteractionFeedback("The bottom drawer is empty.");
+            }
+            return true;
+          }
+        }
+      }
     }
+    
+    // Legacy cabinet interaction disabled (replaced by drawer system)
+    console.log('[DEBUG] Legacy cabinet interaction disabled');
     
     // Check wire panel first
     console.log('Checking wire panel interaction...');
@@ -1452,21 +1706,21 @@ export function createRoom1() {
     });
   })();
 
-  // Admin desk drawer interaction for charger discovery
+  // Cabinet (bookshelf door) interaction for charger discovery
   function handleAdminDeskDrawerInteraction(playerObject) {
-    // Check if player is near the admin desk (sci-fi table)
-    const adminDesk = group.getObjectByName('admin-desk');
+    // Check if player is near the desk (bookshelf door)
+    const cabinet = group.getObjectByName('bookshelfDoor');
     
-    if (!adminDesk) return false;
+    if (!cabinet) return false;
     
-    // Get the admin desk world position
-    const deskWorldPos = new THREE.Vector3();
-    adminDesk.getWorldPosition(deskWorldPos);
+    // Get the desk world position
+    const cabinetWorldPos = new THREE.Vector3();
+    cabinet.getWorldPosition(cabinetWorldPos);
     
-    const distanceToDesk = playerObject.position.distanceTo(deskWorldPos);
-    console.log('Admin desk distance:', distanceToDesk, 'threshold: 3.0');
+    const distanceToCabinet = playerObject.position.distanceTo(cabinetWorldPos);
+    console.log('Desk distance:', distanceToCabinet, 'threshold: 3.0');
     
-    if (distanceToDesk < 3.0) {
+    if (distanceToCabinet < 3.0) {
       if (!state.chargerFound) {
         // Player found the charger
         state.chargerFound = true;
@@ -1474,14 +1728,14 @@ export function createRoom1() {
         // Add charger to inventory
         const chargerItem = {
           name: 'laptop-charger',
-          description: 'A laptop charger found in the admin desk drawer.',
+          description: 'A laptop charger found inside the desk.',
           type: 'charger'
         };
         addToInventory(chargerItem);
         
         // Show interaction feedback
         if (window.AI) {
-          window.AI.showInteractionFeedback("You found a laptop charger.");
+          window.AI.showInteractionFeedback("You found a laptop charger in the desk.");
         }
         
         // Show dismissive Nexus dialogue
@@ -1496,7 +1750,7 @@ export function createRoom1() {
       } else {
         // Charger already found
         if (window.AI) {
-          window.AI.showInteractionFeedback("The drawer is empty.");
+          window.AI.showInteractionFeedback("The desk is empty.");
         }
         return true;
       }
@@ -1570,52 +1824,8 @@ export function createRoom1() {
   exitAnchor.position.set(0, 0, -9); // Back of room (direct exit to room 2)
   group.add(exitAnchor);
 
-  // Collision detection function for room1 walls (account for room's world position)
-  function checkWallCollisions(playerObject) {
-    if (!playerObject || !playerObject.position) return;
-    const playerRadius = 0.5;
-    const roomHalf = 9; // Half of 18
-    const wallThickness = 0.1;
-    let clamped = false;
-
-    // Convert player world position to room-local space
-    const playerWorldPos = playerObject.position.clone();
-    const playerLocal = group.worldToLocal(playerWorldPos.clone());
-
-    // Left wall with opening for hub hallway
-    if (playerLocal.x - playerRadius < -roomHalf + wallThickness) {
-      // Check if player is aligned with the opening (z between -1 and 1)
-      if (playerLocal.z >= -1 && playerLocal.z <= 1) {
-        // Player is in the opening, allow passage
-      } else {
-        // Player is NOT aligned with the opening, so they hit the wall
-        playerLocal.x = -roomHalf + wallThickness + playerRadius;
-        clamped = true;
-      }
-    }
-    // Right wall
-    if (playerLocal.x + playerRadius > roomHalf - wallThickness) {
-      playerLocal.x = roomHalf - wallThickness - playerRadius;
-      clamped = true;
-    }
-    
-    // Back wall (now solid)
-    if (playerLocal.z - playerRadius < -roomHalf + wallThickness) {
-      playerLocal.z = -roomHalf + wallThickness + playerRadius;
-      clamped = true;
-    }
-    
-    // Front wall
-    if (playerLocal.z + playerRadius > roomHalf - wallThickness) {
-      playerLocal.z = roomHalf - wallThickness - playerRadius;
-      clamped = true;
-    }
-
-    if (clamped) {
-      const newWorld = group.localToWorld(playerLocal);
-      playerObject.position.copy(newWorld);
-    }
-  }
+  // Collision detection is handled by WallCollisionManager in main.js
+  // The checkWallCollisions function below is unused and removed
 
   // Remove duplicate ceiling light - already added above
 
@@ -2897,7 +3107,6 @@ If you’re reading this, you found a crack. Keep going. Three rooms. Three keys
     group,
     anchors: { entry: entryAnchor, exit: exitAnchor },
     state,
-    checkWallCollisions,
     updateRoom1,
     onRoom1Click,
     isWirePuzzleSolved,
