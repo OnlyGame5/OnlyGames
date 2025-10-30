@@ -11,6 +11,9 @@ let isFirstPerson = true;
 let mouseX = 0, mouseY = 0;
 let isMouseLocked = false;
 
+// ADDED: Re-usable raycaster for camera collision
+const cameraRaycaster = new THREE.Raycaster();
+
 /* ================================
    LEONARD (MODEL & ANIMATION)
 =================================== */
@@ -436,13 +439,12 @@ export function isInFirstPerson() {
   return isFirstPerson;
 }
 
+// MODIFIED: Removed exitPointerLock() for third-person
 export function toggleViewMode() {
   isFirstPerson = !isFirstPerson;
 
-  // Exit pointer lock when switching to third-person
-  if (!isFirstPerson && isMouseLocked) {
-    document.exitPointerLock();
-  }
+  // REMOVED: The code that exited pointer lock when switching to third-person.
+  // We now allow pointer lock in both modes.
 
   // Update crosshair visibility
   if (isFirstPerson && isMouseLocked) {
@@ -662,12 +664,15 @@ export function setupPlayer(scene) {
     keys[e.code] = false;
   });
 
-  // Mouse movement (first-person look)
+  // MODIFIED: Mouse movement (first-person and third-person look)
   window.addEventListener('mousemove', (e) => {
-    if (isMouseLocked && isFirstPerson) {
+    // UPDATED: Removed the '&& isFirstPerson' check to allow mouse-look in 3rd person
+    if (isMouseLocked) {
       const sensitivity = Input.getSettings().sensitivity;
       mouseX -= e.movementX * 0.002 * sensitivity;
       mouseY -= e.movementY * 0.002 * sensitivity;
+      
+      // Clamp pitch (vertical look)
       mouseY = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, mouseY));
     }
   });
@@ -679,7 +684,8 @@ export function setupPlayer(scene) {
     const isUIVisible = window.isUIVisible || (window.cursorManager && window.cursorManager.isUIVisible);
     const isMenuOpen = window.cursorManager && window.cursorManager.isMenuOpen;
     
-    if (isFirstPerson && !isMouseLocked && !isUIVisible && !isMenuOpen) {
+    // MODIFIED: Allow pointer lock in third person as well
+    if (!isMouseLocked && !isUIVisible && !isMenuOpen) {
       document.body.requestPointerLock();
     }
   });
@@ -706,8 +712,9 @@ export function setupPlayer(scene) {
 /* ================================
    PLAYER UPDATE (MOVEMENT + ANIMS)
 =================================== */
+// MODIFIED: Third-person logic completely replaced
 export function updatePlayer(player, camera, deltaTime = 0.016) {
-  const speed = 0.04; // Reduced movement speed to half for better control
+  const speed = 0.04; // Movement speed
   let isMoving = false;
 
   // Use Leonard if available, else player box
@@ -733,30 +740,55 @@ export function updatePlayer(player, camera, deltaTime = 0.016) {
     direction.normalize();
 
     const right = new THREE.Vector3();
-    right.crossVectors(direction, new THREE.Vector3(0, 1, 0));
+    right.crossVectors(direction, new THREE.Vector3(0, 1, 0)); // Get right vector
 
     if (Input.isDown('moveForward')) { activePlayer.position.add(direction.clone().multiplyScalar(speed)); isMoving = true; }
     if (Input.isDown('moveBack')) { activePlayer.position.add(direction.clone().multiplyScalar(-speed)); isMoving = true; }
     if (Input.isDown('moveLeft')) { activePlayer.position.add(right.clone().multiplyScalar(-speed)); isMoving = true; }
     if (Input.isDown('moveRight')) { activePlayer.position.add(right.clone().multiplyScalar(speed)); isMoving = true; }
+  
   } else {
-    // Third-person: world-aligned movement
-    if (Input.isDown('moveForward')) { activePlayer.position.z -= speed; isMoving = true; }
-    if (Input.isDown('moveBack')) { activePlayer.position.z += speed; isMoving = true; }
-    if (Input.isDown('moveLeft')) { activePlayer.position.x -= speed; isMoving = true; }
-    if (Input.isDown('moveRight')) { activePlayer.position.x += speed; isMoving = true; }
+    // ==========================================================
+    // NEW: Third-person Fortnite-style camera-relative movement
+    // ==========================================================
+    
+    // 1. Get camera's forward and right vectors, ignoring pitch
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    forward.y = 0;
+    forward.normalize();
 
-    // Face movement direction (3rd person only)
-    if (isMoving && leonardModel) {
-      const movementDirection = new THREE.Vector3(
-        (Input.isDown('moveRight') ? 1 : 0) - (Input.isDown('moveLeft') ? 1 : 0),
-        0,
-        (Input.isDown('moveBack') ? 1 : 0) - (Input.isDown('moveForward') ? 1 : 0)
-      );
-      if (movementDirection.lengthSq() > 0) {
-        movementDirection.normalize();
-        const angle = Math.atan2(movementDirection.x, movementDirection.z);
-        leonardModel.rotation.y = angle;
+    const right = new THREE.Vector3();
+    right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize(); // right = forward x up
+
+    // 2. Build movement direction based on camera
+    const moveDirection = new THREE.Vector3(0, 0, 0);
+
+    if (Input.isDown('moveForward')) { moveDirection.add(forward); }
+    if (Input.isDown('moveBack')) { moveDirection.sub(forward); }
+    if (Input.isDown('moveLeft')) { moveDirection.sub(right); }
+    if (Input.isDown('moveRight')) { moveDirection.add(right); }
+    
+    isMoving = moveDirection.lengthSq() > 0;
+
+    if (isMoving) {
+      moveDirection.normalize();
+      
+      // 3. Apply movement
+      activePlayer.position.add(moveDirection.clone().multiplyScalar(speed));
+
+      // 4. Smoothly rotate Leonard to face the movement direction
+      if (leonardModel) {
+        // Calculate the angle to face
+        const angle = Math.atan2(moveDirection.x, moveDirection.z);
+        
+        // Use a Quaternion to smoothly rotate
+        const targetQuaternion = new THREE.Quaternion();
+        targetQuaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+        
+        // Slerp (spherical linear interpolation) for smooth rotation
+        // Adjust the 10.0 to make rotation faster or slower
+        leonardModel.quaternion.slerp(targetQuaternion, deltaTime * 10.0);
       }
     }
   }
@@ -863,29 +895,96 @@ export function attachCameraFirstPerson(camera, player) {
   updateFirstPersonItemDisplay(camera);
 }
 
-export function attachCameraThirdPerson(camera, player) {
+// MODIFIED: Replaced with OTS camera + Collision
+export function attachCameraThirdPerson(camera, player, scene) {
   const activePlayer = leonardModel || player;
-  camera.position.set(activePlayer.position.x, activePlayer.position.y + 3, activePlayer.position.z + 8);
-  camera.lookAt(activePlayer.position.x, activePlayer.position.y + 1, activePlayer.position.z);
   
-  // Show the Leonard model in third-person mode
+  // 1. Define Camera Target and Ideal Offset
+  const targetPosition = new THREE.Vector3();
+  targetPosition.copy(activePlayer.position).y += 1.7; // Target height (player's head)
+
+  // --- Tweak these values to change the camera feel ---
+  const horizontalOffset = 1.5; // How far to the right
+  const verticalOffset = 1.0;   // How far above the target
+  const distance = 4.0;         // How far behind the player
+  // ----------------------------------------------------
+  
+  const offset = new THREE.Vector3(horizontalOffset, verticalOffset, distance);
+  const idealDistance = offset.length(); // Get the total ideal distance
+
+  // 2. Calculate Ideal Camera Position (based on mouse look)
+  const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+  euler.x = mouseY; // Pitch
+  euler.y = mouseX; // Yaw
+  const quaternion = new THREE.Quaternion().setFromEuler(euler);
+  
+  offset.applyQuaternion(quaternion);
+
+  const idealCameraPosition = new THREE.Vector3().copy(targetPosition).add(offset);
+
+  // 3. Camera Collision Logic
+  
+  // Get direction from player *to* the ideal camera position
+  const rayDirection = new THREE.Vector3().subVectors(idealCameraPosition, targetPosition).normalize();
+  
+  // Set up the raycaster
+  cameraRaycaster.set(targetPosition, rayDirection);
+  cameraRaycaster.far = idealDistance; // Only check for hits *up to* the ideal distance
+
+  // Build a list of objects to check against.
+  // We MUST filter out the player, dropped items, etc.
+  const collidableObjects = [];
+  scene.children.forEach(child => {
+    if (child !== leonardModel &&
+        child.name !== 'player-box' &&
+        child.name !== 'droppedItems' &&
+        child.name !== 'firstPersonItem' &&
+        child.type !== 'AmbientLight' &&
+        child.type !== 'DirectionalLight' &&
+        child.type !== 'HemisphereLight' &&
+        child.type !== 'GridHelper' &&
+        child.isLight) // Filter out any other lights
+    {
+      collidableObjects.push(child);
+    }
+  });
+
+  // Perform the raycast
+  const intersects = cameraRaycaster.intersectObjects(collidableObjects, true); // 'true' checks all descendants
+
+  let finalCameraPosition = idealCameraPosition;
+  
+  if (intersects.length > 0) {
+    // We hit a wall!
+    // Move the camera to the hit point, minus a small padding
+    const padding = 0.3;
+    const hitDistance = intersects[0].distance;
+    finalCameraPosition = targetPosition.clone().add(rayDirection.multiplyScalar(hitDistance - padding));
+  }
+
+  // 4. Set Camera Position and LookAt
+  camera.position.copy(finalCameraPosition);
+  camera.lookAt(targetPosition);
+
+  // 5. Show/Hide Models
   if (leonardModel) {
     leonardModel.visible = true;
   }
   
-  // Hide first-person item display in third-person mode
   if (firstPersonItemGroup) {
     firstPersonItemGroup.visible = false;
   }
 }
 
-export function attachCamera(camera, player) {
+// MODIFIED: Now passes 'scene' to third-person function
+export function attachCamera(camera, player, scene) {
   if (isFirstPerson) attachCameraFirstPerson(camera, player);
-  else attachCameraThirdPerson(camera, player);
+  else attachCameraThirdPerson(camera, player, scene);
 }
 
 /* ================================
    DROPPED ITEMS SYSTEM
+   (No changes below this line)
 =================================== */
 let droppedItems = []; // Array to track dropped items in the world
 let droppedItemsGroup = null; // THREE.Group to hold all dropped item meshes
@@ -1857,4 +1956,3 @@ export function getInventorySnapshot() {
   // return shallow copy of slots; normalize objects shape
   return playerInventory.slots.map((it) => it ? { ...it } : null);
 }
-
