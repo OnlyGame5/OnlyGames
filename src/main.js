@@ -433,8 +433,8 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap; // Changed from PCFSoftShadowMap for better performance
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Reduced from 2 to 1.5 for better performance
+renderer.shadowMap.type = THREE.BasicShadowMap; // Cheapest shadow algorithm
+renderer.setPixelRatio(1.0); // Cap pixel workload for maximum FPS
 
 // Matrix Sky renderer settings
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1799,12 +1799,15 @@ function animate(currentTime) {
     activePlayer.userData.lastValidPosition = activePlayer.position.clone();
   }
   
-  // Update all doors in the scene
-  scene.traverse((object) => {
-    if (object.userData && object.userData.category === 'door' && object.userData.update) {
-      object.userData.update(deltaTime);
-    }
-  });
+  // Update only doors in the current room group
+  const currentRoomObj = gameState[currentRoomId];
+  if (currentRoomObj && currentRoomObj.group) {
+    currentRoomObj.group.traverse((object) => {
+      if (object.userData && object.userData.category === 'door' && object.userData.update) {
+        object.userData.update(deltaTime);
+      }
+    });
+  }
   
   // Check door interactions
   const doorInteraction = wallCollisionManager.checkDoorInteraction(activePlayer.position, 2.0);
@@ -1880,19 +1883,9 @@ function animate(currentTime) {
     gameState.room1.updateRoom1Dialogue();
   }
 
-  // Update Room 3 systems
-  if (gameState.room3 && typeof gameState.room3.update === 'function') {
-    gameState.room3.update(deltaTime);
-  }
-
-  // Update Room 4 systems (floating binary animation)
-  if (gameState.room4 && typeof gameState.room4.update === 'function') {
-    gameState.room4.update(deltaTime);
-  }
-  
-  // Update Room 2 systems
-  if (gameState.room2 && typeof gameState.room2.update === 'function') {
-    gameState.room2.update(deltaTime);
+  // Update only the active room systems
+  if (currentRoomObj && typeof currentRoomObj.update === 'function') {
+    currentRoomObj.update(deltaTime);
   }
 
   // Room 3 access door is handled by room0.js westDoor
