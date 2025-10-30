@@ -48,10 +48,7 @@ export function createReusableLaptop(options = {}) {
       const distance = laptopGroup.position.distanceTo(player.position);
       const shouldBeActive = distance <= laptopGroup.userData.activationDistance;
       
-      // Debug logging
-      if (Math.random() < 0.01) { // Log occasionally to avoid spam
-        console.log(`Laptop update: distance=${distance.toFixed(2)}, activationDistance=${laptopGroup.userData.activationDistance}, shouldBeActive=${shouldBeActive}, screenActive=${laptopGroup.userData.screenActive}`);
-      }
+      // removed debug logs
       
       if (shouldBeActive && !laptopGroup.userData.screenActive) {
         // Activate screen
@@ -1097,7 +1094,6 @@ function createDisplayScreen(screen, screenTexture, screenContent) {
 // Function to activate laptop screen
 function activateLaptopScreen(laptopGroup) {
   const display = findLaptopDisplay(laptopGroup);
-  console.log('activateLaptopScreen called, display found:', !!display);
   if (display && display.userData.originalMaterial) {
     // Increase emissive intensity to make screen glow
     display.userData.originalMaterial.emissiveIntensity = 1.2;
@@ -1106,9 +1102,7 @@ function activateLaptopScreen(laptopGroup) {
     // Add a subtle glow effect
     display.userData.originalMaterial.emissive.setHex(0x404040);
     
-    console.log('Laptop screen activated - player is nearby');
   } else {
-    console.log('activateLaptopScreen: display or material not found');
   }
 }
 
@@ -1123,7 +1117,6 @@ function deactivateLaptopScreen(laptopGroup) {
     // Reduce glow effect
     display.userData.originalMaterial.emissive.setHex(0x111111);
     
-    console.log('Laptop screen deactivated - player moved away');
   }
 }
 
@@ -1135,13 +1128,11 @@ function findLaptopDisplay(laptopGroup) {
   laptopGroup.traverse((child) => {
     if (child.isMesh) {
       meshCount++;
-      console.log(`Found mesh: ${child.name || 'unnamed'}, has originalMaterial: ${!!child.userData.originalMaterial}`);
       if (child.userData.originalMaterial) {
         display = child;
       }
     }
   });
-  console.log(`findLaptopDisplay: found ${meshCount} meshes, display:`, !!display);
   return display;
 }
 

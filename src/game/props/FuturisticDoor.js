@@ -313,12 +313,7 @@ function updateDoor(doorGroup, dt) {
       }
     }
     
-    console.log('Door animating:', {
-      openAmount: state.openAmount,
-      targetOpenAmount: state.targetOpenAmount,
-      leftPanelPos: leftPanel ? leftPanel.position.x : 'N/A',
-      rightPanelPos: rightPanel ? rightPanel.position.x : 'N/A'
-    });
+    // removed door animation debug log
     
     // Fire events (prevent spamming with flags)
     if (state.openAmount > 0.9 && !state.hasTriggeredOpen && doorGroup.userData.onOpen) {

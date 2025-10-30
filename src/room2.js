@@ -57,29 +57,29 @@ export function createRoom2() {
     }
   }
 
-  // Concrete031 texture files for Room 2
-  const concrete031Files = {
-    color: "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
-    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
-    rough: "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
-    ao: "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg"
+  // Wood067 texture files for Room 2
+  const wood067Files = {
+    color: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_Color.jpg",
+    normal: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_NormalGL.jpg",
+    rough: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_Roughness.jpg",
+    // AO not provided in set
   };
 
   // Create concrete material for walls
-  const wallMaterial = makeConcrete031MaterialFlexible(12, 4, concrete031Files, {
-    uScale: 0.8,
-    vScale: 0.8,
-    metalness: 0.1,
-    roughness: 0.8,
+  const wallMaterial = makeConcrete031MaterialFlexible(12, 4, wood067Files, {
+    uScale: 0.5,
+    vScale: 0.5,
+    metalness: 0.0,
+    roughness: 0.6,
     anisotropy: 4
   });
 
   // Create concrete material for floor
-  const floorMaterial = makeConcrete031MaterialFlexible(12, 12, concrete031Files, {
-    uScale: 1.0,
-    vScale: 1.0,
+  const floorMaterial = makeConcrete031MaterialFlexible(12, 12, wood067Files, {
+    uScale: 0.8,
+    vScale: 0.8,
     metalness: 0.0,
-    roughness: 0.9,
+    roughness: 0.65,
     anisotropy: 4
   });
 
@@ -315,6 +315,25 @@ export function createRoom2() {
   screenGroup.add(screenFrame, screenDisplay);
   screenGroup.userData.isLogicScreen = true;
   group.add(screenGroup);
+
+  // --- Lighting: brighten Room 2 ---
+  {
+    // Soft ambient to lift overall brightness
+    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+    ambient.name = 'room2-ambient-light';
+    group.add(ambient);
+
+    // Central ceiling point light
+    const ceiling = new THREE.PointLight(0xffffff, 1.25, 26);
+    ceiling.position.set(0, 4, 0);
+    ceiling.name = 'room2-ceiling-light';
+    ceiling.castShadow = true;
+    ceiling.shadow.mapSize.width = 512;
+    ceiling.shadow.mapSize.height = 512;
+    ceiling.shadow.camera.near = 0.1;
+    ceiling.shadow.camera.far = 28;
+    group.add(ceiling);
+  }
   
   // (Removed) neon strip and AI poster
 
