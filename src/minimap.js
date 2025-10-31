@@ -17,10 +17,10 @@ export class Minimap {
     this.needsRedraw = true;
     this.lastPlayerPosition = new THREE.Vector3();
     this.lastPlayerRotation = 0;
-    this.redrawThreshold = 0.3; // Redraw if player moves more than 0.3 units (reduced for better responsiveness)
-    this.rotationThreshold = 0.05; // Redraw if player rotates more than 0.05 radians (reduced for better responsiveness)
+    this.redrawThreshold = 0.6; // Redraw if player moves more than 0.6 units
+    this.rotationThreshold = 0.1; // Redraw if player rotates more than 0.1 radians
     this.lastRedrawTime = 0;
-    this.redrawInterval = 50; // Minimum 50ms between redraws (reduced for smoother updates)
+    this.redrawInterval = 120; // Minimum 120ms between redraws to cut canvas churn
     
     // Track room accessibility state to detect changes
     this.lastAccessibilityState = {};
