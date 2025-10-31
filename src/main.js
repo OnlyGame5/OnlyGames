@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory, toggleLookMode, handleDroppedItemInteraction, handleDropItem, ensureDroppedItemsInScene, loadGlobalPickableModels } from './player.js';
+import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory, toggleLookMode, handleDroppedItemInteraction, handleDropItem, ensureDroppedItemsInScene, loadGlobalPickableModels, addToInventory } from './player.js';
 import { AI } from './ai.js';
 import { WallCollisionManager } from './collision/WallCollisionManager.js';
 import { roomWallDefinitions } from './collision/roomWalls.js';
@@ -106,6 +106,7 @@ function createCheatConsole() {
   addOutput('  godmode - Toggle god mode (invincible)');
   addOutput('  teleport <room> - Teleport to room (room0, room1, room2, room3, room4)');
   addOutput('  give <item> - Give item to player');
+  addOutput('  accesscards - Add three access cards to inventory');
   addOutput('  clear - Clear console output');
   addOutput('  help - Show this help');
   addOutput('Press ~ to close console');
@@ -158,6 +159,20 @@ function createCheatConsole() {
           addOutput('Usage: give <item>');
         }
         break;
+
+      case 'accesscards':
+        {
+          let added = 0;
+          for (let i = 0; i < 3; i++) {
+            const ok = addToInventory({ name: 'key_card', description: 'Access Key Card', type: 'key' });
+            if (ok) added++;
+          }
+          addOutput(`Added ${added} access card(s) to inventory`);
+          if (window.AI && added > 0) {
+            window.AI.showInteractionFeedback?.('Access cards granted.');
+          }
+        }
+        break;
         
       case 'clear':
         outputDiv.innerHTML = '';
@@ -177,6 +192,7 @@ function createCheatConsole() {
         addOutput('  godmode - Toggle god mode (invincible)');
         addOutput('  teleport <room> - Teleport to room (room0, room1, room2, room3, room4)');
         addOutput('  give <item> - Give item to player');
+        addOutput('  accesscards - Add three access cards to inventory');
         addOutput('  resetlighting - Reset lighting to default values');
         addOutput('  clear - Clear console output');
         addOutput('  help - Show this help');
@@ -276,12 +292,9 @@ function createCheatConsole() {
     };
     
     if (items[itemName]) {
-      if (window.addToInventory) {
-        window.addToInventory(items[itemName]);
-        addOutput(`Added ${items[itemName].name} to inventory`);
-      } else {
-        addOutput('Inventory system not available');
-      }
+      const ok = addToInventory(items[itemName]);
+      if (ok) addOutput(`Added ${items[itemName].name} to inventory`);
+      else addOutput('Inventory is full');
     } else {
       addOutput(`Unknown item: ${itemName}. Available: key, note, book`);
     }
