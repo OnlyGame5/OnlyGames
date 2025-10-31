@@ -10,7 +10,7 @@ export class SecurityMonitor {
     this.isActive = false;
     this.currentRoom = 1; // Start with Room 1
     this.frameCount = 0;
-    this.updateInterval = 2; // Update every 2nd frame (30fps)
+    this.updateInterval = 4; // Update every 4th frame (~15fps)
     
     // Render target for monitor screen
     this.renderTarget = new THREE.WebGLRenderTarget(512, 384);
@@ -24,9 +24,6 @@ export class SecurityMonitor {
     // Static effect properties
     this.staticFrameCount = 0;
     this.staticTexture = null;
-    
-    // Create separate scene for security cameras
-    this.securityScene = new THREE.Scene();
     
     this.init();
   }
@@ -147,9 +144,6 @@ export class SecurityMonitor {
       this.screenMaterial.color.setHex(0x000000);
     }
     
-    // Clear the security scene to prevent state corruption
-    this.securityScene.clear();
-    
     // Reset frame counters
     this.frameCount = 0;
     this.staticFrameCount = 0;
@@ -175,9 +169,6 @@ export class SecurityMonitor {
     this.frameCount = 0;
     this.staticFrameCount = 0;
     this.isActive = false;
-    
-    // Clear the security scene completely
-    this.securityScene.clear();
     
     // Reinitialize cameras
     this.setupSecurityCameras();
@@ -256,57 +247,22 @@ export class SecurityMonitor {
       return;
     }
     
-    // Get the room group
-    const roomGroup = this.getRoomGroup(this.currentRoom);
-    if (!roomGroup) {
+    if (this.currentRoom !== 3 && !this.getRoomGroup(this.currentRoom)) {
       return;
     }
     
-    // Clear the security scene
-    this.securityScene.clear();
-    
-    // Clone the target room and add it to the security scene at the origin
-    const roomClone = roomGroup.clone();
-    roomClone.position.set(0, 0, 0);
-    roomClone.rotation.set(0, 0, 0);
-    
-    // Remove laptops from the cloned room to prevent them from appearing on security screens
-    this.removeLaptopsFromClone(roomClone);
-    
-    this.securityScene.add(roomClone);
-    
-    // Add basic lighting to the security scene
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
-    this.securityScene.add(ambientLight);
-    
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(0, 10, 0);
-    directionalLight.target.position.set(0, 0, 0);
-    this.securityScene.add(directionalLight);
-    this.securityScene.add(directionalLight.target);
-    
-    // Position the security camera RELATIVE to the room's local origin
-    // Convert previously world-based camera anchors into local space by subtracting the room's world offset
-    const roomOffset = roomGroup.position; // world offset of the room in main scene
     const cam = camData.camera;
-    
-    // Calculate local camera position and look-at point
-    const localCamPos = new THREE.Vector3().copy(camData.position).sub(roomOffset);
-    const localLookAt = new THREE.Vector3().copy(camData.lookAt).sub(roomOffset);
-    
-    cam.position.copy(localCamPos);
-    cam.lookAt(localLookAt);
+    cam.position.copy(camData.position);
+    cam.lookAt(camData.lookAt);
     cam.aspect = 512 / 384;
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld(true);
     
-    // Render the security scene with the security camera
+    // Render the main scene from the security camera perspective
     this.renderer.setRenderTarget(this.renderTarget);
-    this.renderer.render(this.securityScene, cam);
+    this.renderer.render(this.scene, cam);
     this.renderer.setRenderTarget(null);
     
-    // The render target texture is now ready to be used
-    // No need to call updateScreenTexture() since we use the render target directly
   }
   
   getRoomGroup(roomId) {
@@ -322,31 +278,6 @@ export class SecurityMonitor {
       default: 
         return null;
     }
-  }
-  
-  removeLaptopsFromClone(roomClone) {
-    // Recursively traverse the cloned room and remove any laptops
-    const objectsToRemove = [];
-    
-    roomClone.traverse((child) => {
-      if (child.name === 'reusable-laptop') {
-        objectsToRemove.push(child);
-      }
-    });
-    
-    // Remove the laptops from their parent groups
-    objectsToRemove.forEach(laptop => {
-      if (laptop.parent) {
-        laptop.parent.remove(laptop);
-      }
-    });
-  }
-  
-  
-  updateScreenTexture() {
-    // Use the render target texture directly - it should contain the rendered security camera view
-    this.screenMaterial.map = this.renderTarget.texture;
-    this.screenMaterial.needsUpdate = true;
   }
   
   updateStaticTexture() {
@@ -377,9 +308,6 @@ export class SecurityMonitor {
   // Method to completely reset the security monitor
   reset() {
     this.hide();
-    
-    // Clear all scenes
-    this.securityScene.clear();
     
     // Reset all state
     this.currentRoom = 1;
@@ -417,9 +345,6 @@ export class SecurityMonitor {
     this.frameCount = 0;
     this.staticFrameCount = 0;
     
-    // Clear the security scene
-    if (this.securityScene) {
-      this.securityScene.clear();
-    }
+    // No secondary scene to clear
   }
 }

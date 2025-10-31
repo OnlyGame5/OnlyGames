@@ -222,6 +222,11 @@ class GameStore {
 
   // --- NEW ROOM MANAGEMENT METHODS ---
 
+  setRoom4Complete(value) {
+    this.rooms.room4.isComplete = !!value;
+    this.notify('room4Complete', this.rooms.room4.isComplete);
+  }
+
   setCurrentRoom(roomId) {
     if (this.currentRoomId !== roomId) {
       this.currentRoomId = roomId;

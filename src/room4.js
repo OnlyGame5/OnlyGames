@@ -27,6 +27,12 @@ export function createRoom4() {
     hasShownDecoderDialogue: false
   };
 
+  // Track access card distribution across reloads of the room
+  state.keyCardGranted = window.room4KeyCardGranted === true;
+  if (!state.keyCardGranted) {
+    window.room4KeyCardGranted = false;
+  }
+
   // Tiles002 texture files for Room 4 floor (same as Room 1)
   const tiles002Files = {
     color: "/textures/tiles002/Tiles002_1K-JPG_Color.jpg",
