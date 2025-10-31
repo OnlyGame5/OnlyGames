@@ -1,6 +1,7 @@
 import './MainMenu.css';
 import '../audio/GlobalMusicManager.js';
 import * as Input from '../systems/input.js';
+import { performanceSettings } from '../systems/PerformanceSettings.js';
 
 /**
  * Matrix-style Main Menu with falling numbers background
@@ -70,6 +71,13 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   settingsButton.setAttribute('data-action', 'settings');
   settingsButton.innerHTML = '<span class="btn-label" data-text="SETTINGS">SETTINGS</span>';
   buttonsContainer.appendChild(settingsButton);
+  
+  // Performance Settings button
+  const performanceButton = document.createElement('button');
+  performanceButton.className = 'menu-button';
+  performanceButton.setAttribute('data-action', 'performance');
+  performanceButton.innerHTML = '<span class="btn-label" data-text="PERFORMANCE">PERFORMANCE</span>';
+  buttonsContainer.appendChild(performanceButton);
   
   // Credits button
   const creditsButton = document.createElement('button');
@@ -153,6 +161,11 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
       case 'settings':
         if (onSettings && !hasExited) {
           showSettings();
+        }
+        break;
+      case 'performance':
+        if (!hasExited) {
+          showPerformanceSettings();
         }
         break;
       case 'credits':
@@ -472,6 +485,176 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
 
     refreshControls();
     refreshSettings();
+  }
+  
+  // Show performance settings function
+  function showPerformanceSettings() {
+    if (window.cursorManager) {
+      window.cursorManager.setUIVisible(true);
+    }
+
+    const performanceOverlay = document.createElement('div');
+    performanceOverlay.className = 'settings-overlay';
+    
+    const qualityProfiles = performanceSettings.getQualityProfiles();
+    const currentQuality = performanceSettings.getQuality();
+    
+    // Create quality option cards
+    const qualityOptionsHtml = Object.entries(qualityProfiles).map(([key, profile]) => {
+      const isSelected = key === currentQuality;
+      const isAutoDetected = key === performanceSettings.detectOptimalQuality();
+      
+      return `
+        <div class="quality-option ${isSelected ? 'selected' : ''}" data-quality="${key}">
+          <div class="quality-header">
+            <h4>${profile.name}</h4>
+            ${isAutoDetected ? '<span class="auto-badge">RECOMMENDED</span>' : ''}
+          </div>
+          <p class="quality-description">${profile.description}</p>
+          <div class="quality-specs">
+            <div class="spec-item">
+              <span class="spec-label">Resolution:</span>
+              <span class="spec-value">${Math.round(profile.pixelRatio * 100)}%</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Shadows:</span>
+              <span class="spec-value">${profile.shadows.enabled ? 'Enabled' : 'Disabled'}</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Lighting:</span>
+              <span class="spec-value">${profile.lighting.physicallyCorrect ? 'Advanced' : 'Basic'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    performanceOverlay.innerHTML = `
+      <div class="settings-panel performance-panel">
+        <div class="settings-header">
+          <h2>PERFORMANCE SETTINGS</h2>
+          <button class="close-settings" data-action="close">×</button>
+        </div>
+        <div class="settings-content">
+          <div class="performance-description">
+            <p>Choose your performance priority. Settings will be applied immediately and saved for future sessions.</p>
+            <div class="current-hardware">
+              <h4>Detected Hardware:</h4>
+              <p>CPU Cores: ${navigator.hardwareConcurrency || 'Unknown'} | 
+                 Memory: ${navigator.deviceMemory ? navigator.deviceMemory + 'GB' : 'Unknown'} | 
+                 Display: ${window.devicePixelRatio}x resolution</p>
+            </div>
+          </div>
+          
+          <div class="quality-grid">
+            ${qualityOptionsHtml}
+          </div>
+          
+          <div class="performance-actions">
+            <button class="performance-button auto-detect" data-action="auto-detect">
+              Auto-Detect Optimal Settings
+            </button>
+            <button class="performance-button test-mode" data-action="test" disabled>
+              Performance Test (Coming Soon)
+            </button>
+          </div>
+        </div>
+        <div class="settings-buttons">
+          <button class="settings-button primary" data-action="apply">Apply & Close</button>
+          <button class="settings-button" data-action="close">Close</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(performanceOverlay);
+
+    let selectedQuality = currentQuality;
+
+    // Handle quality selection
+    performanceOverlay.addEventListener('click', (e) => {
+      const qualityOption = e.target.closest('.quality-option');
+      if (qualityOption) {
+        // Remove selected class from all options
+        performanceOverlay.querySelectorAll('.quality-option').forEach(opt => {
+          opt.classList.remove('selected');
+        });
+        
+        // Add selected class to clicked option
+        qualityOption.classList.add('selected');
+        selectedQuality = qualityOption.getAttribute('data-quality');
+        
+        // Update the preview description
+        updatePerformancePreview(selectedQuality);
+        return;
+      }
+
+      const actionElement = e.target.closest('[data-action]');
+      if (!actionElement) return;
+
+      const action = actionElement.getAttribute('data-action');
+      e.preventDefault();
+      e.stopPropagation();
+
+      switch (action) {
+        case 'close':
+          cleanup();
+          break;
+        case 'apply':
+          // Apply the selected quality
+          performanceSettings.setQuality(selectedQuality);
+          console.log(`Performance quality set to: ${selectedQuality}`);
+          
+          // Dispatch event to notify main.js to update renderer
+          window.dispatchEvent(new CustomEvent('performanceSettingsChanged', {
+            detail: { 
+              quality: selectedQuality, 
+              profile: qualityProfiles[selectedQuality],
+              requiresRendererUpdate: true 
+            }
+          }));
+          
+          cleanup();
+          break;
+        case 'auto-detect':
+          const autoQuality = performanceSettings.detectOptimalQuality();
+          
+          // Update UI to show auto-detected quality
+          performanceOverlay.querySelectorAll('.quality-option').forEach(opt => {
+            opt.classList.remove('selected');
+            if (opt.getAttribute('data-quality') === autoQuality) {
+              opt.classList.add('selected');
+            }
+          });
+          
+          selectedQuality = autoQuality;
+          updatePerformancePreview(autoQuality);
+          break;
+      }
+    });
+
+    function updatePerformancePreview(quality) {
+      const profile = qualityProfiles[quality];
+      // Could add a preview section here if needed
+      console.log(`Preview: ${quality} quality`, profile);
+    }
+
+    function cleanup() {
+      if (window.cursorManager) {
+        window.cursorManager.setUIVisible(false);
+      }
+      performanceOverlay.remove();
+    }
+
+    // Handle escape key
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        cleanup();
+        document.removeEventListener('keydown', handleEscape, true);
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape, true);
   }
   
   // Show credits function
