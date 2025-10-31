@@ -56,9 +56,9 @@ export class SecurityMonitor {
         lookAt: new THREE.Vector3(-35, 1, 0)    // Look toward the back of the room
       },
       4: { // North Sector - Room at (0, 0, -26.5)
-        camera: new THREE.PerspectiveCamera(70, 512/384, 0.1, 1000),
-        position: new THREE.Vector3(0, 3, -23), // Inside Room 4, lower and offset
-        lookAt: new THREE.Vector3(0, 1, -30)    // Look toward the back of the room
+        camera: new THREE.PerspectiveCamera(65, 512/384, 0.1, 1000),
+        position: new THREE.Vector3(0, 3.8, -18.5), // Near the hallway entrance looking into the room
+        lookAt: new THREE.Vector3(0, 1.5, -26.5)  // Focus toward the back of the room
       }
     };
     

@@ -476,6 +476,28 @@ console.log('[Main] Wall collision system initialized');
 // Make collision manager globally accessible for debugging
 window.wallCollisionManager = wallCollisionManager;
 
+// Additional per-room object collisions registered dynamically when the room is active
+const extraRoomObjectCollisions = {
+  room1: [
+    {
+      id: 'room1-laptop',
+      type: 'laptop',
+      position: new THREE.Vector3(29, 0.75, 0),
+      size: new THREE.Vector3(1.4, 1.4, 1.4),
+      dynamic: false
+    }
+  ],
+  room4: [
+    {
+      id: 'room4-laptop',
+      type: 'laptop',
+      position: new THREE.Vector3(0, 0.75, -26.5),
+      size: new THREE.Vector3(1.4, 1.4, 1.4),
+      dynamic: false
+    }
+  ]
+};
+
 // Simple interaction UI system
 function createInteractionUI() {
   const interactionDiv = document.createElement('div');
@@ -567,6 +589,15 @@ function setupRoomCollisions(roomId = null) {
           console.log(`[Collision] Added DOOR: ${objectId}, type: ${obj.type}, dynamic: ${dynamic}, position:`, obj.position);
         }
       }
+    }
+
+    // Add any extra per-room object collisions (e.g., laptops) managed outside the static definitions
+    const extraObjects = extraRoomObjectCollisions[currentRoomId];
+    if (extraObjects) {
+      extraObjects.forEach((obj, index) => {
+        const objectId = obj.id || `${currentRoomId}-extra-${index}`;
+        wallCollisionManager.addObject(obj.position, obj.size, objectId, obj.type, !!obj.dynamic);
+      });
     }
     
     // Add hallway walls (thick walls around hallways)
@@ -1196,30 +1227,19 @@ function initializeMainMenu() {
 // Load settings from main menu when starting game
 function loadSettingsFromMainMenu() {
   try {
-    localStorage.removeItem('gameSettings');
-    
-    // Set the correct default settings
-    const correctSettings = {
-      sensitivity: 1.0,
+    // Ensure input system has loaded saved bindings/settings
+    initInput();
+
+    // Ensure matrix sky defaults are synced with the game store
+    const matrixDefaults = {
       enableMatrixSky: true,
-      matrixSkySpeed: 0.01, // 2x faster than 0.005
+      matrixSkySpeed: 0.01,
       matrixSkyIntensity: 1.0
     };
-    
-    localStorage.setItem('gameSettings', JSON.stringify(correctSettings));
-    
-    // Update gameStore settings with correct values
+
     if (window.gameStore && window.gameStore.settings) {
-      window.gameStore.settings.enableMatrixSky = correctSettings.enableMatrixSky;
-      window.gameStore.settings.matrixSkySpeed = correctSettings.matrixSkySpeed;
-      window.gameStore.settings.matrixSkyIntensity = correctSettings.matrixSkyIntensity;
+      Object.assign(window.gameStore.settings, matrixDefaults);
     }
-    
-    // Update input system settings if available
-    if (window.Input && correctSettings.sensitivity !== undefined) {
-      window.Input.setSettings({ sensitivity: correctSettings.sensitivity });
-    }
-    
   } catch (error) {
     console.error('Failed to load settings from main menu:', error);
   }

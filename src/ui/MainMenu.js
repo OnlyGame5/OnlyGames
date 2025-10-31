@@ -1,5 +1,6 @@
 import './MainMenu.css';
 import '../audio/GlobalMusicManager.js';
+import * as Input from '../systems/input.js';
 
 /**
  * Matrix-style Main Menu with falling numbers background
@@ -101,6 +102,7 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   // Event listeners
   let hasExited = false;
   let selectedDifficulty = 'normal'; // Default difficulty
+  let activeSettingsCleanup = null;
   
   // Difficulty selection handler
   const handleDifficultyClick = (e) => {
@@ -251,11 +253,16 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   
   // Show settings function
   function showSettings() {
-    // Create settings overlay
+    Input.initInput();
+
+    if (activeSettingsCleanup) {
+      activeSettingsCleanup();
+    }
+
     const settingsOverlay = document.createElement('div');
     settingsOverlay.className = 'settings-overlay';
     settingsOverlay.innerHTML = `
-      <div class="settings-panel">
+      <div class="settings-panel settings-panel--wide">
         <div class="settings-header">
           <h2>GAME SETTINGS</h2>
           <button class="close-settings" data-action="close">×</button>
@@ -263,170 +270,308 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
         <div class="settings-content">
           <div class="settings-section">
             <h3>Controls</h3>
-            <div class="control-item">
-              <label>Mouse Sensitivity:</label>
-              <input type="range" id="menu-sensitivity" min="0.3" max="2.0" step="0.1" value="1.0" />
-              <span class="value-display" id="menu-sensitivity-value">1.0</span>
-            </div>
+            <table class="controls-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Key</th>
+                </tr>
+              </thead>
+              <tbody id="menu-controls-tbody"></tbody>
+            </table>
+            <div class="settings-hint">Click on a key to change the binding.</div>
           </div>
           <div class="settings-section">
-            <h3>Graphics</h3>
-            <div class="control-item">
-              <label>Matrix Sky:</label>
-              <input type="checkbox" id="menu-matrix-sky" checked />
+            <h3>Gameplay</h3>
+            <div class="settings-row">
+              <label for="menu-sensitivity-slider">Mouse Sensitivity</label>
+              <input type="range" id="menu-sensitivity-slider" min="0.3" max="2.0" step="0.1" />
+              <span class="value-display" id="menu-sensitivity-value">1.0</span>
             </div>
           </div>
         </div>
         <div class="settings-buttons">
-          <button class="settings-button" data-action="apply">Apply</button>
-          <button class="settings-button" data-action="reset">Reset</button>
+          <button class="settings-button primary" data-action="apply">Apply</button>
+          <button class="settings-button" data-action="reset">Reset to Defaults</button>
           <button class="settings-button" data-action="close">Close</button>
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(settingsOverlay);
-    
-    // Use cursor manager to ensure cursor is visible in settings
+
     if (window.cursorManager) {
       window.cursorManager.setUIVisible(true);
     }
-    
-    // Load current settings
-    loadSettings();
-    
-    // Handle settings events
-    settingsOverlay.addEventListener('click', (e) => {
-      const action = e.target.getAttribute('data-action');
-      
+
+    const controlsTbody = settingsOverlay.querySelector('#menu-controls-tbody');
+    const sensitivitySlider = settingsOverlay.querySelector('#menu-sensitivity-slider');
+    const sensitivityValue = settingsOverlay.querySelector('#menu-sensitivity-value');
+
+    let activeBindingHandler = null;
+    let activeBindingAction = null;
+    let isClosed = false;
+
+    function formatActionName(action) {
+      return action.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+    }
+
+    function formatKeyCode(keyCode) {
+      if (!keyCode) return '—';
+      return keyCode.replace('Key', '').replace('Digit', '');
+    }
+
+    function refreshControls() {
+      if (!controlsTbody) return;
+      controlsTbody.innerHTML = '';
+
+      const bindings = Input.getBindings();
+      Object.entries(bindings).forEach(([action, keyCode]) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${formatActionName(action)}</td>
+          <td class="key-cell" data-action="${action}">${formatKeyCode(keyCode)}</td>
+        `;
+
+        const keyCell = row.querySelector('.key-cell');
+        keyCell.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          startListeningForBinding(action);
+        });
+
+        controlsTbody.appendChild(row);
+      });
+    }
+
+    function refreshSettings() {
+      if (!sensitivitySlider || !sensitivityValue) return;
+      const currentSettings = Input.getSettings();
+      const value = currentSettings.sensitivity ?? 1.0;
+      sensitivitySlider.value = value;
+      sensitivityValue.textContent = value.toFixed(1);
+    }
+
+    function stopListeningForBinding() {
+      if (activeBindingHandler) {
+        document.removeEventListener('keydown', activeBindingHandler, true);
+        activeBindingHandler = null;
+      }
+
+      if (activeBindingAction) {
+        const targetCell = settingsOverlay.querySelector(`.key-cell[data-action="${activeBindingAction}"]`);
+        if (targetCell) {
+          targetCell.classList.remove('listening');
+          const bindings = Input.getBindings();
+          targetCell.textContent = formatKeyCode(bindings[activeBindingAction]);
+        }
+        activeBindingAction = null;
+      }
+    }
+
+    function startListeningForBinding(action) {
+      if (activeBindingHandler) return;
+
+      activeBindingAction = action;
+
+      const keyCells = settingsOverlay.querySelectorAll('.key-cell');
+      keyCells.forEach((cell) => cell.classList.remove('listening'));
+
+      const targetCell = settingsOverlay.querySelector(`.key-cell[data-action="${action}"]`);
+      if (targetCell) {
+        targetCell.classList.add('listening');
+        targetCell.textContent = 'Press any key...';
+      }
+
+      const handler = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        Input.setBinding(action, event.code);
+
+        stopListeningForBinding();
+        refreshControls();
+
+        if (typeof window.updateHUDInstructions === 'function') {
+          window.updateHUDInstructions();
+        }
+      };
+
+      activeBindingHandler = handler;
+      document.addEventListener('keydown', handler, true);
+    }
+
+    if (sensitivitySlider && sensitivityValue) {
+      sensitivitySlider.addEventListener('input', (event) => {
+        const value = parseFloat(event.target.value);
+        sensitivityValue.textContent = value.toFixed(1);
+        Input.setSettings({ sensitivity: value });
+      });
+    }
+
+    const bindingsChanged = () => {
+      refreshControls();
+      if (typeof window.updateHUDInstructions === 'function') {
+        window.updateHUDInstructions();
+      }
+    };
+    Input.onBindingsChanged(bindingsChanged);
+
+    function handleEscape(event) {
+      if (event.key === 'Escape' && !activeBindingHandler) {
+        event.preventDefault();
+        cleanup();
+      }
+    }
+
+    function cleanup() {
+      if (isClosed) return;
+      isClosed = true;
+
+      stopListeningForBinding();
+      Input.offBindingsChanged(bindingsChanged);
+      document.removeEventListener('keydown', handleEscape, true);
+      activeSettingsCleanup = null;
+
+      if (window.cursorManager) {
+        window.cursorManager.setUIVisible(false);
+      }
+
+      settingsOverlay.remove();
+    }
+
+    document.addEventListener('keydown', handleEscape, true);
+    activeSettingsCleanup = cleanup;
+
+    settingsOverlay.addEventListener('click', (event) => {
+      const actionElement = event.target.closest('[data-action]');
+      if (!actionElement) return;
+
+      const action = actionElement.getAttribute('data-action');
+      if (!action) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
       switch (action) {
-        case 'close':
-          // Use cursor manager to hide cursor when closing settings
-          if (window.cursorManager) {
-            window.cursorManager.setUIVisible(false);
-          }
-          settingsOverlay.remove();
-          break;
         case 'apply':
-          applySettings();
-          // Use cursor manager to hide cursor when applying settings
-          if (window.cursorManager) {
-            window.cursorManager.setUIVisible(false);
-          }
-          settingsOverlay.remove();
+        case 'close':
+          cleanup();
           break;
         case 'reset':
-          resetSettings();
-          loadSettings();
+          Input.resetBindings();
+          Input.resetSettings();
+          refreshControls();
+          refreshSettings();
+          if (typeof window.updateHUDInstructions === 'function') {
+            window.updateHUDInstructions();
+          }
           break;
       }
     });
-    
-    // Handle slider updates
-    const sensitivitySlider = document.getElementById('menu-sensitivity');
-    const sensitivityValue = document.getElementById('menu-sensitivity-value');
-    
-    if (sensitivitySlider && sensitivityValue) {
-      sensitivitySlider.addEventListener('input', (e) => {
-        sensitivityValue.textContent = e.target.value;
-      });
-    }
-  }
-  
-  // Load settings from localStorage or defaults
-  function loadSettings() {
-    const settings = JSON.parse(localStorage.getItem('gameSettings') || '{}');
-    
-    const sensitivitySlider = document.getElementById('menu-sensitivity');
-    const sensitivityValue = document.getElementById('menu-sensitivity-value');
-    const matrixSkyCheckbox = document.getElementById('menu-matrix-sky');
-    const matrixSpeedSlider = document.getElementById('menu-matrix-speed');
-    const matrixSpeedValue = document.getElementById('menu-matrix-speed-value');
-    
-    if (sensitivitySlider && sensitivityValue) {
-      const sensitivity = settings.sensitivity || 1.0;
-      sensitivitySlider.value = sensitivity;
-      sensitivityValue.textContent = sensitivity.toFixed(1);
-    }
-    
-    if (matrixSkyCheckbox) {
-      matrixSkyCheckbox.checked = settings.enableMatrixSky !== false;
-    }
-  }
-  
-  // Apply settings
-  function applySettings() {
-    const sensitivitySlider = document.getElementById('menu-sensitivity');
-    const matrixSkyCheckbox = document.getElementById('menu-matrix-sky');
-    
-    const settings = {
-      sensitivity: parseFloat(sensitivitySlider?.value || 1.0),
-      enableMatrixSky: matrixSkyCheckbox?.checked !== false,
-      matrixSkySpeed: 0.01, // 2x faster than 0.005
-      matrixSkyIntensity: 1.0
-    };
-    
-    // Save to localStorage
-    localStorage.setItem('gameSettings', JSON.stringify(settings));
-    
-    // Update gameStore settings if available
-    if (window.gameStore && window.gameStore.settings) {
-      window.gameStore.settings.enableMatrixSky = settings.enableMatrixSky;
-      window.gameStore.settings.matrixSkySpeed = settings.matrixSkySpeed;
-      window.gameStore.settings.matrixSkyIntensity = settings.matrixSkyIntensity;
-    }
-    
-    // Dispatch settings change event
-    window.dispatchEvent(new CustomEvent('game:settingsChanged', { detail: settings }));
-    
-    console.log('Settings applied:', settings);
-  }
-  
-  // Reset settings to defaults
-  function resetSettings() {
-    const defaultSettings = {
-      sensitivity: 1.0,
-      enableMatrixSky: true,
-      matrixSkySpeed: 0.01, // 2x faster than 0.005
-      matrixSkyIntensity: 1.0
-    };
-    
-    localStorage.setItem('gameSettings', JSON.stringify(defaultSettings));
-    
-    // Update gameStore settings if available
-    if (window.gameStore && window.gameStore.settings) {
-      window.gameStore.settings.enableMatrixSky = defaultSettings.enableMatrixSky;
-      window.gameStore.settings.matrixSkySpeed = defaultSettings.matrixSkySpeed;
-      window.gameStore.settings.matrixSkyIntensity = defaultSettings.matrixSkyIntensity;
-    }
-    
-    console.log('Settings reset to defaults');
+
+    refreshControls();
+    refreshSettings();
   }
   
   // Show credits function
   function showCredits() {
+    // Attribution data structure
+    const attributions = {
+      playerModel: {
+        title: 'PLAYER MODEL',
+        items: [
+          {
+            name: 'Leonard (leonard.glb)',
+            source: 'Mixamo',
+            url: 'https://www.mixamo.com/#/?page=1&type=Character',
+            note: 'Character model: Leonard (select from Mixamo\'s Characters page)'
+          }
+        ]
+      },
+      models: {
+        title: '3D MODELS',
+        items: [
+          { name: 'book.glb', source: 'Sketchfab', url: 'https://sketchfab.com/3d-models/william-gibson-book-burning-chrome-a26f670dd9f048b28ec5eabcca4900e3' },
+          { name: 'card.glb', source: 'Team Created', url: '' },
+          { name: 'cardsss.glb', source: 'Team Created', url: '' },
+          { name: 'chair.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery?query=chair' },
+          { name: 'hand_sculpt.glb', source: 'Sketchfab', url: 'https://sketchfab.com/3d-models/simple-hand-e620220cf4d1431a86a3e630a72b4de2' },
+          { name: 'hologram.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery?query=hologram' },
+          { name: 'idle.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery?query=idle' },
+          { name: 'key.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery-detail/1b86b5b7-f975-482f-b55c-f20611aa0296/?query=key+order:_score+availability:free' },
+          { name: 'office_chair.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery-detail/f89d26a8-fcae-443c-b9d7-a95ffb8934e9/?query=chair+order:_score+availability:free' },
+          { name: 'room4_decoder_panel.glb', source: 'Team Created', url: '' },
+          { name: 'safe.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery?query=safe' },
+          { name: 'scale_key.glb', source: 'Team Created', url: '' },
+          { name: 'sci_fi_office_desk.glb', source: 'Team Created', url: '' },
+          { name: 'sci_fi_table.glb', source: 'Team Created', url: '' },
+          { name: 'sci-fi_tablet.glb', source: 'Team Created', url: '' },
+          { name: 'drawing_paper.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery-detail/1691c657-cc5d-45c3-8d51-db2e08eea733/?query=drawing+order:_score' }
+        ]
+      },
+      textures: {
+        title: 'TEXTURES',
+        items: [
+          { name: 'bricks058', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Bricks058' },
+          { name: 'Chip005_1K-JPG', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Chip005' },
+          { name: 'concrete031', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Concrete031' },
+          { name: 'diamond-plate-floor', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=DiamondPlate008C' },
+          { name: 'Fingerprints003_1K-JPG', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Fingerprints003' },
+          { name: 'Metal003_1K-JPG', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Metal003' },
+          { name: 'metal030', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Metal030' },
+          { name: 'solar-panel', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=SolarPanel002' },
+          { name: 'tiles002', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Tiles002' },
+          { name: 'tiles108', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Tiles108' },
+          { name: 'tiles136C', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Tiles136C' },
+          { name: 'Wood067_1K-JPG', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Wood067' }
+        ]
+      }
+    };
+
+    // Helper function to render a section
+    const renderSection = (section) => {
+      const itemsHtml = section.items.map(item => {
+        const linkHtml = item.url 
+          ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="credits-link">${item.source}</a>`
+          : `<span class="credits-source">${item.source}</span>`;
+        const noteHtml = item.note ? `<div class="credits-note">${item.note}</div>` : '';
+        return `
+          <div class="credits-item">
+            <span class="credits-name">${item.name}</span>
+            <span class="credits-separator">—</span>
+            ${linkHtml}
+            ${noteHtml}
+          </div>
+        `;
+      }).join('');
+      
+      return `
+        <div class="credits-section">
+          <h3>${section.title}</h3>
+          <div class="credits-items">
+            ${itemsHtml}
+          </div>
+        </div>
+      `;
+    };
+
     const creditsOverlay = document.createElement('div');
     creditsOverlay.className = 'credits-overlay';
     creditsOverlay.innerHTML = `
       <div class="credits-panel">
         <div class="credits-header">
-          <h2>CREDITS</h2>
+          <h2>CREDITS & ATTRIBUTIONS</h2>
           <button class="close-credits" data-action="close">×</button>
         </div>
         <div class="credits-content">
-          <div class="credits-section">
-            <h3>THE APERTURE PROTOCOL</h3>
-            <p>A 3D puzzle adventure game</p>
-          </div>
-          <div class="credits-section">
-            <h3>DEVELOPMENT</h3>
-            <p>Created with Three.js</p>
-            <p>Matrix rain effect inspired by The Matrix</p>
-          </div>
+          ${renderSection(attributions.playerModel)}
+          ${renderSection(attributions.models)}
+          ${renderSection(attributions.textures)}
           <div class="credits-section">
             <h3>SPECIAL THANKS</h3>
-            <p>To all the open source developers</p>
-            <p>who made this project possible</p>
+            <p>To all the open source developers who made this project possible</p>
+            <p>University of the Witwatersrand - COMS3006A/COMS3025A</p>
           </div>
         </div>
         <div class="credits-buttons">
@@ -494,6 +639,9 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   // Return cleanup function
   return {
     destroy: () => {
+      if (activeSettingsCleanup) {
+        activeSettingsCleanup();
+      }
       if (matrixAnimation.stop) {
         matrixAnimation.stop();
       }
