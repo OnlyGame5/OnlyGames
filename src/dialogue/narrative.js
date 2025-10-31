@@ -1,6 +1,22 @@
 // Nexus AI Companion - Complete Narrative Dialogue System
 // Compartmentalized dialogue for all three acts of the game
 
+// Voice assets: eagerly index all dialogue mp3s under nexus_dialogue (Vite will bundle and give us URLs)
+// This allows dropping new files without changing code, as long as filenames match dialogue keys.
+const __voiceModules = import.meta.glob('../audio/nexus_dialogue/*.mp3', { eager: true });
+const __voiceIndex = (() => {
+  const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const idx = new Map();
+  for (const [path, mod] of Object.entries(__voiceModules)) {
+    const file = path.split('/').pop() || '';
+    const base = file.replace(/\.mp3$/i, '');
+    const key = normalize(base);
+    const url = (mod && mod.default) ? mod.default : mod;
+    idx.set(key, url);
+  }
+  return { normalize, idx };
+})();
+
 export const NEXUS_DIALOGUE = {
   // Act I - Orientation / Trust Building
   ACT_I: {
@@ -209,6 +225,10 @@ export class NexusDialogue {
     this.dialogueState = new Map();
     this.isGlitching = false;
     this.glitchLevel = 0; // 0 = normal, 1 = minor glitches, 2 = major corruption
+
+    // Track current voice line so we can stop/replace cleanly
+    this._currentVoice = null;
+    this.voiceVolume = 0.9; // tweak if needed
   }
 
   // Set the current act for context
@@ -256,6 +276,52 @@ export class NexusDialogue {
     return text;
   }
 
+  // ADD: simple helper to play a one-shot voice line
+  _playVoice(src) {
+    try {
+      if (this._currentVoice) {
+        try { this._currentVoice.pause(); } catch (_) {}
+        this._currentVoice = null;
+      }
+      const a = new Audio(src);
+      a.preload = 'auto';
+      a.volume = this.voiceVolume;
+      a.addEventListener('ended', () => {
+        if (this._currentVoice === a) this._currentVoice = null;
+      });
+      a.play().catch(() => {
+        // Autoplay may be blocked until first user interaction; safe to ignore
+      });
+      this._currentVoice = a;
+    } catch (err) {
+      console.warn('Voice play failed:', err);
+    }
+  }
+
+  // Resolve and play a voice line based on a dialogue key
+  _playVoiceForKey(dialogueKey) {
+    try {
+      const segs = dialogueKey.split('.');
+      // Build candidate base names from key path
+      const candidates = [];
+      if (segs.length >= 1) candidates.push(segs[segs.length - 1]);
+      if (segs.length >= 2) candidates.push(segs.slice(-2).join('_'));
+      candidates.push(segs.join('_'));
+
+      for (const c of candidates) {
+        const normalized = __voiceIndex.normalize(c);
+        const url = __voiceIndex.idx.get(normalized);
+        if (url) {
+          this._playVoice(url);
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn('Voice key resolution failed for', dialogueKey, err);
+    }
+    return false;
+  }
+
   // Deliver dialogue with appropriate formatting
   deliver(dialogueKey, forceRepeat = false) {
     if (!forceRepeat && this.hasBeenDelivered(dialogueKey)) {
@@ -277,7 +343,18 @@ export class NexusDialogue {
     // Mark as delivered
     this.markDelivered(dialogueKey);
 
+    // Attempt to play matching voice line based on the dialogue key
+    this._playVoiceForKey(dialogueKey);
+
     return formattedText;
+  }
+
+  // Set volume for voice lines
+  setVolume(volume) {
+    this.voiceVolume = volume;
+    if (this._currentVoice) {
+      this._currentVoice.volume = volume;
+    }
   }
 
   // Get dialogue text by key path (e.g., "ACT_I.ON_SPAWN.INITIAL")
@@ -406,8 +483,11 @@ export class NexusDialogue {
   // Convenience methods for common dialogue scenarios
   deliverSpawnSequence() {
     const initial = this.deliver('ACT_I.ON_SPAWN.INITIAL');
+
+    // OPTIONAL: If you keep audio playing in deliver(), you don't need it here.
+    // If you prefer it here instead, move the _playVoice call back here and remove from deliver().
+    // this._playVoice(initialVoice);
     
-    // Deliver motor online message after delay
     setTimeout(() => {
       this.deliver('ACT_I.ON_SPAWN.MOTOR_ONLINE');
     }, 5000);
@@ -448,5 +528,5 @@ export class NexusDialogue {
   }
 }
 
-// Export a singleton instance
+// ADD: Export a singleton instance (ai.js expects a named export)
 export const nexusDialogue = new NexusDialogue();
