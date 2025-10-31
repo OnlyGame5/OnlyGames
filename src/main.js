@@ -28,6 +28,7 @@ import { gameStore } from './state/gameStore.js';
 import { createFuturisticDoor } from './game/props/FuturisticDoor.js';
 import { MatrixSky } from './scene/MatrixSky.js';
 import { SecurityMonitor } from './ui/SecurityMonitor.js';
+import { performanceSettings } from './systems/PerformanceSettings.js';
 
 // --- CHEAT CONSOLE SYSTEM ---
 function createCheatConsole() {
@@ -442,21 +443,62 @@ const fadeDuration = 2000; // 2 seconds
 
 const renderer = new THREE.WebGLRenderer({ 
   antialias: false, // Disabled for performance
-  powerPreference: "high-performance"
+  powerPreference: "high-performance",
+  alpha: false, // Disable transparency for performance
+  depth: true,
+  stencil: false, // Disable stencil buffer if not needed
+  premultipliedAlpha: false,
+  preserveDrawingBuffer: false
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.BasicShadowMap; // Cheapest shadow algorithm
-renderer.setPixelRatio(1.0); // Cap pixel workload for maximum FPS
 
-// Matrix Sky renderer settings
+// Apply performance settings
+const appliedProfile = performanceSettings.applyToRenderer(renderer);
+console.log('Applied performance profile:', appliedProfile);
+
+// Matrix Sky renderer settings (some may be overridden by performance settings)
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.9;
 
 document.body.appendChild(renderer.domElement);
 // We'll render an overlay after the main scene; disable automatic clearing between renders
 renderer.autoClear = false;
+
+// Listen for performance settings changes from menu
+window.addEventListener('performanceSettingsChanged', (e) => {
+  if (e.detail.requiresRendererUpdate) {
+    console.log('Updating renderer with new performance settings...');
+    performanceSettings.applyToRenderer(renderer);
+  }
+});
+
+// Performance monitor for FPS-based quality adjustment
+let frameCount = 0;
+let lastFPSCheck = performance.now();
+setInterval(() => {
+  const now = performance.now();
+  const fps = (frameCount * 1000) / (now - lastFPSCheck);
+  
+  // Only auto-adjust if FPS is consistently low
+  if (fps < 25) {
+    const stats = performanceSettings.getPerformanceStats();
+    console.log(`Low FPS detected (${fps.toFixed(1)}), current quality: ${stats.quality}`);
+    
+    // Auto-downgrade quality if possible
+    const currentQuality = performanceSettings.getQuality();
+    const qualities = ['high', 'medium', 'low', 'potato'];
+    const currentIndex = qualities.indexOf(currentQuality);
+    
+    if (currentIndex >= 0 && currentIndex < qualities.length - 1) {
+      const newQuality = qualities[currentIndex + 1];
+      console.log(`Auto-downgrading quality from ${currentQuality} to ${newQuality}`);
+      performanceSettings.setQuality(newQuality);
+      performanceSettings.applyToRenderer(renderer);
+    }
+  }
+  
+  frameCount = 0;
+  lastFPSCheck = now;
+}, 5000); // Check every 5 seconds
 
 // Install performance debugger
 
@@ -1739,6 +1781,9 @@ let lastTime = 0;
 function animate(currentTime) {
   requestAnimationFrame(animate);
   
+  // Count frames for performance monitoring
+  frameCount++;
+  
   const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
   lastTime = currentTime;
   
@@ -1996,6 +2041,10 @@ function animate(currentTime) {
   // Stage 0: Render scene
   renderer.clear();
   renderer.render(scene, camera);
+  
+  // Performance monitoring
+  frameCount++;
+  
   // Glasses vignette: fade based on inventory selection each frame
   const inv = getPlayerInventory ? getPlayerInventory() : null;
   const selected = inv && (inv.getSelectedItem ? inv.getSelectedItem() : inv.slots?.[inv.selectedSlot]);
