@@ -76,6 +76,23 @@ export class ServerRoom {
     this._entered = false;
     this._alarm = { on: false, t: 0 };
     this._tmpVec = new THREE.Vector3();
+    this.hasWon = false;
+    
+    // Win state animation
+    this.winState = {
+      isActive: false,
+      phase: 'lift', // 'lift', 'fade', 'text', 'fadeout', 'complete'
+      liftStartY: null,
+      liftTime: 0,
+      liftDuration: 5.0, // 5 seconds of lift
+      fadeTime: 0,
+      fadeDuration: 1.0, // 1 second to fade to black
+      textTime: 0,
+      textDuration: 3.0, // 3 seconds for text
+      textDisplay: '',
+      fullText: 'Subject Delta Simulation: Success',
+      textIndex: 0
+    };
 
     // --- DEBUG TRIGGER ---
     window.addEventListener('keydown', (e) => {
@@ -88,6 +105,9 @@ export class ServerRoom {
         }
       }
     });
+    
+    // Expose serverRoom globally for minigame access
+    window.serverRoom = this;
   }
 
   // Build square chamber shell
@@ -731,11 +751,13 @@ export class ServerRoom {
     const ui = document.getElementById('laptop-ui');
     if (ui) {
       ui.style.display = 'none';
-      // Hide both potential screens
+      // Hide all potential screens
       const windowEl = ui.querySelector('.laptop-window');
       const lockedEl = document.getElementById('laptop-locked-screen');
+      const terminalWindow = ui.querySelector('.terminal-instruction-window');
       if (windowEl) windowEl.style.display = 'none';
       if (lockedEl) lockedEl.style.display = 'none';
+      if (terminalWindow) terminalWindow.style.display = 'none';
     }
     
     // Set global UI visibility flag to false
@@ -749,6 +771,100 @@ export class ServerRoom {
     if (window.camera && window.camera.controls) {
       window.camera.controls.enabled = true; // Re-enable camera controls
     }
+  }
+
+  showTerminalInstruction() {
+    const ui = document.getElementById('laptop-ui');
+    if (!ui) return;
+
+    // Hide the existing content in the laptop window
+    const decryptorWindow = ui.querySelector('.laptop-window');
+    const driveIcon = ui.querySelector('#drive_truth_filter_icon');
+    if (decryptorWindow) decryptorWindow.style.display = 'none';
+    if (driveIcon) driveIcon.style.display = 'none';
+
+    // Create terminal instruction window inside the laptop UI if it doesn't exist
+    let terminalWindow = ui.querySelector('.terminal-instruction-window');
+    if (!terminalWindow) {
+      terminalWindow = document.createElement('div');
+      terminalWindow.className = 'terminal-instruction-window';
+      terminalWindow.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 700px;
+        background: rgba(20, 20, 20, 0.95);
+        border: 3px solid #ff3333;
+        border-radius: 8px;
+        padding: 40px;
+        box-shadow: 0 0 50px rgba(255, 51, 51, 0.5);
+        color: #ff3333;
+      `;
+
+      const title = document.createElement('div');
+      title.textContent = 'SYSTEM TERMINAL';
+      title.style.cssText = `
+        font-size: 32px;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 30px;
+        color: #ff3333;
+        text-shadow: 0 0 20px rgba(255, 51, 51, 0.8);
+      `;
+
+      const instructionText = document.createElement('div');
+      instructionText.innerHTML = `
+        <div style="font-size: 18px; line-height: 1.8; margin-bottom: 20px;">
+          <p><span style="color: #00ff7f;">PURGE PROTOCOL COMPLETE</span></p>
+          <p>Core access granted. Insert access cards into the three panels surrounding the CPU core.</p>
+        </div>
+        <div style="font-size: 16px; color: #ff6666; margin-bottom: 30px; border-left: 3px solid #ff3333; padding-left: 20px;">
+          <p><strong>Instructions:</strong></p>
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Collect access cards from each of the three security rooms</li>
+            <li>Return to the server room</li>
+            <li>Insert each card into one of the three access panels</li>
+            <li>All panels must be activated to complete the shutdown sequence</li>
+          </ul>
+        </div>
+        <div style="font-size: 14px; color: #888; text-align: center; font-style: italic;">
+          Close this terminal to proceed
+        </div>
+      `;
+
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = 'CLOSE TERMINAL';
+      closeBtn.style.cssText = `
+        width: 100%;
+        padding: 15px;
+        margin-top: 20px;
+        background: transparent;
+        border: 2px solid #ff3333;
+        color: #ff3333;
+        font-size: 18px;
+        cursor: pointer;
+        font-family: 'Courier New', monospace;
+        transition: all 0.2s;
+      `;
+      closeBtn.onmouseover = () => {
+        closeBtn.style.background = '#ff3333';
+        closeBtn.style.color = '#000';
+      };
+      closeBtn.onmouseout = () => {
+        closeBtn.style.background = 'transparent';
+        closeBtn.style.color = '#ff3333';
+      };
+      closeBtn.onclick = () => this.closeLaptopUI();
+
+      terminalWindow.appendChild(title);
+      terminalWindow.appendChild(instructionText);
+      terminalWindow.appendChild(closeBtn);
+      ui.appendChild(terminalWindow);
+    }
+
+    // Show the terminal window
+    terminalWindow.style.display = 'block';
   }
 
   _buildCenterPlatform() {
@@ -944,6 +1060,7 @@ export class ServerRoom {
 
     const laptopGroup = new THREE.Group();
     laptopGroup.position.y = 0.8; // Set base height of the laptop on the table
+    laptopGroup.rotation.y = Math.PI * 1.5; // Rotate 90 degrees counterclockwise (270 degrees)
     workstation.add(laptopGroup);
 
     // --- LAPTOP BASE (KEYBOARD) ---
@@ -995,6 +1112,63 @@ export class ServerRoom {
     this.laptopObject = laptopGroup;
     
     this.group.add(workstation);
+
+    // Create red cylindrical holographic beam above the laptop workstation
+    const beamRadius = 2; // Larger diameter
+    const beamHeight = this.dim.height; // Full room height
+    const beamGeometry = new THREE.CylinderGeometry(beamRadius, beamRadius, beamHeight, 32, 1, true);
+    const beamMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff3333, // Red color
+      transparent: true,
+      opacity: 0.25,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending
+    });
+    const beamMesh = new THREE.Mesh(beamGeometry, beamMaterial);
+    // Position cylinder centered at the workstation position
+    beamMesh.position.set(-sidePosition, beamHeight / 2, 0); // Height divided by 2 to center vertically
+    beamMesh.rotation.x = 0; // Cylinder is vertical by default
+    beamMesh.name = 'red-holographic-beam';
+    this.group.add(beamMesh);
+
+    // Add red holographic particles for beam visibility
+    const particleGeometry = new THREE.BufferGeometry();
+    const particleCount = 200;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount; i++) {
+      const i3 = i * 3;
+      // Position particles within the cylindrical beam area
+      const height = Math.random() * beamHeight;
+      const radius = beamRadius * Math.random();
+      const angle = Math.random() * Math.PI * 2;
+      
+      positions[i3] = Math.cos(angle) * radius - sidePosition; // Offset to workstation position
+      positions[i3 + 1] = height;
+      positions[i3 + 2] = Math.sin(angle) * radius;
+      
+      // Red color for all particles
+      colors[i3] = 1.0; // R
+      colors[i3 + 1] = 0.2; // G
+      colors[i3 + 2] = 0.2; // B
+    }
+    
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    const particleMaterial = new THREE.PointsMaterial({
+      size: 0.05,
+      transparent: true,
+      opacity: 0.6,
+      vertexColors: true,
+      blending: THREE.AdditiveBlending
+    });
+    
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    particles.position.set(0, 0, 0);
+    particles.name = 'red-holographic-particles';
+    this.group.add(particles);
   }
 
 
@@ -1340,6 +1514,21 @@ export class ServerRoom {
       });
     }
 
+    // Check if all access cards are inserted (Win condition)
+    if (this.accessPanels && this.accessPanels.length === 3) {
+      const allCardsInserted = this.accessPanels.every(p => p.slot !== null);
+      if (allCardsInserted && !this.hasWon) {
+        this.hasWon = true;
+        console.log('[Server Room] All access cards inserted! Triggering win sequence...');
+        this._triggerWinState();
+      }
+    }
+
+    // Update win animation if active
+    if (this.winState.isActive) {
+      this.updateWinAnimation(delta);
+    }
+
     // Animate exit indicator
     if (this.exitIndicator) {
       this.exitIndicator.rotation.y += delta * 0.5;
@@ -1363,6 +1552,199 @@ export class ServerRoom {
 
   // Removed custom collision system - now uses main collision system from main.js
   // The main collision system handles all wall collisions using roomWallDefinitions.room3
+
+  _triggerWinState() {
+    console.log('[Server Room] Triggering Win State!');
+    
+    // Get active player (leonardModel or fallback player)
+    const activePlayer = window.leonardModel || this.player || window.player;
+    
+    if (!activePlayer) {
+      console.error('[Server Room] No player found for win state animation');
+      return;
+    }
+    
+    // Initialize win state
+    this.winState.isActive = true;
+    this.winState.phase = 'lift';
+    this.winState.liftStartY = activePlayer.position.y;
+    this.winState.liftTime = 0;
+    this.winState.fadeTime = 0;
+    this.winState.textTime = 0;
+    this.winState.textDisplay = '';
+    this.winState.textIndex = 0;
+    
+    // Disable player controls during win sequence
+    window.disablePlayerControls = true;
+    
+    // Disable pointer lock
+    if (window.camera && window.camera.controls) {
+      window.camera.controls.enabled = false;
+    }
+    document.exitPointerLock();
+    
+    console.log('[Server Room] Win state animation initialized');
+  }
+  
+  updateWinAnimation(delta) {
+    if (!this.winState.isActive) return;
+    
+    const win = this.winState;
+    
+    if (win.phase === 'lift') {
+      // Phase 1: Accelerating lift into sky
+      win.liftTime += delta;
+      
+      const activePlayer = window.leonardModel || this.player || window.player;
+      if (!activePlayer) {
+        console.error('[Server Room] No player during lift animation');
+        return;
+      }
+      
+      // Calculate accelerating lift (easing function for increasing speed)
+      const progress = Math.min(win.liftTime / win.liftDuration, 1);
+      // Use cubic easing for smooth but noticeable acceleration
+      // progress^3 creates gradual start with accelerating effect
+      const easedProgress = Math.pow(progress, 3);
+      
+      // Lift player up with accelerating speed
+      const liftDistance = 500; // Total distance to lift (well into skybox)
+      activePlayer.position.y = win.liftStartY + (liftDistance * easedProgress);
+      
+      // Move camera with player
+      if (window.camera) {
+        window.camera.position.y = activePlayer.position.y + 1; // Camera slightly above player
+      }
+      
+      // Check if lift phase complete
+      if (progress >= 1) {
+        win.phase = 'fade';
+        win.liftTime = 0;
+        console.log('[Server Room] Lift phase complete, starting fade');
+      }
+    } else if (win.phase === 'fade') {
+      // Phase 2: Fade to black
+      win.fadeTime += delta;
+      
+      // Create or update black overlay for fade
+      let fadeOverlay = document.getElementById('win-fade-overlay');
+      if (!fadeOverlay) {
+        fadeOverlay = document.createElement('div');
+        fadeOverlay.id = 'win-fade-overlay';
+        fadeOverlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: #000000;
+          z-index: 30000;
+          opacity: 0;
+        `;
+        document.body.appendChild(fadeOverlay);
+      }
+      
+      const fadeProgress = Math.min(win.fadeTime / win.fadeDuration, 1);
+      fadeOverlay.style.opacity = fadeProgress;
+      
+      if (fadeProgress >= 1) {
+        win.phase = 'text';
+        win.textTime = 0; // Reset text time for text phase
+        win.textDisplay = '';
+        win.textIndex = 0;
+        console.log('[Server Room] Fade complete, starting text');
+        
+        // Create text container
+        const textOverlay = document.createElement('div');
+        textOverlay.id = 'win-text-overlay';
+        textOverlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: #000000;
+          z-index: 31000;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: 'Courier New', monospace;
+        `;
+        
+        const textElement = document.createElement('div');
+        textElement.id = 'win-text-element';
+        textElement.textContent = '';
+        textElement.style.cssText = `
+          color: #00ff88;
+          font-size: 48px;
+          font-weight: bold;
+          letter-spacing: 4px;
+          text-align: center;
+        `;
+        
+        textOverlay.appendChild(textElement);
+        document.body.appendChild(textOverlay);
+      }
+    } else if (win.phase === 'text') {
+      // Phase 3: Typewriter text effect
+      win.textTime += delta;
+      
+      // Calculate letters per second (adjust for speed)
+      const lettersPerSecond = win.fullText.length / win.textDuration;
+      const targetIndex = Math.floor(win.textTime * lettersPerSecond);
+      
+      if (targetIndex > win.textIndex && targetIndex <= win.fullText.length) {
+        win.textIndex = targetIndex;
+        win.textDisplay = win.fullText.substring(0, win.textIndex);
+        
+        const textElement = document.getElementById('win-text-element');
+        if (textElement) {
+          textElement.textContent = win.textDisplay;
+        }
+      }
+      
+      // After text is complete, wait 2 seconds then start fade out
+      const totalTime = win.textDuration + 2.0; // 3 seconds for text + 2 seconds hold
+      if (win.textTime >= totalTime) {
+        win.phase = 'fadeout';
+        win.fadeTime = 0; // Reset fade time for the fadeout phase
+      }
+    } else if (win.phase === 'fadeout') {
+      // Phase 4: Fade out text
+      win.fadeTime += delta;
+      
+      const textOverlay = document.getElementById('win-text-overlay');
+      
+      const fadeProgress = Math.min(win.fadeTime / 1.0, 1);
+      if (textOverlay) {
+        textOverlay.style.opacity = (1 - fadeProgress).toString();
+      }
+      
+      if (fadeProgress >= 1) {
+        win.phase = 'complete';
+        this._completeWinState();
+      }
+    }
+  }
+  
+  _completeWinState() {
+    console.log('[Server Room] Win state complete, returning to main menu');
+    
+    // Clean up overlays
+    const fadeOverlay = document.getElementById('win-fade-overlay');
+    if (fadeOverlay) fadeOverlay.remove();
+    
+    const textOverlay = document.getElementById('win-text-overlay');
+    if (textOverlay) textOverlay.remove();
+    
+    // Return to main menu
+    if (window.exitToMainMenu) {
+      window.exitToMainMenu();
+    }
+    
+    // Reset win state
+    this.winState.isActive = false;
+  }
 
   _checkExitCollisions(player) {
     if (!player || !player.position) return;
