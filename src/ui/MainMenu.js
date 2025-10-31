@@ -1,5 +1,6 @@
 import './MainMenu.css';
 import '../audio/GlobalMusicManager.js';
+import * as Input from '../systems/input.js';
 
 /**
  * Matrix-style Main Menu with falling numbers background
@@ -101,6 +102,7 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   // Event listeners
   let hasExited = false;
   let selectedDifficulty = 'normal'; // Default difficulty
+  let activeSettingsCleanup = null;
   
   // Difficulty selection handler
   const handleDifficultyClick = (e) => {
@@ -251,11 +253,16 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   
   // Show settings function
   function showSettings() {
-    // Create settings overlay
+    Input.initInput();
+
+    if (activeSettingsCleanup) {
+      activeSettingsCleanup();
+    }
+
     const settingsOverlay = document.createElement('div');
     settingsOverlay.className = 'settings-overlay';
     settingsOverlay.innerHTML = `
-      <div class="settings-panel">
+      <div class="settings-panel settings-panel--wide">
         <div class="settings-header">
           <h2>GAME SETTINGS</h2>
           <button class="close-settings" data-action="close">×</button>
@@ -263,144 +270,208 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
         <div class="settings-content">
           <div class="settings-section">
             <h3>Controls</h3>
-            <div class="control-item">
-              <label>Mouse Sensitivity:</label>
-              <input type="range" id="menu-sensitivity" min="0.3" max="2.0" step="0.1" value="1.0" />
-              <span class="value-display" id="menu-sensitivity-value">1.0</span>
-            </div>
+            <table class="controls-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Key</th>
+                </tr>
+              </thead>
+              <tbody id="menu-controls-tbody"></tbody>
+            </table>
+            <div class="settings-hint">Click on a key to change the binding.</div>
           </div>
           <div class="settings-section">
-            <h3>Graphics</h3>
-            <div class="control-item">
-              <label>Matrix Sky:</label>
-              <input type="checkbox" id="menu-matrix-sky" checked />
+            <h3>Gameplay</h3>
+            <div class="settings-row">
+              <label for="menu-sensitivity-slider">Mouse Sensitivity</label>
+              <input type="range" id="menu-sensitivity-slider" min="0.3" max="2.0" step="0.1" />
+              <span class="value-display" id="menu-sensitivity-value">1.0</span>
             </div>
           </div>
         </div>
         <div class="settings-buttons">
-          <button class="settings-button" data-action="apply">Apply</button>
-          <button class="settings-button" data-action="reset">Reset</button>
+          <button class="settings-button primary" data-action="apply">Apply</button>
+          <button class="settings-button" data-action="reset">Reset to Defaults</button>
           <button class="settings-button" data-action="close">Close</button>
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(settingsOverlay);
-    
-    // Use cursor manager to ensure cursor is visible in settings
+
     if (window.cursorManager) {
       window.cursorManager.setUIVisible(true);
     }
-    
-    // Load current settings
-    loadSettings();
-    
-    // Handle settings events
-    settingsOverlay.addEventListener('click', (e) => {
-      const action = e.target.getAttribute('data-action');
-      
+
+    const controlsTbody = settingsOverlay.querySelector('#menu-controls-tbody');
+    const sensitivitySlider = settingsOverlay.querySelector('#menu-sensitivity-slider');
+    const sensitivityValue = settingsOverlay.querySelector('#menu-sensitivity-value');
+
+    let activeBindingHandler = null;
+    let activeBindingAction = null;
+    let isClosed = false;
+
+    function formatActionName(action) {
+      return action.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+    }
+
+    function formatKeyCode(keyCode) {
+      if (!keyCode) return '—';
+      return keyCode.replace('Key', '').replace('Digit', '');
+    }
+
+    function refreshControls() {
+      if (!controlsTbody) return;
+      controlsTbody.innerHTML = '';
+
+      const bindings = Input.getBindings();
+      Object.entries(bindings).forEach(([action, keyCode]) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${formatActionName(action)}</td>
+          <td class="key-cell" data-action="${action}">${formatKeyCode(keyCode)}</td>
+        `;
+
+        const keyCell = row.querySelector('.key-cell');
+        keyCell.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          startListeningForBinding(action);
+        });
+
+        controlsTbody.appendChild(row);
+      });
+    }
+
+    function refreshSettings() {
+      if (!sensitivitySlider || !sensitivityValue) return;
+      const currentSettings = Input.getSettings();
+      const value = currentSettings.sensitivity ?? 1.0;
+      sensitivitySlider.value = value;
+      sensitivityValue.textContent = value.toFixed(1);
+    }
+
+    function stopListeningForBinding() {
+      if (activeBindingHandler) {
+        document.removeEventListener('keydown', activeBindingHandler, true);
+        activeBindingHandler = null;
+      }
+
+      if (activeBindingAction) {
+        const targetCell = settingsOverlay.querySelector(`.key-cell[data-action="${activeBindingAction}"]`);
+        if (targetCell) {
+          targetCell.classList.remove('listening');
+          const bindings = Input.getBindings();
+          targetCell.textContent = formatKeyCode(bindings[activeBindingAction]);
+        }
+        activeBindingAction = null;
+      }
+    }
+
+    function startListeningForBinding(action) {
+      if (activeBindingHandler) return;
+
+      activeBindingAction = action;
+
+      const keyCells = settingsOverlay.querySelectorAll('.key-cell');
+      keyCells.forEach((cell) => cell.classList.remove('listening'));
+
+      const targetCell = settingsOverlay.querySelector(`.key-cell[data-action="${action}"]`);
+      if (targetCell) {
+        targetCell.classList.add('listening');
+        targetCell.textContent = 'Press any key...';
+      }
+
+      const handler = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        Input.setBinding(action, event.code);
+
+        stopListeningForBinding();
+        refreshControls();
+
+        if (typeof window.updateHUDInstructions === 'function') {
+          window.updateHUDInstructions();
+        }
+      };
+
+      activeBindingHandler = handler;
+      document.addEventListener('keydown', handler, true);
+    }
+
+    if (sensitivitySlider && sensitivityValue) {
+      sensitivitySlider.addEventListener('input', (event) => {
+        const value = parseFloat(event.target.value);
+        sensitivityValue.textContent = value.toFixed(1);
+        Input.setSettings({ sensitivity: value });
+      });
+    }
+
+    const bindingsChanged = () => {
+      refreshControls();
+      if (typeof window.updateHUDInstructions === 'function') {
+        window.updateHUDInstructions();
+      }
+    };
+    Input.onBindingsChanged(bindingsChanged);
+
+    function handleEscape(event) {
+      if (event.key === 'Escape' && !activeBindingHandler) {
+        event.preventDefault();
+        cleanup();
+      }
+    }
+
+    function cleanup() {
+      if (isClosed) return;
+      isClosed = true;
+
+      stopListeningForBinding();
+      Input.offBindingsChanged(bindingsChanged);
+      document.removeEventListener('keydown', handleEscape, true);
+      activeSettingsCleanup = null;
+
+      if (window.cursorManager) {
+        window.cursorManager.setUIVisible(false);
+      }
+
+      settingsOverlay.remove();
+    }
+
+    document.addEventListener('keydown', handleEscape, true);
+    activeSettingsCleanup = cleanup;
+
+    settingsOverlay.addEventListener('click', (event) => {
+      const actionElement = event.target.closest('[data-action]');
+      if (!actionElement) return;
+
+      const action = actionElement.getAttribute('data-action');
+      if (!action) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
       switch (action) {
-        case 'close':
-          // Use cursor manager to hide cursor when closing settings
-          if (window.cursorManager) {
-            window.cursorManager.setUIVisible(false);
-          }
-          settingsOverlay.remove();
-          break;
         case 'apply':
-          applySettings();
-          // Use cursor manager to hide cursor when applying settings
-          if (window.cursorManager) {
-            window.cursorManager.setUIVisible(false);
-          }
-          settingsOverlay.remove();
+        case 'close':
+          cleanup();
           break;
         case 'reset':
-          resetSettings();
-          loadSettings();
+          Input.resetBindings();
+          Input.resetSettings();
+          refreshControls();
+          refreshSettings();
+          if (typeof window.updateHUDInstructions === 'function') {
+            window.updateHUDInstructions();
+          }
           break;
       }
     });
-    
-    // Handle slider updates
-    const sensitivitySlider = document.getElementById('menu-sensitivity');
-    const sensitivityValue = document.getElementById('menu-sensitivity-value');
-    
-    if (sensitivitySlider && sensitivityValue) {
-      sensitivitySlider.addEventListener('input', (e) => {
-        sensitivityValue.textContent = e.target.value;
-      });
-    }
-  }
-  
-  // Load settings from localStorage or defaults
-  function loadSettings() {
-    const settings = JSON.parse(localStorage.getItem('gameSettings') || '{}');
-    
-    const sensitivitySlider = document.getElementById('menu-sensitivity');
-    const sensitivityValue = document.getElementById('menu-sensitivity-value');
-    const matrixSkyCheckbox = document.getElementById('menu-matrix-sky');
-    const matrixSpeedSlider = document.getElementById('menu-matrix-speed');
-    const matrixSpeedValue = document.getElementById('menu-matrix-speed-value');
-    
-    if (sensitivitySlider && sensitivityValue) {
-      const sensitivity = settings.sensitivity || 1.0;
-      sensitivitySlider.value = sensitivity;
-      sensitivityValue.textContent = sensitivity.toFixed(1);
-    }
-    
-    if (matrixSkyCheckbox) {
-      matrixSkyCheckbox.checked = settings.enableMatrixSky !== false;
-    }
-  }
-  
-  // Apply settings
-  function applySettings() {
-    const sensitivitySlider = document.getElementById('menu-sensitivity');
-    const matrixSkyCheckbox = document.getElementById('menu-matrix-sky');
-    
-    const settings = {
-      sensitivity: parseFloat(sensitivitySlider?.value || 1.0),
-      enableMatrixSky: matrixSkyCheckbox?.checked !== false,
-      matrixSkySpeed: 0.01, // 2x faster than 0.005
-      matrixSkyIntensity: 1.0
-    };
-    
-    // Save to localStorage
-    localStorage.setItem('gameSettings', JSON.stringify(settings));
-    
-    // Update gameStore settings if available
-    if (window.gameStore && window.gameStore.settings) {
-      window.gameStore.settings.enableMatrixSky = settings.enableMatrixSky;
-      window.gameStore.settings.matrixSkySpeed = settings.matrixSkySpeed;
-      window.gameStore.settings.matrixSkyIntensity = settings.matrixSkyIntensity;
-    }
-    
-    // Dispatch settings change event
-    window.dispatchEvent(new CustomEvent('game:settingsChanged', { detail: settings }));
-    
-    console.log('Settings applied:', settings);
-  }
-  
-  // Reset settings to defaults
-  function resetSettings() {
-    const defaultSettings = {
-      sensitivity: 1.0,
-      enableMatrixSky: true,
-      matrixSkySpeed: 0.01, // 2x faster than 0.005
-      matrixSkyIntensity: 1.0
-    };
-    
-    localStorage.setItem('gameSettings', JSON.stringify(defaultSettings));
-    
-    // Update gameStore settings if available
-    if (window.gameStore && window.gameStore.settings) {
-      window.gameStore.settings.enableMatrixSky = defaultSettings.enableMatrixSky;
-      window.gameStore.settings.matrixSkySpeed = defaultSettings.matrixSkySpeed;
-      window.gameStore.settings.matrixSkyIntensity = defaultSettings.matrixSkyIntensity;
-    }
-    
-    console.log('Settings reset to defaults');
+
+    refreshControls();
+    refreshSettings();
   }
   
   // Show credits function
@@ -568,6 +639,9 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   // Return cleanup function
   return {
     destroy: () => {
+      if (activeSettingsCleanup) {
+        activeSettingsCleanup();
+      }
       if (matrixAnimation.stop) {
         matrixAnimation.stop();
       }
