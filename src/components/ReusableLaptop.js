@@ -1,6 +1,81 @@
 import * as THREE from 'three';
 import { addToInventory } from '../player.js';
 
+let oldEnglishFontPromise = null;
+
+async function ensureOldEnglishFont() {
+  if (oldEnglishFontPromise) {
+    return oldEnglishFontPromise;
+  }
+
+  oldEnglishFontPromise = (async () => {
+    try {
+      if (!document.getElementById('unifraktur-font-link')) {
+        const link = document.createElement('link');
+        link.id = 'unifraktur-font-link';
+        link.rel = 'stylesheet';
+        link.href = 'https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap';
+        document.head.appendChild(link);
+      }
+      await document.fonts.load('64px "UnifrakturMaguntia"');
+    } catch (err) {
+      console.warn('Failed to load Old English font for laptop screen:', err);
+    }
+  })();
+
+  return oldEnglishFontPromise;
+}
+
+export async function applyGammaLaptopWallpaper(display, material) {
+  await ensureOldEnglishFont();
+
+  const width = 1024;
+  const height = 768;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  const gradient = ctx.createRadialGradient(
+    width / 2,
+    height / 2,
+    Math.min(width, height) * 0.1,
+    width / 2,
+    height / 2,
+    Math.min(width, height) * 0.75
+  );
+  gradient.addColorStop(0, '#cfe2d6');
+  gradient.addColorStop(1, '#0a192f');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  const fontFamily = '"Old English Text MT","Cloister Black","UnifrakturMaguntia",serif';
+  ctx.fillStyle = 'rgba(20,30,25,0.95)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `${Math.floor(height * 0.85)}px ${fontFamily}`;
+  ctx.fillText('G', width / 2, height / 2);
+
+  const vignette = ctx.createRadialGradient(
+    width / 2,
+    height / 2,
+    Math.min(width, height) * 0.25,
+    width / 2,
+    height / 2,
+    Math.min(width, height) * 0.95
+  );
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.35)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, width, height);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  material.map = texture;
+  material.emissiveMap = texture;
+  material.needsUpdate = true;
+}
+
 export function createReusableLaptop(options = {}) {
   const {
     position = new THREE.Vector3(0, 0, 0),
@@ -216,6 +291,7 @@ export const LaptopPresets = {
   room2: {
     position: new THREE.Vector3(0, 0, 0),
     screenTexture: '/textures/room2_laptop_screen.png',
+    screenContent: (display, material) => applyGammaLaptopWallpaper(display, material),
     interactionId: 'room2_laptop',
     roomId: 'room2',
     htmlInterface: (roomId) => createRoom2LaptopInterface(roomId)
@@ -231,7 +307,8 @@ export const LaptopPresets = {
   
   room4: {
     position: new THREE.Vector3(0, 0, 0),
-    screenTexture: '/textures/room4_laptop_screen.png',
+    screenTexture: '/textures/room2_laptop_screen.png',
+    screenContent: (display, material) => applyGammaLaptopWallpaper(display, material),
     interactionId: 'room4_laptop',
     roomId: 'room4',
     htmlInterface: (roomId) => createRoom4LaptopInterface(roomId)
@@ -639,182 +716,404 @@ function createRoom4LaptopInterface(roomId) {
   const uiContainer = document.createElement('div');
   uiContainer.id = interfaceId;
   
-  // Check if binary decoder is completed
-  const isDecoderComplete = checkBinaryDecoderCompletion();
-  
-  // Trigger dialogue about blue binary bits if decoder is not complete
-  // This is the first time interacting with the laptop
-  if (!isDecoderComplete && window.AI && window.AI.deliverDialogue) {
-    // Check if we've already shown this dialogue
-    if (!window.room4LaptopDialogueShown) {
-      window.AI.deliverDialogue('ACT_I.ROOM_4_BINARY_DECODER');
-      window.room4LaptopDialogueShown = true;
-    }
+  const decoderComplete = checkBinaryDecoderCompletion();
+
+  if (!decoderComplete && window.AI && window.AI.deliverDialogue && !window.room4LaptopDialogueShown) {
+    window.AI.deliverDialogue('ACT_I.ROOM_4_BINARY_DECODER');
+    window.room4LaptopDialogueShown = true;
   }
-  
+
   const style = document.createElement('style');
+  style.dataset.owner = interfaceId;
   style.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
     #${interfaceId} {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.9);
-      color: #9d4edd;
-      font-family: 'Courier New', monospace;
-      z-index: 1000;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      inset: 0;
+      background: #0a192f;
+      z-index: 10000;
+      font-family: 'Courier New', 'Consolas', monospace;
+      overflow: hidden;
     }
-    
-    .room4-laptop {
-      background: linear-gradient(135deg, #1a0a2e, #2d1b69);
-      border: 2px solid #9d4edd;
-      border-radius: 12px;
-      padding: 30px;
-      max-width: 700px;
-      max-height: 500px;
-      overflow-y: auto;
-      box-shadow: 0 0 20px rgba(157, 78, 221, 0.3);
+    #${interfaceId} .desktop-bg {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(207,226,214,0.92) 0%, rgba(10,25,47,1) 72%);
+      z-index: 0;
     }
-    
-    .room4-title {
-      color: #9d4edd;
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: 24px;
-      text-shadow: 0 0 10px #9d4edd;
+    #${interfaceId} .desktop-bg .g-logo {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'Old English Text MT','Cloister Black','UnifrakturMaguntia',serif;
+      font-size: 32vw;
+      line-height: 0.8;
+      color: rgba(20,30,25,0.92);
+      text-shadow: 0 0 30px rgba(0,0,0,0.35), 0 0 80px rgba(0,0,0,0.25);
+      pointer-events: none;
+      user-select: none;
     }
-    
-    .room4-content {
-      color: #c77dff;
-      line-height: 1.8;
-      margin-bottom: 20px;
+    #${interfaceId} .desktop-icons {
+      position: absolute;
+      top: 40px;
+      left: 40px;
+      display: grid;
+      gap: 20px;
+      z-index: 2;
     }
-    
-    .room4-instruction {
-      background: rgba(157, 78, 221, 0.1);
-      border: 1px solid #9d4edd;
-      padding: 15px;
-      margin: 15px 0;
-      border-radius: 5px;
-    }
-    
-    .room4-password-section {
-      background: rgba(0, 255, 127, 0.1);
-      border: 1px solid #00ff7f;
-      padding: 15px;
-      margin: 15px 0;
-      border-radius: 5px;
-    }
-    
-    .room4-input {
-      background: #1a0a2e;
-      border: 1px solid #9d4edd;
-      color: #9d4edd;
-      padding: 10px;
-      width: 200px;
-      font-family: 'Courier New', monospace;
-      text-align: center;
-      margin: 10px 5px;
-    }
-    
-    .room4-btn {
+    #${interfaceId} .desktop-icons .icon {
+      width: 110px;
       background: transparent;
-      border: 1px solid #9d4edd;
-      color: #9d4edd;
-      padding: 12px 24px;
+      border: none;
+      color: #ffffff;
+      font-size: 12px;
+      text-align: center;
       cursor: pointer;
-      margin: 10px 5px;
-      transition: all 0.2s;
+      padding: 6px;
+      border-radius: 6px;
+      transition: background 0.2s ease;
+    }
+    #${interfaceId} .desktop-icons .icon:hover {
+      background: rgba(0, 255, 127, 0.12);
+    }
+    #${interfaceId} .desktop-icons .icon:focus-visible {
+      outline: 2px solid #00ff7f;
+    }
+    #${interfaceId} .icon-sprite {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 6px;
+      border-radius: 12px;
+      opacity: 0.88;
+    }
+    #${interfaceId} .icon-sprite.nexus {
+      background: linear-gradient(180deg, #12fff2, #0b8cb8);
+      border: 1px solid rgba(10, 180, 210, 0.6);
+      box-shadow: 0 0 12px rgba(18, 255, 242, 0.35);
+    }
+    #${interfaceId} .icon-sprite.decoder {
+      background: linear-gradient(180deg, #f4d35e, #ee964b);
+      border: 1px solid rgba(238, 150, 75, 0.6);
+      box-shadow: 0 0 12px rgba(244, 211, 94, 0.35);
+    }
+    #${interfaceId} .room4-window-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+    }
+    #${interfaceId} .room4-window {
+      position: absolute;
+      top: 90px;
+      left: 140px;
+      width: 520px;
+      min-height: 320px;
+      background: #0b1524;
+      border: 1px solid #203756;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+      color: #cfe3ff;
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    #${interfaceId} .room4-window .titlebar {
+      height: 38px;
+      background: linear-gradient(180deg, #10263d, #0b1829);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      border-bottom: 1px solid #1c2f46;
+      color: #86b6ff;
+      font-weight: bold;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    #${interfaceId} .room4-window .titlebar button {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid #304d73;
+      color: #86b6ff;
+      padding: 4px 10px;
+      cursor: pointer;
       border-radius: 4px;
     }
-    
-    .room4-btn:hover {
-      background: #9d4edd;
-      color: #1a0a2e;
+    #${interfaceId} .room4-window .titlebar button:hover {
+      background: #304d73;
     }
-    
-    .room4-btn.success {
-      border-color: #00ff7f;
+    #${interfaceId} .room4-window .body {
+      flex: 1;
+      padding: 18px;
+      background: linear-gradient(180deg, rgba(11,21,36,0.96), rgba(7,14,24,0.92));
+      overflow: auto;
+      line-height: 1.6;
+    }
+    #${interfaceId} .room4-window .body h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: #9d4edd;
+    }
+    #${interfaceId} .room4-window .body input[type="text"] {
+      width: 220px;
+      padding: 10px;
+      border: 1px solid #9d4edd;
+      background: #140d24;
+      color: #cfe3ff;
+      font-size: 14px;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 0.4em;
+      margin-right: 10px;
+    }
+    #${interfaceId} .room4-window .body button.primary {
+      background: transparent;
+      border: 1px solid #00ff7f;
       color: #00ff7f;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.2s ease;
     }
-    
-    .room4-btn.success:hover {
+    #${interfaceId} .room4-window .body button.primary:hover {
       background: #00ff7f;
-      color: #1a0a2e;
+      color: #051018;
+    }
+    #${interfaceId} .room4-window .body .status {
+      margin-top: 14px;
+      min-height: 24px;
+    }
+    #${interfaceId} .room4-window .body .status.success { color: #00ff7f; }
+    #${interfaceId} .room4-window .body .status.error { color: #ff4d4d; }
+    #${interfaceId} .room4-window .body .status.info { color: #c77dff; }
+    #${interfaceId} .laptop-taskbar {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 42px;
+      background: rgba(5, 15, 30, 0.92);
+      border-top: 1px solid #00ff7f;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      z-index: 4;
+    }
+    #${interfaceId} .laptop-taskbar .taskbar-close-btn {
+      background: transparent;
+      border: 1px solid #00ff7f;
+      color: #00ff7f;
+      padding: 8px 18px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    #${interfaceId} .laptop-taskbar .taskbar-close-btn:hover {
+      background: #00ff7f;
+      color: #051018;
     }
   `;
-  
-  // Generate content based on decoder completion status
-  let content = '';
-  if (isDecoderComplete) {
-    content = `
-      <div class="room4-password-section">
-        <h3 style="color: #00ff7f; margin-top: 0;">🔓 PASSWORD REQUIRED</h3>
-        <p>You have successfully decoded the hidden message from the Binary Decoder!</p>
-        <p>Enter the 5-letter password to access the NEXUS system:</p>
-        <input type="text" class="room4-input" id="nexus-password" placeholder="Enter password" maxlength="5">
-        <br>
-        <button class="room4-btn success" onclick="submitNexusPassword('${interfaceId}')">SUBMIT PASSWORD</button>
-      </div>
-    `;
-  } else {
-    content = `
-      <div class="room4-instruction">
-        <h3 style="color: #9d4edd; margin-top: 0;">🔍 MISSION BRIEFING</h3>
-        <p><strong>Objective:</strong> Access the NEXUS system source code to complete the final test.</p>
-        <p><strong>Step 1:</strong> You'll notice the binary streams floating throughout the room. The password you need is encoded within these streams, they contain the key to accessing the decoder panel.</p>
-        <p><strong>Step 2:</strong> Locate the Binary Decoder panel on the north wall of this room. Interact with the Decoder to solve the puzzle and reveal the hidden password.</p>
-        <p><strong>Step 3:</strong> Return to this laptop and enter the password to access the system.</p>
-        <div style="
-          background: rgba(255, 170, 0, 0.1);
-          border: 1px solid #ffaa00;
-          border-radius: 4px;
-          padding: 10px;
-          margin-top: 15px;
-          color: #ffaa00;
-        ">
-          <strong>⚠️ IMPORTANT:</strong> DO NOT TRUST IT!!! SEE THE TRUTH !!!
-        </div>
-      </div>
-    `;
-  }
-  
+
   uiContainer.innerHTML = `
-    <div class="room4-laptop">
-      <div class="room4-title"> SYSTEM TERMINAL</div>
-      <div class="room4-content">
-        <p>Welcome to the Terminal. This system controls the system code of the facility.</p>
-        <p>Access Level: <span style="color: #9d4edd;">ADMINISTRATOR</span></p>
-        <p>System Status: <span style="color:rgb(255, 4, 4);">CRITICAL</span></p>
-        ${content}
-      </div>
-      <button class="room4-btn" onclick="closeLaptopInterface('${interfaceId}')">CLOSE TERMINAL</button>
+    <div class="desktop-bg"><div class="g-logo">G</div></div>
+    <div class="desktop-icons">
+      <button class="icon" data-app="nexus">
+        <div class="icon-sprite nexus"></div>
+        <span>NEXUS.exe</span>
+      </button>
+      <button class="icon" data-app="decoder">
+        <div class="icon-sprite decoder"></div>
+        <span>decoder_logs</span>
+      </button>
+    </div>
+    <div class="room4-window-layer"></div>
+    <div class="laptop-taskbar">
+      <button class="taskbar-close-btn">CLOSE</button>
     </div>
   `;
-  
+
   document.body.appendChild(style);
   document.body.appendChild(uiContainer);
-  
-  // Disable camera controls
+
   if (window.camera && window.camera.controls) {
     window.camera.controls.enabled = false;
   }
-  
-  // Set global UI visibility flag and unlock pointer (same as binary decoder)
   window.isUIVisible = true;
   if (window.player?.controls) window.player.controls.unlock();
   document.exitPointerLock();
-
-  // Disable player movement
   window.disablePlayerControls = true;
-  
-  // Show mouse cursor and unlock it for UI interaction (same as binary decoder)
   document.body.style.cursor = 'default';
-  document.body.classList.add('laptop-ui-active'); // Add custom cursor styling
+  document.body.classList.add('laptop-ui-active');
+
+  const windowsLayer = uiContainer.querySelector('.room4-window-layer');
+  const closeButton = uiContainer.querySelector('.taskbar-close-btn');
+  const iconButtons = uiContainer.querySelectorAll('.desktop-icons .icon');
+  let cardGranted = window.room4KeyCardGranted === true;
+
+  const cleanup = () => {
+    if (uiContainer.parentNode) uiContainer.parentNode.removeChild(uiContainer);
+    const styleNode = document.querySelector(`style[data-owner="${interfaceId}"]`);
+    if (styleNode && styleNode.parentNode) styleNode.parentNode.removeChild(styleNode);
+    if (window.camera && window.camera.controls) {
+      window.camera.controls.enabled = true;
+    }
+    window.isUIVisible = false;
+    window.disablePlayerControls = false;
+    document.body.style.cursor = 'none';
+    document.body.classList.remove('laptop-ui-active');
+    delete window.closeRoom4DesktopUI;
+  };
+
+  function createWindow(id, title, bodyHTML) {
+    let win = windowsLayer.querySelector(`#${id}`);
+    if (win) {
+      win.style.display = 'block';
+      windowsLayer.appendChild(win);
+      return win;
+    }
+
+    win = document.createElement('div');
+    win.className = 'room4-window';
+    win.id = id;
+    win.innerHTML = `
+      <div class="titlebar">
+        <span>${title}</span>
+        <button type="button" aria-label="Close window">✕</button>
+      </div>
+      <div class="body">${bodyHTML}</div>
+    `;
+    windowsLayer.appendChild(win);
+
+    const closeBtn = win.querySelector('.titlebar button');
+    closeBtn.addEventListener('click', () => {
+      win.style.display = 'none';
+    });
+
+    return win;
+  }
+
+  function showDecoderHintWindow() {
+    const win = createWindow(
+      'room4-decoder-window',
+      'Decoder Instructions',
+      `
+        <h3>Complete the Binary Decoder</h3>
+        <p>The floating binary streams in this room contain hidden data. Use the decoder panel on the north wall to translate them.</p>
+        <p>Once decoded, you will receive a <strong>five-letter password</strong> required to access the NEXUS terminal.</p>
+        <div class="status info">Tip: The truth filter glasses will reveal the correct binary.</div>
+      `
+    );
+    windowsLayer.appendChild(win);
+  }
+
+  function grantAccess(statusEl) {
+    if (!cardGranted) {
+      const added = addToInventory({
+        name: 'key_card',
+        description: 'Access Key Card'
+      });
+      if (added) {
+        cardGranted = true;
+        window.room4KeyCardGranted = true;
+        if (window.AI) {
+          window.AI.say('NEXUS override accepted. Final access card issued.');
+          if (window.AI.onRoom4Complete) {
+            window.AI.onRoom4Complete();
+          }
+        }
+      } else if (statusEl) {
+        statusEl.textContent = 'Inventory full. Clear a slot and try again.';
+        statusEl.className = 'status error';
+        return;
+      }
+    }
+
+    if (statusEl) {
+      statusEl.textContent = 'ACCESS GRANTED • Room 4 complete. Override channel unlocked.';
+      statusEl.className = 'status success';
+    }
+
+    if (window.gameStore?.setRoom4Complete) {
+      window.gameStore.setRoom4Complete(true);
+    } else if (window.gameStore) {
+      window.gameStore.rooms.room4.isComplete = true;
+    }
+  }
+
+  function openNexusApp() {
+    if (!checkBinaryDecoderCompletion()) {
+      showDecoderHintWindow();
+      return;
+    }
+
+    const win = createWindow(
+      'room4-nexus-window',
+      'NEXUS Terminal',
+      `
+        <h3>Administrator Override</h3>
+        <p>Enter the five-letter override code retrieved from the decoder.</p>
+        <div style="display:flex; align-items:center; margin-bottom:12px;">
+          <input type="text" id="room4-nexus-input" maxlength="5" autocomplete="off" aria-label="NEXUS override password">
+          <button type="button" class="primary" id="room4-nexus-submit">SUBMIT</button>
+        </div>
+        <div class="status info" id="room4-nexus-status">Awaiting override credentials…</div>
+      `
+    );
+
+    const input = win.querySelector('#room4-nexus-input');
+    const submitBtn = win.querySelector('#room4-nexus-submit');
+    const statusEl = win.querySelector('#room4-nexus-status');
+
+    if (cardGranted) {
+      input.disabled = true;
+      submitBtn.disabled = true;
+      grantAccess(statusEl);
+      return;
+    }
+
+    const submit = () => {
+      const value = (input.value || '').trim().toUpperCase();
+      if (!value) {
+        statusEl.textContent = 'Enter the override password revealed by the decoder.';
+        statusEl.className = 'status error';
+        input.focus();
+        return;
+      }
+
+      if (value === 'NEXUS') {
+        input.disabled = true;
+        submitBtn.disabled = true;
+        grantAccess(statusEl);
+      } else {
+        statusEl.textContent = 'Incorrect password. Re-analyse the binary output.';
+        statusEl.className = 'status error';
+        input.value = '';
+        input.focus();
+      }
+    };
+
+    submitBtn.addEventListener('click', submit);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submit();
+      }
+    });
+
+    windowsLayer.appendChild(win);
+    input.focus();
+  }
+
+  closeButton.addEventListener('click', cleanup);
+  iconButtons.forEach((btn) => {
+    if (btn.dataset.app === 'nexus') {
+      btn.addEventListener('click', openNexusApp);
+    } else if (btn.dataset.app === 'decoder') {
+      btn.addEventListener('click', showDecoderHintWindow);
+    }
+  });
+
+  window.closeRoom4DesktopUI = cleanup;
 }
 
 // Helper function to check if binary decoder is completed
@@ -844,72 +1143,6 @@ function checkBinaryDecoderCompletion() {
 }
 
 // Global function to submit NEXUS password
-window.submitNexusPassword = function(interfaceId) {
-  const passwordInput = document.getElementById('nexus-password');
-  const password = passwordInput.value.trim().toUpperCase();
-  
-  // First check if binary decoder is completed
-  if (!checkBinaryDecoderCompletion()) {
-    alert('Access Denied! You must complete the binary decoder puzzle first to obtain the password.');
-    passwordInput.value = '';
-    passwordInput.focus();
-    return;
-  }
-  
-  if (password === 'NEXUS') {
-    console.log('NEXUS password correct! Creating success screen...');
-    // Password correct - show success message
-    const content = document.querySelector('.room4-content');
-    console.log('Found content element:', content);
-    content.innerHTML = `
-      <p>Welcome to the Terminal. This system controls the source code of the facility.</p>
-      <p>Access Level: <span style="color: #9d4edd;">ADMINISTRATOR</span></p>
-      <p>System Status: <span style="color:rgb(255, 4, 4);">CRITICAL</span></p>
-      <div class="room4-password-section">
-        <h3 style="color: #00ff7f; margin-top: 0;">ACCESS GRANTED!</h3>
-        <p>Password accepted! You have successfully accessed the NEXUS system source code.</p>
-        <p style="color: #00ff7f;"><strong>Room 4 Complete!</strong></p>
-        <p>You have bypassed the rouge A.I and gained access to the core system.</p>
-        <p style="color: #ffaa00;">The facility is now under your control.</p>
-      </div>
-    `;
-    
-    console.log('Success screen content updated. Content innerHTML length:', content.innerHTML.length);
-    
-    // Don't hide the password section - we want to show the success message
-    // The success message is now part of the content, not a separate section
-    
-    // Add access card to inventory (reuse Room 2 card)
-    const cardAdded = addToInventory({
-      name: 'key_card',
-      description: 'Access Key Card'
-    });
-    
-    if (cardAdded) {
-      console.log('Access key card added to inventory successfully');
-      if (window.AI) {
-        window.AI.say('Access Key Card issued. You may need this later.');
-      }
-    } else {
-      console.log('Failed to add access key card to inventory - inventory may be full');
-      if (window.AI && window.AI.say) {
-        window.AI.say("My inventory is full. I can’t take the card.");
-      }
-    }
-    
-    // Trigger room completion if AI system is available
-    if (window.AI && window.AI.onRoom4Complete) {
-      window.AI.onRoom4Complete();
-    }
-    
-  } else {
-    // Password incorrect
-    alert('Incorrect password. Please try again.');
-    passwordInput.value = '';
-    passwordInput.focus();
-  }
-};
-
 // Global functions for room-specific interactions
 window.checkSecurityCode = function(interfaceId) {
   const code = document.getElementById('security-code').value;

@@ -213,9 +213,7 @@ export function createRoom2() {
       const laptop = createReusableLaptop({
         ...LaptopPresets.room2,
         position: new THREE.Vector3(3, 0, 2), // Position near the front wall, right side
-        rotation: Math.PI, // Face towards the center of the room
-        // Render a gothic "G" on the physical laptop screen using Old English/Cloister Black
-        screenContent: (display, material) => drawOldEnglishGTexture(display, material)
+        rotation: Math.PI // Face towards the center of the room
       });
       // Bind laptop interaction to open a desktop-style UI (like Room 1)
       laptop.userData = laptop.userData || {};
@@ -661,67 +659,6 @@ export function createRoom2() {
       document.body.appendChild(prompt);
     }
     return prompt;
-  }
-
-  // Prefer Old English/Cloister Black for the "G". Fallback to Unifraktur webfont if unavailable.
-  async function ensureOldEnglishFont() {
-    if (!document || !document.fonts) return;
-    if (ensureOldEnglishFont.loaded) return;
-    try {
-      // Attempt to load locally installed fonts first (non-blocking if missing)
-      await Promise.race([
-        document.fonts.load('64px "Old English Text MT"'),
-        document.fonts.load('64px "Cloister Black"')
-      ]);
-    } catch (_) {}
-    // Add a reliable fallback (Unifraktur) via Google Fonts
-    try {
-      if (!document.getElementById('unifraktur-font-link')) {
-        const link = document.createElement('link');
-        link.id = 'unifraktur-font-link';
-        link.rel = 'stylesheet';
-        link.href = 'https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap';
-        document.head.appendChild(link);
-      }
-      await document.fonts.load('64px "UnifrakturMaguntia"');
-    } catch (_) {}
-    ensureOldEnglishFont.loaded = true;
-  }
-
-  async function drawOldEnglishGTexture(display, material) {
-    try { await ensureOldEnglishFont(); } catch (_) {}
-    const w = 1024, h = 768;
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-
-    // Soft CRT-like greenish background with vignette
-    const grad = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.1, w/2, h/2, Math.min(w,h)*0.75);
-    grad.addColorStop(0, '#cfe2d6');
-    grad.addColorStop(1, '#0a192f');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-
-    // Gothic "G" using Old English/Cloister, fallback to Unifraktur
-    const fontFamily = '"Old English Text MT","Cloister Black","UnifrakturMaguntia",serif';
-    ctx.fillStyle = 'rgba(20,30,25,0.95)';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `${Math.floor(h*0.85)}px ${fontFamily}`;
-    ctx.fillText('G', w/2, h/2);
-
-    // Outer vignette for depth
-    const vignette = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.25, w/2, h/2, Math.min(w,h)*0.95);
-    vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(1, 'rgba(0,0,0,0.35)');
-    ctx.fillStyle = vignette;
-    ctx.fillRect(0, 0, w, h);
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    material.map = tex;
-    material.emissiveMap = tex;
-    material.needsUpdate = true;
   }
 
   // ================================

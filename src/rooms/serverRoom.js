@@ -1807,6 +1807,13 @@ export class ServerRoom {
       });
       if (nearest && nearestDist < 2.2) {
         if (selected && selected.name === 'key_card') {
+          const room4Complete = window.room4KeyCardGranted === true || gameStore.rooms.room4.isComplete === true;
+          const serverOverrideReady = (this.purgeMinigame && this.purgeMinigame.isSolved === true) || gameStore.rooms.room3.puzzles.overrideSolved === true;
+          if (!room4Complete && !serverOverrideReady) {
+            AI.showInteractionFeedback?.('Override locked. Finish the Room 4 terminal first.');
+            window.AI?.say?.('How did you get here? You need to complete the server room.');
+            return true;
+          }
           if (!nearest.slot) {
             const removed = removeFromInventory('key_card');
             if (removed) {

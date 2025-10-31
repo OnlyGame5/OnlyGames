@@ -232,6 +232,16 @@ export class PurgeMinigame {
     if (isVictory) {
       this.isSolved = true;
       console.log('[PurgeMinigame] Victory! Showing terminal instruction...');
+
+      try {
+        if (window.gameStore?.setRoom3Flag) {
+          window.gameStore.setRoom3Flag('overrideSolved', true);
+        } else if (window.gameStore?.rooms?.room3?.puzzles) {
+          window.gameStore.rooms.room3.puzzles.overrideSolved = true;
+        }
+      } catch (err) {
+        console.warn('[PurgeMinigame] Failed to update overrideSolved flag:', err);
+      }
       
       // Hide the game canvas and close button
       if (this.canvas) this.canvas.style.display = 'none';
