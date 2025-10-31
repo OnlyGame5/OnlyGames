@@ -405,28 +405,102 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   
   // Show credits function
   function showCredits() {
+    // Attribution data structure
+    const attributions = {
+      playerModel: {
+        title: 'PLAYER MODEL',
+        items: [
+          {
+            name: 'Leonard (leonard.glb)',
+            source: 'Mixamo',
+            url: 'https://www.mixamo.com/#/?page=1&type=Character',
+            note: 'Character model: Leonard (select from Mixamo\'s Characters page)'
+          }
+        ]
+      },
+      models: {
+        title: '3D MODELS',
+        items: [
+          { name: 'book.glb', source: 'Sketchfab', url: 'https://sketchfab.com/3d-models/william-gibson-book-burning-chrome-a26f670dd9f048b28ec5eabcca4900e3' },
+          { name: 'card.glb', source: 'Team Created', url: '' },
+          { name: 'cardsss.glb', source: 'Team Created', url: '' },
+          { name: 'chair.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery?query=chair' },
+          { name: 'hand_sculpt.glb', source: 'Sketchfab', url: 'https://sketchfab.com/3d-models/simple-hand-e620220cf4d1431a86a3e630a72b4de2' },
+          { name: 'hologram.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery?query=hologram' },
+          { name: 'idle.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery?query=idle' },
+          { name: 'key.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery-detail/1b86b5b7-f975-482f-b55c-f20611aa0296/?query=key+order:_score+availability:free' },
+          { name: 'office_chair.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery-detail/f89d26a8-fcae-443c-b9d7-a95ffb8934e9/?query=chair+order:_score+availability:free' },
+          { name: 'room4_decoder_panel.glb', source: 'Team Created', url: '' },
+          { name: 'safe.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery?query=safe' },
+          { name: 'scale_key.glb', source: 'Team Created', url: '' },
+          { name: 'sci_fi_office_desk.glb', source: 'Team Created', url: '' },
+          { name: 'sci_fi_table.glb', source: 'Team Created', url: '' },
+          { name: 'sci-fi_tablet.glb', source: 'Team Created', url: '' },
+          { name: 'drawing_paper.glb', source: 'BlenderKit', url: 'https://www.blenderkit.com/asset-gallery-detail/1691c657-cc5d-45c3-8d51-db2e08eea733/?query=drawing+order:_score' }
+        ]
+      },
+      textures: {
+        title: 'TEXTURES',
+        items: [
+          { name: 'bricks058', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Bricks058' },
+          { name: 'Chip005_1K-JPG', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Chip005' },
+          { name: 'concrete031', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Concrete031' },
+          { name: 'diamond-plate-floor', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=DiamondPlate008C' },
+          { name: 'Fingerprints003_1K-JPG', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Fingerprints003' },
+          { name: 'Metal003_1K-JPG', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Metal003' },
+          { name: 'metal030', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Metal030' },
+          { name: 'solar-panel', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=SolarPanel002' },
+          { name: 'tiles002', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Tiles002' },
+          { name: 'tiles108', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Tiles108' },
+          { name: 'tiles136C', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Tiles136C' },
+          { name: 'Wood067_1K-JPG', source: 'AmbientCG (CC0)', url: 'https://ambientcg.com/view?id=Wood067' }
+        ]
+      }
+    };
+
+    // Helper function to render a section
+    const renderSection = (section) => {
+      const itemsHtml = section.items.map(item => {
+        const linkHtml = item.url 
+          ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer" class="credits-link">${item.source}</a>`
+          : `<span class="credits-source">${item.source}</span>`;
+        const noteHtml = item.note ? `<div class="credits-note">${item.note}</div>` : '';
+        return `
+          <div class="credits-item">
+            <span class="credits-name">${item.name}</span>
+            <span class="credits-separator">—</span>
+            ${linkHtml}
+            ${noteHtml}
+          </div>
+        `;
+      }).join('');
+      
+      return `
+        <div class="credits-section">
+          <h3>${section.title}</h3>
+          <div class="credits-items">
+            ${itemsHtml}
+          </div>
+        </div>
+      `;
+    };
+
     const creditsOverlay = document.createElement('div');
     creditsOverlay.className = 'credits-overlay';
     creditsOverlay.innerHTML = `
       <div class="credits-panel">
         <div class="credits-header">
-          <h2>CREDITS</h2>
+          <h2>CREDITS & ATTRIBUTIONS</h2>
           <button class="close-credits" data-action="close">×</button>
         </div>
         <div class="credits-content">
-          <div class="credits-section">
-            <h3>THE APERTURE PROTOCOL</h3>
-            <p>A 3D puzzle adventure game</p>
-          </div>
-          <div class="credits-section">
-            <h3>DEVELOPMENT</h3>
-            <p>Created with Three.js</p>
-            <p>Matrix rain effect inspired by The Matrix</p>
-          </div>
+          ${renderSection(attributions.playerModel)}
+          ${renderSection(attributions.models)}
+          ${renderSection(attributions.textures)}
           <div class="credits-section">
             <h3>SPECIAL THANKS</h3>
-            <p>To all the open source developers</p>
-            <p>who made this project possible</p>
+            <p>To all the open source developers who made this project possible</p>
+            <p>University of the Witwatersrand - COMS3006A/COMS3025A</p>
           </div>
         </div>
         <div class="credits-buttons">
