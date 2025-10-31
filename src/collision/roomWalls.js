@@ -126,8 +126,7 @@ export const roomWallDefinitions = {
       // Light fixture (position: 0, 4.0, 0) -> World: (29, 4.0, 0)
       { position: new THREE.Vector3(29, 4.0, 0), size: new THREE.Vector3(2.0, 0.5, 2.0), type: 'lightBox' },
       
-      // Laptop (position: -2, 0, -6) -> World: (27, 0.8, -6)
-      { position: new THREE.Vector3(27, 0.8, -6), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' }
+      // (Laptop collision handled dynamically when the room is active)
     ],
     hallways: [
       // Hub connection
@@ -240,8 +239,7 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(4.5, 2, -17.5), size: new THREE.Vector3(9, 4, 0.5) }
     ],
     objects: [
-      // Laptop workstation (position: 0, 0, -3) -> World: (0, 0.8, -29.5)
-      { position: new THREE.Vector3(0, 0.8, -29.5), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' }
+      // (Laptop collision handled dynamically when the room is active)
     ],
     hallways: [
       // Hub connection - Room 4 is at (0, 0, -26.5), so hallway is at z = -26.5 + 9 = -17.5
