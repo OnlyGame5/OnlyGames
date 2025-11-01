@@ -182,8 +182,8 @@ export class ServerRoom {
 
     // Load and apply Chip006 (walls) + Chip005 (floor) textures
     const texLoader = new THREE.TextureLoader();
-    const wallBase = '/textures/Chip005_1K-JPG/';
-    const floorBase = '/textures/Chip005_1K-JPG/';
+  const wallBase = './textures/Chip005_1K-JPG/';
+  const floorBase = './textures/Chip005_1K-JPG/';
     const wallPaths = {
       color: wallBase + 'Chip005_1K-JPG_Color.jpg',
       normal: wallBase + 'Chip005_1K-JPG_NormalGL.jpg',
@@ -1085,7 +1085,7 @@ export class ServerRoom {
     
     // 4. Create and attach the display texture to the screen
     const textureLoader = new THREE.TextureLoader();
-    const previewTexture = textureLoader.load('/textures/laptop_preview.png');
+  const previewTexture = textureLoader.load('./textures/laptop_preview.png');
     previewTexture.colorSpace = THREE.SRGBColorSpace;
     const displayMat = new THREE.MeshStandardMaterial({
       map: previewTexture,

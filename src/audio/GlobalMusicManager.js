@@ -3,6 +3,8 @@
 // - Starts on first user interaction (to satisfy browser autoplay policies)
 // - Exposes start/stop/ensureStarted and state helpers
 
+import './AudioBus.js';
+
 (function initGlobalMusicManager(){
   if (window.GlobalMusicManager) {
     // Already initialized by another module import
@@ -14,17 +16,24 @@
     isInitialized: false,
     isPlaying: false,
     autoplayBlocked: false,
-    source: './audio/l_theme_death_note.mp3',
-    volume: 0.3,
+    // Track sources
+    sources: {
+      menu: '/audio/l_theme_death_note.mp3',
+      game: new URL('../audio/nexus_dialogue/background music.mp3', import.meta.url).href,
+    },
+    // Default to menu music; specific screens can switch tracks
+    source: '/audio/l_theme_death_note.mp3',
+    musicLevel: 0.3, // music-specific level (pre-master)
     fadeMs: 800,
     autoStartBound: false,
+    fading: null,
   };
 
   function createAudioElement() {
     const audio = new Audio(STATE.source);
     audio.loop = true;
     audio.preload = 'auto';
-    audio.volume = STATE.volume;
+    audio.volume = computeEffectiveVolume();
     audio.style.display = 'none';
     document.body.appendChild(audio);
 
@@ -45,6 +54,16 @@
     });
 
     return audio;
+  }
+
+  function getMasterVolume(){
+    return (window.AudioBus && typeof window.AudioBus.getMasterVolume === 'function')
+      ? window.AudioBus.getMasterVolume()
+      : 1.0;
+  }
+
+  function computeEffectiveVolume(){
+    return Math.min(1, Math.max(0, STATE.musicLevel * getMasterVolume()));
   }
 
   function init() {
@@ -74,7 +93,7 @@
 
     try {
       // Ensure volume is set (in case a previous fade-out muted it)
-      STATE.audio.volume = STATE.volume;
+      STATE.audio.volume = computeEffectiveVolume();
       await STATE.audio.play();
       STATE.isPlaying = true;
       STATE.autoplayBlocked = false;
@@ -85,6 +104,49 @@
       console.log('GlobalMusicManager: autoplay blocked (awaiting user interaction)');
       return false;
     }
+  }
+
+  function resolveSource(keyOrUrl) {
+    if (!keyOrUrl) return STATE.source;
+    if (keyOrUrl in STATE.sources) return STATE.sources[keyOrUrl];
+    return keyOrUrl;
+  }
+
+  async function setSource(keyOrUrl, { autoPlay = true } = {}) {
+    init();
+    const next = resolveSource(keyOrUrl);
+    if (!next || next === STATE.source) return true;
+    STATE.source = next;
+
+    if (!STATE.audio) STATE.audio = createAudioElement();
+
+    try {
+      // Simple swap with minimal gap; retain volume policy
+      STATE.audio.pause();
+      STATE.audio.src = STATE.source;
+      STATE.audio.load();
+      STATE.audio.volume = computeEffectiveVolume();
+      if (autoPlay) {
+        await STATE.audio.play();
+        STATE.isPlaying = true;
+        STATE.autoplayBlocked = false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('GlobalMusicManager: setSource autoplay blocked or failed; will rely on interaction', err);
+      STATE.autoplayBlocked = true;
+      return false;
+    }
+  }
+
+  async function playMenuTrack() {
+    await setSource('menu');
+    return ensureStarted();
+  }
+
+  async function playGameTrack() {
+    await setSource('game');
+    return ensureStarted();
   }
 
   function bindAutoStartOnce() {
@@ -124,6 +186,62 @@
     return ok;
   }
 
+  function cancelActiveFade() {
+    if (STATE.fading && typeof STATE.fading.cancel === 'function') {
+      STATE.fading.cancel();
+    }
+    STATE.fading = null;
+  }
+
+  // Smoothly fade music level (pre-master) to a target over ms
+  function fadeToVolume(targetVol, ms = STATE.fadeMs) {
+    init();
+    if (!STATE.audio) return Promise.resolve();
+
+    cancelActiveFade();
+
+    const clampedTarget = Math.min(1, Math.max(0, targetVol));
+    const startLevel = STATE.musicLevel;
+    const duration = Math.max(0, ms);
+    if (duration === 0 || startLevel === clampedTarget) {
+      STATE.musicLevel = clampedTarget;
+      STATE.audio.volume = computeEffectiveVolume();
+      return Promise.resolve();
+    }
+
+    const t0 = performance.now();
+    let rafId = 0;
+    let cancelled = false;
+
+    const promise = new Promise((resolve) => {
+      const step = (t) => {
+        if (cancelled) return;
+        const p = Math.min(1, (t - t0) / duration);
+        const eased = 1 - Math.pow(1 - p, 2); // ease-out
+        STATE.musicLevel = startLevel + (clampedTarget - startLevel) * eased;
+        STATE.audio.volume = computeEffectiveVolume();
+        if (p < 1) {
+          rafId = requestAnimationFrame(step);
+        } else {
+          STATE.musicLevel = clampedTarget; // persist target as base level
+          STATE.fading = null;
+          resolve();
+        }
+      };
+      rafId = requestAnimationFrame(step);
+    });
+
+    STATE.fading = {
+      cancel: () => {
+        if (rafId) cancelAnimationFrame(rafId);
+        cancelled = true;
+        STATE.fading = null;
+      }
+    };
+
+    return promise;
+  }
+
   async function fadeOutAndStop(ms = STATE.fadeMs) {
     init();
     if (!STATE.audio) return;
@@ -147,7 +265,7 @@
         } else {
           STATE.audio.pause();
           STATE.audio.currentTime = 0;
-          STATE.audio.volume = STATE.volume; // reset for next time
+          STATE.audio.volume = computeEffectiveVolume(); // reset for next time
           STATE.isPlaying = false;
           resolve();
         }
@@ -165,21 +283,33 @@
   }
 
   function setVolume(vol) {
-    STATE.volume = Math.min(1, Math.max(0, vol));
-    if (STATE.audio) STATE.audio.volume = STATE.volume;
+    // Set music-specific level; master volume is applied multiplicatively
+    STATE.musicLevel = Math.min(1, Math.max(0, vol));
+    if (STATE.audio) STATE.audio.volume = computeEffectiveVolume();
   }
 
   window.GlobalMusicManager = {
     init,
     start,
     ensureStarted,
+    setSource,
+    playMenuTrack,
+    playGameTrack,
     stop: fadeOutAndStop,
     isCurrentlyPlaying,
     isAutoplayBlocked,
     setVolume,
+    fadeToVolume,
   };
 
   // Initialize ASAP and bind auto-start listeners
   init();
   bindAutoStartOnce();
+
+  // React to master volume changes
+  if (window.AudioBus && typeof window.AudioBus.onChange === 'function') {
+    window.AudioBus.onChange(() => {
+      if (STATE.audio) STATE.audio.volume = computeEffectiveVolume();
+    });
+  }
 })();

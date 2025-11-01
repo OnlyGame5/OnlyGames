@@ -1,5 +1,6 @@
 import './MainMenu.css';
 import '../audio/GlobalMusicManager.js';
+import '../audio/AudioBus.js';
 import * as Input from '../systems/input.js';
 import { performanceSettings } from '../systems/PerformanceSettings.js';
 
@@ -102,9 +103,13 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
   // Matrix Rain Animation
   const matrixAnimation = createMatrixRain(matrixCanvas);
   
-  // Ensure global background music is started (no stopping here)
+  // Ensure menu music plays on main menu
   if (window.GlobalMusicManager) {
-    window.GlobalMusicManager.ensureStarted();
+    if (typeof window.GlobalMusicManager.playMenuTrack === 'function') {
+      window.GlobalMusicManager.playMenuTrack();
+    } else {
+      window.GlobalMusicManager.ensureStarted();
+    }
   }
   
   // Event listeners
@@ -227,9 +232,13 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     window.cursorManager.forceShowCursor();
   }
   
-  // Keep background music managed globally; ensure it's started once.
+  // Keep background music managed globally; ensure menu track is active.
   if (window.GlobalMusicManager) {
-    window.GlobalMusicManager.ensureStarted();
+    if (typeof window.GlobalMusicManager.playMenuTrack === 'function') {
+      window.GlobalMusicManager.playMenuTrack();
+    } else {
+      window.GlobalMusicManager.ensureStarted();
+    }
   }
   
   // Start game function
@@ -301,6 +310,11 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
               <input type="range" id="menu-sensitivity-slider" min="0.3" max="2.0" step="0.1" />
               <span class="value-display" id="menu-sensitivity-value">1.0</span>
             </div>
+            <div class="settings-row">
+              <label for="menu-master-volume-slider">Master Volume</label>
+              <input type="range" id="menu-master-volume-slider" min="0" max="1" step="0.01" />
+              <span class="value-display" id="menu-master-volume-value">100%</span>
+            </div>
           </div>
         </div>
         <div class="settings-buttons">
@@ -318,8 +332,10 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
     }
 
     const controlsTbody = settingsOverlay.querySelector('#menu-controls-tbody');
-    const sensitivitySlider = settingsOverlay.querySelector('#menu-sensitivity-slider');
-    const sensitivityValue = settingsOverlay.querySelector('#menu-sensitivity-value');
+  const sensitivitySlider = settingsOverlay.querySelector('#menu-sensitivity-slider');
+  const sensitivityValue = settingsOverlay.querySelector('#menu-sensitivity-value');
+  const masterVolumeSlider = settingsOverlay.querySelector('#menu-master-volume-slider');
+  const masterVolumeValue = settingsOverlay.querySelector('#menu-master-volume-value');
 
     let activeBindingHandler = null;
     let activeBindingAction = null;
@@ -363,6 +379,12 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
       const value = currentSettings.sensitivity ?? 1.0;
       sensitivitySlider.value = value;
       sensitivityValue.textContent = value.toFixed(1);
+      if (masterVolumeSlider && masterVolumeValue) {
+        const mv = (window.AudioBus && typeof window.AudioBus.getMasterVolume === 'function')
+          ? window.AudioBus.getMasterVolume() : 1.0;
+        masterVolumeSlider.value = mv;
+        masterVolumeValue.textContent = `${Math.round(mv * 100)}%`;
+      }
     }
 
     function stopListeningForBinding() {
@@ -419,6 +441,16 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
         const value = parseFloat(event.target.value);
         sensitivityValue.textContent = value.toFixed(1);
         Input.setSettings({ sensitivity: value });
+      });
+    }
+
+    if (masterVolumeSlider && masterVolumeValue) {
+      masterVolumeSlider.addEventListener('input', (event) => {
+        const v = parseFloat(event.target.value);
+        if (window.AudioBus && typeof window.AudioBus.setMasterVolume === 'function') {
+          window.AudioBus.setMasterVolume(v);
+        }
+        masterVolumeValue.textContent = `${Math.round(v * 100)}%`;
       });
     }
 

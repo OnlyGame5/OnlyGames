@@ -72,9 +72,9 @@ export function createRoom2() {
 
   // Wood067 texture files for Room 2
   const wood067Files = {
-    color: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_Color.jpg",
-    normal: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_NormalGL.jpg",
-    rough: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_Roughness.jpg",
+  color: "./textures/Wood067_1K-JPG/Wood067_1K-JPG_Color.jpg",
+  normal: "./textures/Wood067_1K-JPG/Wood067_1K-JPG_NormalGL.jpg",
+  rough: "./textures/Wood067_1K-JPG/Wood067_1K-JPG_Roughness.jpg",
     // AO not provided in set
   };
 
@@ -176,7 +176,7 @@ export function createRoom2() {
   const loader = new GLTFLoader();
 
   // Add scales model
-  loader.load('/models/scales.glb', (gltf) => {
+  loader.load('./models/scales.glb', (gltf) => {
       const scales = setupModel(gltf);
       scales.position.set(0, 0.2, 4.5);
       scales.scale.set(0.05, 0.05, 0.05);
@@ -450,7 +450,7 @@ export function createRoom2() {
   });
 
   // Robot Hand - Load from model
-  loader.load('/models/hand_sculpt.glb', (gltf) => {
+  loader.load('./models/hand_sculpt.glb', (gltf) => {
       const robotHand = setupModel(gltf);
       robotHand.position.set(5, 0.3, -4);
       robotHand.scale.set(1, 1, 1);
@@ -467,7 +467,7 @@ export function createRoom2() {
   });
 
   // AI Manual - Load real book model
-  loader.load('/models/book.glb', (gltf) => {
+  loader.load('./models/book.glb', (gltf) => {
       const aiBook = setupModel(gltf);
       aiBook.name = 'ai-book-prop';
     // Start at desired X/Z; Y will be set after we compute the base

@@ -1,4 +1,5 @@
 import * as Input from '../systems/input.js';
+import '../audio/AudioBus.js';
 
 let menuElement = null;
 let onPauseChange = null;
@@ -16,6 +17,10 @@ let gameCountdown = null; // in seconds
 let countdownInterval = null;
 let countdownPausedTime = 0;
 let countdownPauseStartTime = null;
+// Ending audio/ducking state
+let hasStartedEndingAudio = false;
+let endingAudio = null;
+let endingAudioUnsub = null;
 
 // Initialize menu system
 export function initMenu({ onPauseChange: pauseCallback }) {
@@ -80,6 +85,8 @@ function resumeTimer() {
 
 // Start the game countdown
 function startGameCountdown(difficulty = 'normal') {
+  // reset ending-audio flag whenever countdown (re)starts
+  hasStartedEndingAudio = false;
   let minutes;
   switch(difficulty) {
     case 'easy':
@@ -87,6 +94,7 @@ function startGameCountdown(difficulty = 'normal') {
       gameCountdown = null;
       countdownInterval = null;
       updateCountdownDisplay();
+      stopEndingAudio();
       return;
     case 'normal':
       minutes = 20;
@@ -105,8 +113,10 @@ function startGameCountdown(difficulty = 'normal') {
   countdownInterval = setInterval(() => {
     gameCountdown--;
     updateCountdownDisplay();
+    maybeStartEndingAudio();
     
     if (gameCountdown <= 0) {
+      stopEndingAudio();
       endGameDueToTime();
     }
   }, 1000);
@@ -181,6 +191,72 @@ function updateCountdownDisplay() {
       countdownContainer.style.boxShadow = '0 0 10px rgba(0, 255, 0, 0.3)';
     }
   }
+
+  // Also check here in case countdown was externally updated
+  maybeStartEndingAudio();
+}
+
+// When time hits 1:08 (68s) for any timed mode, start ending audio and duck BGM
+function maybeStartEndingAudio() {
+  if (hasStartedEndingAudio) return;
+  if (gameCountdown === null || typeof gameCountdown !== 'number') return; // easy mode or unset
+
+  const THRESHOLD = 68; // 1:08 remaining
+  if (gameCountdown <= THRESHOLD) {
+    hasStartedEndingAudio = true;
+    // Duck background music slightly further
+    if (window.GlobalMusicManager) {
+      if (typeof window.GlobalMusicManager.fadeToVolume === 'function') {
+        window.GlobalMusicManager.fadeToVolume(0.08, 1200);
+      } else if (typeof window.GlobalMusicManager.setVolume === 'function') {
+        window.GlobalMusicManager.setVolume(0.08);
+      }
+    }
+    // Start the ending audio loop
+    startEndingAudio();
+  }
+}
+
+function startEndingAudio() {
+  stopEndingAudio(); // ensure clean state
+  try {
+    const src = new URL('../audio/nexus_dialogue/timer low.mp3', import.meta.url).href;
+    endingAudio = new Audio(src);
+    endingAudio.loop = true;
+    endingAudio.preload = 'auto';
+    // Base level for ending cue; scaled by master volume
+    const base = 0.5;
+    const mv = (window.AudioBus && typeof window.AudioBus.getMasterVolume === 'function') ? window.AudioBus.getMasterVolume() : 1.0;
+    endingAudio.volume = Math.min(1, Math.max(0, base * mv));
+    endingAudio.addEventListener('error', (e) => console.warn('Ending audio error:', e));
+    endingAudio.play().catch(() => {
+      // Autoplay might be blocked until interaction, but by this time user has interacted
+    });
+    // Subscribe to master volume changes to reflect on this audio
+    if (window.AudioBus && typeof window.AudioBus.onChange === 'function') {
+      endingAudioUnsub = (v) => {
+        const mv2 = (typeof v === 'number') ? v : window.AudioBus.getMasterVolume();
+        endingAudio && (endingAudio.volume = Math.min(1, Math.max(0, base * mv2)));
+      };
+      window.AudioBus.onChange(endingAudioUnsub);
+    }
+  } catch (e) {
+    console.warn('Failed to start ending audio:', e);
+  }
+}
+
+function stopEndingAudio() {
+  try {
+    if (window.AudioBus && typeof window.AudioBus.offChange === 'function' && endingAudioUnsub) {
+      window.AudioBus.offChange(endingAudioUnsub);
+    }
+  } catch(_){}
+  endingAudioUnsub = null;
+  if (endingAudio) {
+    try { endingAudio.pause(); } catch(_){}
+    try { endingAudio.currentTime = 0; } catch(_){}
+  }
+  endingAudio = null;
 }
 
 // Pause the countdown
@@ -344,6 +420,11 @@ function buildMenu() {
           <input type="range" id="sensitivity-slider" min="0.3" max="2.0" step="0.1" />
           <span class="value-display" id="sensitivity-value">1.0</span>
         </div>
+        <div class="settings-row">
+          <label>Master Volume:</label>
+          <input type="range" id="master-volume-slider" min="0" max="1" step="0.01" />
+          <span class="value-display" id="master-volume-value">100%</span>
+        </div>
       </div>
       
       <div class="menu-buttons">
@@ -436,6 +517,8 @@ function bindEvents() {
   // Sensitivity slider
   const sensitivitySlider = document.getElementById('sensitivity-slider');
   const sensitivityValue = document.getElementById('sensitivity-value');
+  const masterVolumeSlider = document.getElementById('master-volume-slider');
+  const masterVolumeValue = document.getElementById('master-volume-value');
   
   sensitivitySlider.addEventListener('input', (e) => {
     e.preventDefault();
@@ -446,6 +529,22 @@ function bindEvents() {
     sensitivityValue.textContent = value.toFixed(1);
     Input.setSettings({ sensitivity: value });
   });
+
+  // Master volume slider
+  if (masterVolumeSlider && masterVolumeValue) {
+    masterVolumeSlider.addEventListener('input', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      document.body.style.cursor = 'default !important';
+      document.documentElement.style.cursor = 'default !important';
+      const value = parseFloat(e.target.value);
+      const pct = Math.round(value * 100);
+      masterVolumeValue.textContent = `${pct}%`;
+      if (window.AudioBus && typeof window.AudioBus.setMasterVolume === 'function') {
+        window.AudioBus.setMasterVolume(value);
+      }
+    });
+  }
   
   // Subscribe to binding changes
   Input.onBindingsChanged(() => {
@@ -487,9 +586,17 @@ function refreshSettings() {
   
   const sensitivitySlider = document.getElementById('sensitivity-slider');
   const sensitivityValue = document.getElementById('sensitivity-value');
+  const masterVolumeSlider = document.getElementById('master-volume-slider');
+  const masterVolumeValue = document.getElementById('master-volume-value');
   if (sensitivitySlider && sensitivityValue) {
     sensitivitySlider.value = settings.sensitivity;
     sensitivityValue.textContent = settings.sensitivity.toFixed(1);
+  }
+  if (masterVolumeSlider && masterVolumeValue) {
+    const mv = (window.AudioBus && typeof window.AudioBus.getMasterVolume === 'function')
+      ? window.AudioBus.getMasterVolume() : 1.0;
+    masterVolumeSlider.value = mv;
+    masterVolumeValue.textContent = `${Math.round(mv * 100)}%`;
   }
 }
 
@@ -621,6 +728,8 @@ function exitToMainMenu() {
   if (window.GlobalMusicManager) {
     window.GlobalMusicManager.stop();
   }
+  // Stop ending audio if playing
+  stopEndingAudio();
   
   // Clear any active UI elements
   const paperExamination = document.getElementById('paperExamination');

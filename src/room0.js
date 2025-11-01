@@ -21,19 +21,19 @@ export function createRoom0() {
   
   // Metal030 texture files - edit this object to match your files on disk
   const metal030Files = {
-    color:  "/textures/metal030/Metal030_2K-JPG_Color.jpg",
-    normal: "/textures/metal030/Metal030_2K-JPG/Metal030_2K-JPG_NormalGL.jpg", // Using GL normal map from nested folder
-    rough:  "/textures/metal030/Metal030_2K-JPG_Roughness.jpg",
-    metal:  "/textures/metal030/Metal030_2K-JPG_Metalness.jpg",       // metalness map available
+  color:  "./textures/metal030/Metal030_2K-JPG_Color.jpg",
+  normal: "./textures/metal030/Metal030_2K-JPG/Metal030_2K-JPG_NormalGL.jpg", // Using GL normal map from nested folder
+  rough:  "./textures/metal030/Metal030_2K-JPG_Roughness.jpg",
+  metal:  "./textures/metal030/Metal030_2K-JPG_Metalness.jpg",       // metalness map available
     // ao:     "/textures/metal030/Metal030_2K-JPG_AmbientOcclusion.jpg", // include only if you have it
   };
   
   // Concrete031 texture files for hallway
   const concrete031Files = {
-    color:  "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
-    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
-    rough:  "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
-    ao:     "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
+  color:  "./textures/concrete031/Concrete031_2K-JPG_Color.jpg",
+  normal: "./textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
+  rough:  "./textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
+  ao:     "./textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
   };
   
   // === Floor: Tiles108 (single tiled plane with AO/normal/roughness) ===
@@ -411,7 +411,7 @@ export function createRoom0() {
   let key = null; // Will be set after loading
   const loader = new GLTFLoader();
   
-  loader.load('/models/key.glb', (gltf) => {
+  loader.load('./models/key.glb', (gltf) => {
     key = gltf.scene;
     
     // Position the key on the pedestal
@@ -658,7 +658,7 @@ export function createRoom0() {
   let awakeningChair = null;
   const chairLoader = new GLTFLoader();
   
-  chairLoader.load('/models/chair.glb', (gltf) => {
+  chairLoader.load('./models/chair.glb', (gltf) => {
     awakeningChair = gltf.scene;
     awakeningChair.name = 'awakening-chair';
     

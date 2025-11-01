@@ -117,12 +117,14 @@ Whose truth will you believe?`;
   startGate.addEventListener('mousedown', handleStartGateClick); // Backup mousedown event
   startGate.addEventListener('keydown', handleStartGateKeyPress);
   
-  // Use global music manager - don't create new audio instances
-  console.log('Loading screen - checking global music state...');
-  
-  // Ensure the global background music is started (will auto-start on first interaction if blocked)
+  // Ensure the menu music (l_theme) is active during loading
+  console.log('Loading screen - ensuring menu music is active...');
   if (window.GlobalMusicManager) {
-    window.GlobalMusicManager.ensureStarted();
+    if (typeof window.GlobalMusicManager.playMenuTrack === 'function') {
+      window.GlobalMusicManager.playMenuTrack();
+    } else {
+      window.GlobalMusicManager.ensureStarted();
+    }
   }
   
   // Prevent default form submission behavior

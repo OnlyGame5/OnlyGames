@@ -61,18 +61,18 @@ export function createReusableHallway(options = {}) {
 
   // Texture file paths
   const concrete031Files = {
-    color: "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
-    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
-    rough: "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
-    ao: "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
-    disp: "/textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
+  color: "./textures/concrete031/Concrete031_2K-JPG_Color.jpg",
+  normal: "./textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
+  rough: "./textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
+  ao: "./textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
+  disp: "./textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
   };
 
   const tiles136cFiles = {
-    color: "/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
-    normal: "/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
-    rough: "/textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg",
-    ao: "/textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg"
+  color: "./textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
+  normal: "./textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
+  rough: "./textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg",
+  ao: "./textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg"
   };
 
   // Choose texture set
@@ -82,10 +82,10 @@ export function createReusableHallway(options = {}) {
   function getSharedConcreteMaterial(width, height, options = {}) {
     if (!materialPool.concrete) {
       // Use texture cache instead of creating new loader
-      const colorTexture = globalTextureCache.load("/textures/concrete031/Concrete031_2K-JPG_Color.jpg");
-      const normalTexture = globalTextureCache.load("/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg");
-      const roughTexture = globalTextureCache.load("/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg");
-      const aoTexture = globalTextureCache.load("/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg");
+  const colorTexture = globalTextureCache.load("./textures/concrete031/Concrete031_2K-JPG_Color.jpg");
+  const normalTexture = globalTextureCache.load("./textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg");
+  const roughTexture = globalTextureCache.load("./textures/concrete031/Concrete031_2K-JPG_Roughness.jpg");
+  const aoTexture = globalTextureCache.load("./textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg");
       
       // Performance optimization: Reduce anisotropy to 1
       const anisotropy = 1; // Reduced from 4 to 1 for better performance
@@ -124,10 +124,10 @@ export function createReusableHallway(options = {}) {
   function getSharedTilesMaterial(width, height, options = {}) {
     if (!materialPool.tiles) {
       // Use texture cache instead of creating new loader
-      const colorTexture = globalTextureCache.load("/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg");
-      const normalTexture = globalTextureCache.load("/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg");
-      const roughTexture = globalTextureCache.load("/textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg");
-      const aoTexture = globalTextureCache.load("/textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg");
+  const colorTexture = globalTextureCache.load("./textures/tiles136C/Tiles136C_2K-JPG_Color.jpg");
+  const normalTexture = globalTextureCache.load("./textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg");
+  const roughTexture = globalTextureCache.load("./textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg");
+  const aoTexture = globalTextureCache.load("./textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg");
       
       // Performance optimization: Reduce anisotropy to 1
       const anisotropy = 1; // Reduced from 4 to 1 for better performance

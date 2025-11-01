@@ -607,7 +607,7 @@ export async function loadLeonard(scene) {
   console.log('Attempting to load Leonard model from /models/leonard.glb');
 
   // 1) Load base model (armature + mesh)
-  const base = await loader.loadAsync('/models/leonard.glb');
+  const base = await loader.loadAsync('./models/leonard.glb');
 
   leonardModel = base.scene;
   leonardModel.visible = true;
@@ -635,11 +635,11 @@ export async function loadLeonard(scene) {
   let walkClip = base.animations?.find(c => /walk/i.test(c.name)) || null;
 
   if (!idleClip) {
-    try { idleClip = await loadAnimationClip('/models/idle.glb'); }
+  try { idleClip = await loadAnimationClip('./models/idle.glb'); }
     catch (e) { console.warn('No idle.glb found:', e.message); }
   }
   if (!walkClip) {
-    try { walkClip = await loadAnimationClip('/models/walking.glb'); }
+  try { walkClip = await loadAnimationClip('./models/walking.glb'); }
     catch (e) { console.warn('No walking.glb found:', e.message); }
   }
 
@@ -1127,14 +1127,14 @@ export async function loadGlobalPickableModels() {
   
   // Load all pickable item models with timeout
   const modelPaths = {
-    'stage0-key': '/models/key.glb',
-    'key_card': '/models/card.glb',
-    'book': '/models/book.glb',
-    'liberty': '/models/statue_of_liberty.glb',
-    'bowling_ball': '/models/bowling_ball.glb',
-    'bowling_pin': '/models/bowling_pin.glb',
-    'candle': '/models/candle.glb',
-    'glasses': '/models/glasses.glb'
+  'stage0-key': './models/key.glb',
+  'key_card': './models/card.glb',
+  'book': './models/book.glb',
+  'liberty': './models/statue_of_liberty.glb',
+  'bowling_ball': './models/bowling_ball.glb',
+  'bowling_pin': './models/bowling_pin.glb',
+  'candle': './models/candle.glb',
+  'glasses': './models/glasses.glb'
   };
   
   for (const [itemName, path] of Object.entries(modelPaths)) {

@@ -35,27 +35,27 @@ export function createRoom4() {
 
   // Tiles002 texture files for Room 4 floor (same as Room 1)
   const tiles002Files = {
-    color: "/textures/tiles002/Tiles002_1K-JPG_Color.jpg",
-    normal: "/textures/tiles002/Tiles002_1K-JPG_NormalGL.jpg",
-    rough: "/textures/tiles002/Tiles002_1K-JPG_Roughness.jpg",
-    displacement: "/textures/tiles002/Tiles002_1K-JPG_Displacement.jpg"
+  color: "./textures/tiles002/Tiles002_1K-JPG_Color.jpg",
+  normal: "./textures/tiles002/Tiles002_1K-JPG_NormalGL.jpg",
+  rough: "./textures/tiles002/Tiles002_1K-JPG_Roughness.jpg",
+  displacement: "./textures/tiles002/Tiles002_1K-JPG_Displacement.jpg"
   };
 
   // Tiles136C texture files for Room 4 (keeping for reference)
   const tiles136cFiles = {
-    color: "/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
-    normal: "/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
-    rough: "/textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg",
-    ao: "/textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg"
+  color: "./textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
+  normal: "./textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
+  rough: "./textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg",
+  ao: "./textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg"
   };
 
   // Concrete031 texture files for hallway
   const concrete031Files = {
-    color: "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
-    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
-    rough: "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
-    ao: "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
-    disp: "/textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
+  color: "./textures/concrete031/Concrete031_2K-JPG_Color.jpg",
+  normal: "./textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
+  rough: "./textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
+  ao: "./textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
+  disp: "./textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
   };
 
   // Tiles002 floor for Room 4 (same as Room 1, but with black color)
@@ -239,7 +239,7 @@ export function createRoom4() {
   const gltfLoader = new GLTFLoader();
   let decoderPanelModel = null;
   
-  gltfLoader.load('/models/room4_decoder_panel.glb', (gltf) => {
+  gltfLoader.load('./models/room4_decoder_panel.glb', (gltf) => {
     console.log('Decoder panel model loaded:', gltf);
     decoderPanelModel = gltf.scene;
     decoderPanelModel.name = 'room4-decoder-panel';
