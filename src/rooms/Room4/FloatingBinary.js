@@ -105,7 +105,7 @@ export class FloatingBinary {
         sprite.userData.initialY = y;
         sprite.userData.initialZ = z;
         sprite.userData.offset = index * 0.5;
-        sprite.userData.speed = 0.5 + Math.random() * 1.0;
+        sprite.userData.speed = 0.25 + Math.random() * 0.35; // Slightly faster
         sprite.userData.amplitude = 0.1 + Math.random() * 0.2;
         
         this.group.add(sprite);
@@ -145,7 +145,7 @@ export class FloatingBinary {
         sprite.userData.initialY = y;
         sprite.userData.initialZ = z;
         sprite.userData.offset = index * 0.3;
-        sprite.userData.speed = 0.3 + Math.random() * 0.7;
+        sprite.userData.speed = 0.2 + Math.random() * 0.35; // Slightly faster
         sprite.userData.amplitude = 0.05 + Math.random() * 0.15;
         
         this.group.add(sprite);
@@ -256,7 +256,7 @@ export class FloatingBinary {
         sprite.userData.initialY = y;
         sprite.userData.initialZ = z;
         sprite.userData.offset = i * 0.3; // Offset for animation
-        sprite.userData.speed = 0.5 + Math.random() * 1.0; // Slower speed
+        sprite.userData.speed = 0.25 + Math.random() * 0.35; // Slightly faster
         sprite.userData.amplitude = 0.1 + Math.random() * 0.2; // Smaller movement
         
         this.group.add(sprite);
@@ -345,10 +345,16 @@ export class FloatingBinary {
       }
       
       // Update texture
+      const oldTexture = sprite.material.map;
       const texture = new THREE.CanvasTexture(canvas);
       texture.needsUpdate = true;
       sprite.material.map = texture;
       sprite.material.needsUpdate = true;
+      
+      // Dispose old texture to prevent memory leaks
+      if (oldTexture) {
+        oldTexture.dispose();
+      }
     } catch (error) {
       console.error('Error updating NEXUS sprite display:', error);
     }
@@ -403,7 +409,7 @@ export class FloatingBinary {
    * @param {number} delta - Time delta
    */
   update(delta) {
-    this.pulsingIntensity += delta * 2;
+    this.pulsingIntensity += delta * 1.0; // Slightly faster pulsing
     
     // Update all binary sprites with simpler animation
     this._sprites.forEach((sprite, index) => {
