@@ -80,7 +80,7 @@ export function createReusableLaptop(options = {}) {
   const {
     position = new THREE.Vector3(0, 0, 0),
     rotation = 0,
-    screenTexture = '/textures/laptop_preview.png',
+    screenTexture = './textures/laptop_preview.png',
     screenContent = null,
     interactionId = 'laptop',
     onInteract = null,
@@ -290,7 +290,7 @@ export const LaptopPresets = {
   
   room2: {
     position: new THREE.Vector3(0, 0, 0),
-    screenTexture: '/textures/room2_laptop_screen.png',
+    screenTexture: './textures/room2_laptop_screen.png',
     screenContent: (display, material) => applyGammaLaptopWallpaper(display, material),
     interactionId: 'room2_laptop',
     roomId: 'room2',
@@ -299,7 +299,7 @@ export const LaptopPresets = {
   
   room3: {
     position: new THREE.Vector3(0, 0, 0),
-    screenTexture: '/textures/laptop_preview.png',
+    screenTexture: './textures/laptop_preview.png',
     interactionId: 'room3_laptop',
     roomId: 'room3',
     htmlInterface: (roomId) => createRoom3LaptopInterface(roomId)
@@ -307,7 +307,7 @@ export const LaptopPresets = {
   
   room4: {
     position: new THREE.Vector3(0, 0, 0),
-    screenTexture: '/textures/room2_laptop_screen.png',
+    screenTexture: './textures/room2_laptop_screen.png',
     screenContent: (display, material) => applyGammaLaptopWallpaper(display, material),
     interactionId: 'room4_laptop',
     roomId: 'room4',

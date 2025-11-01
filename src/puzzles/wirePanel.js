@@ -1323,10 +1323,10 @@ export function createWirePanel(opts = {}) {
     
     // Load metal textures
     const metalTextures = {
-      color: textureLoader.load('/textures/metal030/Metal030_2K-JPG_Color.jpg'),
-      normal: textureLoader.load('/textures/metal030/Metal030_2K-JPG_NormalDX.jpg'),
-      roughness: textureLoader.load('/textures/metal030/Metal030_2K-JPG_Roughness.jpg'),
-      metalness: textureLoader.load('/textures/metal030/Metal030_2K-JPG_Metalness.jpg')
+  color: textureLoader.load('./textures/metal030/Metal030_2K-JPG_Color.jpg'),
+  normal: textureLoader.load('./textures/metal030/Metal030_2K-JPG_NormalDX.jpg'),
+  roughness: textureLoader.load('./textures/metal030/Metal030_2K-JPG_Roughness.jpg'),
+  metalness: textureLoader.load('./textures/metal030/Metal030_2K-JPG_Metalness.jpg')
     };
     
     // Main distribution box body (deeper, more industrial)

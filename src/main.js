@@ -1300,17 +1300,12 @@ function loadSettingsFromMainMenu() {
   }
 }
 
-// Stop any background music and 2D Matrix rain effects from main menu/loading screen
+// Clean up 2D Matrix rain effects from main menu/loading screen (keep music playing)
 function stopBackgroundMusic() {
-  console.log('Stopping background music and 2D Matrix effects for game start...');
+  console.log('Cleaning up 2D Matrix effects for game start (music continues playing)...');
   
-  // Use global music manager to stop music
-  if (window.GlobalMusicManager) {
-    window.GlobalMusicManager.stop();
-    console.log('Global music stopped via GlobalMusicManager');
-  }
-  
-  // Stop any 2D Matrix rain animations that might still be running
+  // Do NOT stop the global background music here; it should play through the game
+  // Only clear any 2D Matrix rain animations that might still be running
   try {
     // Find and remove any remaining Matrix rain canvases
     const matrixCanvases = document.querySelectorAll('#matrix-rain, #main-menu-matrix-rain');
@@ -1329,33 +1324,7 @@ function stopBackgroundMusic() {
     console.log('Error cleaning up 2D Matrix effects:', error);
   }
   
-  // Fallback: Find and stop all audio elements
-  const audioElements = document.querySelectorAll('audio');
-  audioElements.forEach(audio => {
-    if (!audio.paused) {
-      console.log('Stopping audio element:', audio.src);
-      audio.pause();
-      audio.currentTime = 0;
-      audio.volume = 0;
-    }
-  });
-  
-  // Also try to stop any audio created by the menu systems
-  try {
-    // Stop any audio that might be playing from main menu or loading screen
-    const allAudio = document.querySelectorAll('audio, video');
-    allAudio.forEach(media => {
-      if (!media.paused) {
-        media.pause();
-        media.currentTime = 0;
-        console.log('Stopped media element:', media.tagName, media.src);
-      }
-    });
-  } catch (error) {
-    console.log('Error stopping background music:', error);
-  }
-  
-  console.log('Background music and 2D Matrix effects stopped - game audio can now start');
+  console.log('2D Matrix effects cleaned - background music left playing');
 }
 
 async function initializeGameWithLoading() {
@@ -1370,9 +1339,15 @@ async function initializeGameWithLoading() {
         loadingScreenInstance.destroy();
       }
       
-      // CRITICAL: Stop music ONLY here, when user clicks to start the game
-      // Music plays through: Main Menu -> Loading Screen -> User clicks "Start Gate" -> Music stops here
+      // Clean up 2D visual effects; keep music and switch to in-game track
       stopBackgroundMusic();
+      if (window.GlobalMusicManager) {
+        if (typeof window.GlobalMusicManager.playGameTrack === 'function') {
+          window.GlobalMusicManager.playGameTrack();
+        } else if (typeof window.GlobalMusicManager.ensureStarted === 'function') {
+          window.GlobalMusicManager.ensureStarted();
+        }
+      }
       
       // Initialize input and start the game
       initInput();
@@ -1393,7 +1368,7 @@ async function initializeGameWithLoading() {
       // Start the animation loop
       animate(0);
       
-      console.log('Game started - background music stopped, game audio active!');
+  console.log('Game started - switched to in-game background music');
     }
   });
   

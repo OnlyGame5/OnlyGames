@@ -26,7 +26,7 @@ export function createBookshelfDoor() {
   const loader = new GLTFLoader();
   let modelLoaded = false;
   
-  loader.load('/models/sci-fi_office_desk.glb', (gltf) => {
+  loader.load('./models/sci-fi_office_desk.glb', (gltf) => {
     const model = gltf.scene;
     
     // Enable shadows for the model
