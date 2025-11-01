@@ -1904,15 +1904,16 @@ export function createRoom1() {
       // Normal working display
       const displayGeometry = new THREE.PlaneGeometry(0.55, 0.35);
       const displayMat = new THREE.MeshStandardMaterial({
-        color: 0x00ff7f,
-        emissive: 0x00ff7f,
-        emissiveIntensity: 0.3,
+        color: 0xffffff,
+        emissive: 0x222222,
+        emissiveIntensity: 0.5,
         toneMapped: false
       });
       const display = new THREE.Mesh(displayGeometry, displayMat);
       display.position.set(0, 0.2, -0.175);
       display.name = 'display';
       screen.add(display);
+      try { drawOldEnglishGOnMat(displayMat, 1024, 768); } catch (_) {}
     } else {
       // Dead battery display
       createDeadBatteryDisplay(screen);
@@ -2486,15 +2487,17 @@ export function createRoom1() {
       // Normal working display
       const displayGeometry = new THREE.PlaneGeometry(0.55, 0.35);
       const displayMat = new THREE.MeshStandardMaterial({
-        color: 0x00ff7f,
-        emissive: 0x00ff7f,
-        emissiveIntensity: 0.3,
+        color: 0xffffff,
+        emissive: 0x222222,
+        emissiveIntensity: 0.5,
         toneMapped: false
       });
       const display = new THREE.Mesh(displayGeometry, displayMat);
       display.position.set(0, 0.2, -0.175);
       display.name = 'display';
       laptopGroup.add(display);
+      // Render gothic "G" on the powered screen
+      try { drawOldEnglishGOnMat(displayMat, 1024, 768); } catch (_) {}
       console.log('Added working laptop display');
     } else {
       // Dead battery display
@@ -2509,6 +2512,42 @@ export function createRoom1() {
     };
     
     return laptopGroup;
+  }
+
+  // Create a gothic "G" canvas texture and apply to a MeshStandardMaterial (powered screen)
+  function drawOldEnglishGOnMat(material, w = 1024, h = 768) {
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    // Background gradient similar to Room 2 UI
+    const grad = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.1, w/2, h/2, Math.min(w,h)*0.75);
+    grad.addColorStop(0, '#cfe2d6');
+    grad.addColorStop(1, '#0a192f');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+    // Prefer Old English/Cloister, fallback to Unifraktur (web)
+    if (!document.getElementById('unifraktur-font-link')) {
+      const link = document.createElement('link');
+      link.id = 'unifraktur-font-link';
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap';
+      document.head.appendChild(link);
+    }
+    ctx.font = `${Math.floor(h*0.85)}px "Old English Text MT","Cloister Black","UnifrakturMaguntia",serif`;
+    ctx.fillStyle = 'rgba(20,30,25,0.95)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('G', w/2, h/2);
+    const vignette = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.25, w/2, h/2, Math.min(w,h)*0.95);
+    vignette.addColorStop(0, 'rgba(0,0,0,0)');
+    vignette.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, w, h);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    material.map = tex;
+    material.emissiveMap = tex;
+    material.needsUpdate = true;
   }
   
   // Room 3 Style Laptop Interface
@@ -2764,6 +2803,7 @@ Three rooms, three keys… and a chance in between.</div>
     
     const style = document.createElement('style');
     style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&display=swap');
       #${interfaceId} {
         position: fixed;
         top: 0;
@@ -2775,6 +2815,9 @@ Three rooms, three keys… and a chance in between.</div>
         font-family: 'Courier New', 'Consolas', monospace;
         overflow: hidden;
       }
+
+      #${interfaceId} .desktop-bg { position:absolute; inset:0; z-index:0; background: radial-gradient(ellipse at center, rgba(207,226,214,0.92) 0%, rgba(10,25,47,1) 72%); }
+      #${interfaceId} .g-logo { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family: 'Old English Text MT','Cloister Black','UnifrakturMaguntia',serif; font-size: 32vw; line-height:0.8; color: rgba(20,30,25,0.92); text-shadow: 0 0 30px rgba(0,0,0,0.35), 0 0 80px rgba(0,0,0,0.25); pointer-events:none; user-select:none; }
 
       /* Desktop icons styles */
       #desktop-icons {
@@ -2889,6 +2932,7 @@ Three rooms, three keys… and a chance in between.</div>
     `;
     
     uiContainer.innerHTML = `
+      <div class="desktop-bg"><div class="g-logo">G</div></div>
       <div id="desktop-icons">
         <div class="icon" onclick="openGammaDecryptor()">
           <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V6h5.17l2 2H20v10z'/></svg>" alt="Drive Icon">

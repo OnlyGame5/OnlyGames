@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { addToInventory, hasInInventory, removeFromInventory, registerOriginalModel } from './player.js';
+import { addToInventory, hasInInventory, removeFromInventory, registerOriginalModel, getPlayerInventory } from './player.js';
 import { makeBrickMaterialForPanel, makeTiles108Floor, makeMetal030MaterialForCylinderFlexible, makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import {
   setupRendererColorPipeline,
@@ -261,6 +261,120 @@ export function createRoom0() {
   }
 
   // Emergency lights removed for performance optimization (like Room 1)
+
+  // --- Card Deposit Box (3 slots, holds cards vertically) ---
+  const cardBox = new THREE.Group();
+  cardBox.name = 'card-deposit-box';
+  // Place on the north wall; align the box's right edge with the Room 4 hallway entrance (x = +1.5)
+  // Box width is 3.0, so center at x = +1.5 - (3.0/2) = 0.0
+  cardBox.position.set(-5.0, 0, -6.8);
+  group.add(cardBox);
+
+  // Box base
+  const boxOuter = new THREE.Mesh(
+    // Much bigger table footprint (w x h x d)
+    new THREE.BoxGeometry(3.0, 0.9, 1.2),
+    new THREE.MeshStandardMaterial({ color: 0x202430, metalness: 0.6, roughness: 0.3 })
+  );
+  boxOuter.castShadow = true;
+  boxOuter.receiveShadow = true;
+  boxOuter.position.set(0, 0.45, 0);
+  cardBox.add(boxOuter);
+
+  // Inner cavity
+  const cavity = new THREE.Mesh(
+    new THREE.BoxGeometry(2.7, 0.6, 0.9),
+    new THREE.MeshStandardMaterial({ color: 0x0d1117, metalness: 0.2, roughness: 0.9 })
+  );
+  cavity.position.set(0, 0.50, 0);
+  cardBox.add(cavity);
+
+  // Slot dividers (to create 3 separated slots)
+  const dividerMat = new THREE.MeshStandardMaterial({ color: 0x2a3140, metalness: 0.4, roughness: 0.4 });
+  const dividerLeft = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.56, 0.86), dividerMat);
+  dividerLeft.position.set(-0.9, 0.50, 0);
+  const dividerRight = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.56, 0.86), dividerMat);
+  dividerRight.position.set(0.9, 0.50, 0);
+  cardBox.add(dividerLeft, dividerRight);
+
+  // Subtle glow strip to hint it's interactive
+  const glowStrip = new THREE.Mesh(
+    new THREE.BoxGeometry(2.9, 0.01, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x003322, emissiveIntensity: 0.6 })
+  );
+  glowStrip.position.set(0, 0.92, 0.5);
+  cardBox.add(glowStrip);
+
+  // Slot positions (cards stand vertically, three slots left-to-right)
+  const slotPositions = [
+    // Target Y set above tabletop so cards appear to float on top
+    new THREE.Vector3(-1.2, 1.05, 0),
+    new THREE.Vector3(0.0, 1.05, 0),
+    new THREE.Vector3(1.2, 1.05, 0),
+  ];
+  const cardSlots = [null, null, null];
+  const cardLiftAnimations = []; // simple lift animations for inserted cards
+
+  // Create a simple card mesh (fallback rectangular card) standing upright
+  function createUprightCardMesh() {
+    const group = new THREE.Group();
+    // Rotate 90 degrees so the longer side is vertical (height 0.86)
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(0.54, 0.86, 0.02),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x003311,
+        emissive: 0x00ff88,
+        emissiveIntensity: 1.2,
+        metalness: 0.3,
+        roughness: 0.4
+      })
+    );
+    const stripe = new THREE.Mesh(
+      new THREE.BoxGeometry(0.54, 0.1, 0.01),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x002211,
+        emissive: 0x00dd77,
+        emissiveIntensity: 0.9,
+        metalness: 0.6,
+        roughness: 0.3 
+      })
+    );
+    stripe.position.set(0, 0.25, 0.012);
+    const led = new THREE.Mesh(
+      new THREE.SphereGeometry(0.015, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0x00ff99, emissive: 0x00ff99, emissiveIntensity: 1.0 })
+    );
+    led.position.set(0.2, -0.2, 0.012);
+    group.add(body, stripe, led);
+    // Upright by default; ensure double-sided rendering to avoid thin face cull
+    body.material.side = THREE.DoubleSide;
+    stripe.material.side = THREE.DoubleSide;
+    group.castShadow = true;
+    group.receiveShadow = true;
+    return group;
+  }
+
+  function hasEmptySlot() {
+    return cardSlots.findIndex(s => s === null) !== -1;
+  }
+
+  function insertCardIntoFirstEmptySlot() {
+    const idx = cardSlots.findIndex(s => s === null);
+    if (idx === -1) return false;
+    const mesh = createUprightCardMesh();
+    const p = slotPositions[idx];
+    // Start inside the box and animate lifting to target Y on top
+    mesh.position.set(p.x, 0.50, p.z); // start near cavity center height
+    mesh.rotation.y = 0;
+    mesh.rotation.x = 0;
+    cardBox.add(mesh);
+    cardSlots[idx] = mesh;
+    mesh.userData.isTableCard = true;
+    mesh.userData.slotIndex = idx;
+    // Queue lift animation
+    cardLiftAnimations.push({ mesh, startY: mesh.position.y, endY: p.y, t: 0 });
+    return true;
+  }
 
   // Stage 0: Pedestal with key - Metal030 textured
   const pedestalBaseGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32);
@@ -831,10 +945,103 @@ export function createRoom0() {
         }, 5000);
       }
     }
+
+    // Proximity prompt for card deposit box
+    if (playerObject && getPlayerInventory) {
+      const distToBox = playerObject.position.distanceTo(cardBox.position);
+      if (distToBox < 2.0) {
+        try {
+          const inv = getPlayerInventory();
+          const selected = inv && (inv.getSelectedItem ? inv.getSelectedItem() : inv.slots?.[inv.selectedSlot]);
+          const anyPlaced = cardSlots.some(m => !!m);
+          if (selected && selected.name === 'key_card') {
+            if (window.AI && window.AI.showInteractionFeedback) {
+              window.AI.showInteractionFeedback('Press E to insert the card');
+            }
+          } else if (window.AI && window.AI.showInteractionFeedback && anyPlaced) {
+            window.AI.showInteractionFeedback('Press E to pick up a card');
+          } else if (window.AI && window.AI.showInteractionFeedback && hasEmptySlot()) {
+            window.AI.showInteractionFeedback('Select a card (💳) to insert');
+          }
+        } catch (e) {}
+      }
+    }
+
+    // Animate any cards being lifted to the tabletop (ease out)
+    if (cardLiftAnimations.length > 0) {
+      const speed = 1.5; // seconds^-1
+      for (let i = cardLiftAnimations.length - 1; i >= 0; i--) {
+        const anim = cardLiftAnimations[i];
+        anim.t = Math.min(1, anim.t + dt * speed);
+        const k = 1 - Math.pow(1 - anim.t, 3); // easeOutCubic
+        const y = anim.startY + (anim.endY - anim.startY) * k;
+        if (anim.mesh && anim.mesh.position) {
+          anim.mesh.position.y = y;
+        }
+        if (anim.t >= 1) {
+          cardLiftAnimations.splice(i, 1);
+        }
+      }
+    }
   }
 
   // Stage 0: E key interaction handler
   function handleEKeyInteraction(playerObject) {
+    // Handle card deposit box interaction first
+    const distToCardBox = playerObject.position.distanceTo(cardBox.position);
+    if (distToCardBox < 2.0) {
+      try {
+        const inv = getPlayerInventory();
+        const selected = inv && (inv.getSelectedItem ? inv.getSelectedItem() : inv.slots?.[inv.selectedSlot]);
+        if (selected && selected.name === 'key_card') {
+          if (!hasEmptySlot()) {
+            if (window.AI && window.AI.showInteractionFeedback) {
+              window.AI.showInteractionFeedback('The box is full.');
+            }
+            return true;
+          }
+          // Remove from inventory and insert
+          const removed = removeFromInventory('key_card');
+          if (removed) {
+            const placed = insertCardIntoFirstEmptySlot();
+            if (placed) {
+              if (window.AI) {
+                window.AI.say('Card inserted.');
+              }
+            }
+          }
+          return true;
+        } else {
+          // Try to pick up the nearest placed card from the box
+          // Find nearest card mesh among occupied slots
+          let nearest = null;
+          let nearestIdx = -1;
+          let nearestDist = Infinity;
+          const temp = new THREE.Vector3();
+          for (let i = 0; i < cardSlots.length; i++) {
+            const m = cardSlots[i];
+            if (!m) continue;
+            const worldPos = m.getWorldPosition(temp);
+            const d = worldPos.distanceTo(playerObject.position);
+            if (d < nearestDist) { nearestDist = d; nearest = m; nearestIdx = i; }
+          }
+          if (nearest && nearestDist < 2.5) {
+            const ok = addToInventory({ name: 'key_card', description: 'Access Key Card', type: 'key' });
+            if (ok) {
+              if (nearest.parent) nearest.parent.remove(nearest);
+              cardSlots[nearestIdx] = null;
+              if (window.AI && window.AI.showInteractionFeedback) {
+                window.AI.showInteractionFeedback('Picked up: Access Key Card');
+              }
+            } else if (window.AI && window.AI.showInteractionFeedback) {
+              window.AI.showInteractionFeedback('My inventory is full.');
+            }
+            return true;
+          }
+        }
+      } catch (e) {}
+    }
+
     // Check if player is near the key
     if (key && !state.hasKey) {
       const distance = playerObject.position.distanceTo(key.position);

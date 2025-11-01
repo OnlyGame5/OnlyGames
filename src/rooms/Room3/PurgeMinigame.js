@@ -227,14 +227,44 @@ export class PurgeMinigame {
   }
 
   _gameOver(isVictory) {
-    this.stop();
+    this.isActive = false;
+    
+    if (isVictory) {
+      this.isSolved = true;
+      console.log('[PurgeMinigame] Victory! Showing terminal instruction...');
+
+      try {
+        if (window.gameStore?.setRoom3Flag) {
+          window.gameStore.setRoom3Flag('overrideSolved', true);
+        } else if (window.gameStore?.rooms?.room3?.puzzles) {
+          window.gameStore.rooms.room3.puzzles.overrideSolved = true;
+        }
+      } catch (err) {
+        console.warn('[PurgeMinigame] Failed to update overrideSolved flag:', err);
+      }
+      
+      // Hide the game canvas and close button
+      if (this.canvas) this.canvas.style.display = 'none';
+      if (this.closeButton) this.closeButton.style.display = 'none';
+      
+      // Call ServerRoom to show terminal instruction instead of restoring UI
+      if (window.serverRoom && typeof window.serverRoom.showTerminalInstruction === 'function') {
+        window.serverRoom.showTerminalInstruction();
+      } else {
+        console.error('[PurgeMinigame] serverRoom.showTerminalInstruction not available');
+        this.stop(); // Fallback to old behavior
+      }
+    } else {
+      this.stop(); // Non-victory still uses old behavior
+    }
+    
+    // Draw game over message on canvas before hiding (for brief display)
     this.ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.ctx.fillStyle = isVictory ? '#00ff7f' : '#ff4444';
     this.ctx.font = '32px monospace';
     this.ctx.textAlign = 'center';
     
     if (isVictory) {
-      this.isSolved = true;
       this.ctx.fillText('PURGE COMPLETE', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20);
     } else {
       this.ctx.fillText('SYSTEM CORRUPTED', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20);

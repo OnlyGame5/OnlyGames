@@ -9,6 +9,9 @@ export class LevelManager {
     this.rooms = new Map(); // Will store our room objects
     this.hub = null;
     this.currentRoom = null; // Track current room for disposal
+    // Performance option: when true, non-current rooms are hidden each frame
+    // Defaults to false to avoid hiding content before current room is known
+    this.visibilityCullingEnabled = false;
   }
 
   registerRoom(roomId, roomObject) {
@@ -139,6 +142,24 @@ export class LevelManager {
 
   // We will add more logic here later
   update(deltaTime) {
-    // This is where we will check for collision triggers to initiate transitions
+    // Only apply visibility culling when explicitly enabled
+    if (!this.visibilityCullingEnabled) return;
+
+    const currentId = (gameStore && typeof gameStore.getCurrentRoom === 'function')
+      ? gameStore.getCurrentRoom()
+      : null;
+
+    // If current room unknown, do not change visibility
+    if (!currentId) return;
+
+    // Ensure hub is visible
+    if (this.hub && this.hub.group) this.hub.group.visible = true;
+
+    // Show only current room; hide others
+    this.rooms.forEach((room, id) => {
+      if (room && room.group) {
+        room.group.visible = (id === currentId);
+      }
+    });
   }
 }

@@ -46,6 +46,11 @@ export function createReusableHallway(options = {}) {
     lightIntensity: 0.3,
     ambientIntensity: 0.1,
     textureSet: 'concrete031',
+    // Performance toggles
+    useNormalMap: false,
+    useAOMap: false,
+    receiveShadows: true,
+    castShadows: false,
     ...options
   };
 
@@ -92,9 +97,9 @@ export function createReusableHallway(options = {}) {
       
       materialPool.concrete = new THREE.MeshStandardMaterial({
         map: colorTexture,
-        normalMap: normalTexture,
+        normalMap: config.useNormalMap ? normalTexture : null,
         roughnessMap: roughTexture,
-        aoMap: aoTexture,
+        aoMap: config.useAOMap ? aoTexture : null,
         color: 0x8a8a8a,
         roughness: 0.8,
         metalness: 0.1,
@@ -134,9 +139,9 @@ export function createReusableHallway(options = {}) {
       
       materialPool.tiles = new THREE.MeshStandardMaterial({
         map: colorTexture,
-        normalMap: normalTexture,
+        normalMap: config.useNormalMap ? normalTexture : null,
         roughnessMap: roughTexture,
-        aoMap: aoTexture,
+        aoMap: config.useAOMap ? aoTexture : null,
         color: 0x8a8a8a,
         roughness: 0.8,
         metalness: 0.1,
@@ -171,7 +176,8 @@ export function createReusableHallway(options = {}) {
     })
   );
   hallwayFloor.position.set(0, 0, 0); // Position at center to align with room floors
-  hallwayFloor.receiveShadow = true;
+  hallwayFloor.castShadow = false;
+  hallwayFloor.receiveShadow = !!config.receiveShadows;
   hallwayFloor.name = 'hallway-floor';
   hallway.add(hallwayFloor);
 
@@ -189,8 +195,8 @@ export function createReusableHallway(options = {}) {
     config.height/2, 
     0
   );
-  hallwayWall1.castShadow = true;
-  hallwayWall1.receiveShadow = true;
+  hallwayWall1.castShadow = !!config.castShadows;
+  hallwayWall1.receiveShadow = false;
   hallwayWall1.userData = { type: 'wall', side: 'hallway-left' };
   hallwayWall1.name = 'hallway-wall-left';
   hallway.add(hallwayWall1);
@@ -210,8 +216,8 @@ export function createReusableHallway(options = {}) {
     0
   );
   hallwayWall2.rotation.y = Math.PI; // Rotate 180 degrees to face the correct direction
-  hallwayWall2.castShadow = true;
-  hallwayWall2.receiveShadow = true;
+  hallwayWall2.castShadow = !!config.castShadows;
+  hallwayWall2.receiveShadow = false;
   hallwayWall2.userData = { type: 'wall', side: 'hallway-right' };
   hallwayWall2.name = 'hallway-wall-right';
   hallway.add(hallwayWall2);

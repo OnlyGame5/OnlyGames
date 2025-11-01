@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory, toggleLookMode, handleDroppedItemInteraction, handleDropItem, ensureDroppedItemsInScene, loadGlobalPickableModels } from './player.js';
+import { setupPlayer, updatePlayer, attachCamera, toggleViewMode, isInFirstPerson, loadLeonard, addFirstPersonItemToScene, leonardModel, getPlayerInventory, toggleLookMode, handleDroppedItemInteraction, handleDropItem, ensureDroppedItemsInScene, loadGlobalPickableModels, addToInventory } from './player.js';
 import { AI } from './ai.js';
 import { WallCollisionManager } from './collision/WallCollisionManager.js';
 import { roomWallDefinitions } from './collision/roomWalls.js';
@@ -28,6 +28,7 @@ import { gameStore } from './state/gameStore.js';
 import { createFuturisticDoor } from './game/props/FuturisticDoor.js';
 import { MatrixSky } from './scene/MatrixSky.js';
 import { SecurityMonitor } from './ui/SecurityMonitor.js';
+import { performanceSettings } from './systems/PerformanceSettings.js';
 
 // --- CHEAT CONSOLE SYSTEM ---
 function createCheatConsole() {
@@ -106,6 +107,7 @@ function createCheatConsole() {
   addOutput('  godmode - Toggle god mode (invincible)');
   addOutput('  teleport <room> - Teleport to room (room0, room1, room2, room3, room4)');
   addOutput('  give <item> - Give item to player');
+  addOutput('  accesscards - Add three access cards to inventory');
   addOutput('  clear - Clear console output');
   addOutput('  help - Show this help');
   addOutput('Press ~ to close console');
@@ -158,6 +160,20 @@ function createCheatConsole() {
           addOutput('Usage: give <item>');
         }
         break;
+
+      case 'accesscards':
+        {
+          let added = 0;
+          for (let i = 0; i < 3; i++) {
+            const ok = addToInventory({ name: 'key_card', description: 'Access Key Card', type: 'key' });
+            if (ok) added++;
+          }
+          addOutput(`Added ${added} access card(s) to inventory`);
+          if (window.AI && added > 0) {
+            window.AI.showInteractionFeedback?.('Access cards granted.');
+          }
+        }
+        break;
         
       case 'clear':
         outputDiv.innerHTML = '';
@@ -177,6 +193,7 @@ function createCheatConsole() {
         addOutput('  godmode - Toggle god mode (invincible)');
         addOutput('  teleport <room> - Teleport to room (room0, room1, room2, room3, room4)');
         addOutput('  give <item> - Give item to player');
+        addOutput('  accesscards - Add three access cards to inventory');
         addOutput('  resetlighting - Reset lighting to default values');
         addOutput('  clear - Clear console output');
         addOutput('  help - Show this help');
@@ -276,12 +293,9 @@ function createCheatConsole() {
     };
     
     if (items[itemName]) {
-      if (window.addToInventory) {
-        window.addToInventory(items[itemName]);
-        addOutput(`Added ${items[itemName].name} to inventory`);
-      } else {
-        addOutput('Inventory system not available');
-      }
+      const ok = addToInventory(items[itemName]);
+      if (ok) addOutput(`Added ${items[itemName].name} to inventory`);
+      else addOutput('Inventory is full');
     } else {
       addOutput(`Unknown item: ${itemName}. Available: key, note, book`);
     }
@@ -429,21 +443,62 @@ const fadeDuration = 2000; // 2 seconds
 
 const renderer = new THREE.WebGLRenderer({ 
   antialias: false, // Disabled for performance
-  powerPreference: "high-performance"
+  powerPreference: "high-performance",
+  alpha: false, // Disable transparency for performance
+  depth: true,
+  stencil: false, // Disable stencil buffer if not needed
+  premultipliedAlpha: false,
+  preserveDrawingBuffer: false
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap; // Changed from PCFSoftShadowMap for better performance
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // Reduced from 2 to 1.5 for better performance
 
-// Matrix Sky renderer settings
+// Apply performance settings
+const appliedProfile = performanceSettings.applyToRenderer(renderer);
+console.log('Applied performance profile:', appliedProfile);
+
+// Matrix Sky renderer settings (some may be overridden by performance settings)
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.9;
 
 document.body.appendChild(renderer.domElement);
 // We'll render an overlay after the main scene; disable automatic clearing between renders
 renderer.autoClear = false;
+
+// Listen for performance settings changes from menu
+window.addEventListener('performanceSettingsChanged', (e) => {
+  if (e.detail.requiresRendererUpdate) {
+    console.log('Updating renderer with new performance settings...');
+    performanceSettings.applyToRenderer(renderer);
+  }
+});
+
+// Performance monitor for FPS-based quality adjustment
+let frameCount = 0;
+let lastFPSCheck = performance.now();
+setInterval(() => {
+  const now = performance.now();
+  const fps = (frameCount * 1000) / (now - lastFPSCheck);
+  
+  // Only auto-adjust if FPS is consistently low
+  if (fps < 25) {
+    const stats = performanceSettings.getPerformanceStats();
+    console.log(`Low FPS detected (${fps.toFixed(1)}), current quality: ${stats.quality}`);
+    
+    // Auto-downgrade quality if possible
+    const currentQuality = performanceSettings.getQuality();
+    const qualities = ['high', 'medium', 'low', 'potato'];
+    const currentIndex = qualities.indexOf(currentQuality);
+    
+    if (currentIndex >= 0 && currentIndex < qualities.length - 1) {
+      const newQuality = qualities[currentIndex + 1];
+      console.log(`Auto-downgrading quality from ${currentQuality} to ${newQuality}`);
+      performanceSettings.setQuality(newQuality);
+      performanceSettings.applyToRenderer(renderer);
+    }
+  }
+  
+  frameCount = 0;
+  lastFPSCheck = now;
+}, 5000); // Check every 5 seconds
 
 // Install performance debugger
 
@@ -475,6 +530,28 @@ console.log('[Main] Wall collision system initialized');
 
 // Make collision manager globally accessible for debugging
 window.wallCollisionManager = wallCollisionManager;
+
+// Additional per-room object collisions registered dynamically when the room is active
+const extraRoomObjectCollisions = {
+  room1: [
+    {
+      id: 'room1-laptop',
+      type: 'laptop',
+      position: new THREE.Vector3(29, 0.75, 0),
+      size: new THREE.Vector3(1.4, 1.4, 1.4),
+      dynamic: false
+    }
+  ],
+  room4: [
+    {
+      id: 'room4-laptop',
+      type: 'laptop',
+      position: new THREE.Vector3(0, 0.75, -26.5),
+      size: new THREE.Vector3(1.4, 1.4, 1.4),
+      dynamic: false
+    }
+  ]
+};
 
 // Simple interaction UI system
 function createInteractionUI() {
@@ -567,6 +644,15 @@ function setupRoomCollisions(roomId = null) {
           console.log(`[Collision] Added DOOR: ${objectId}, type: ${obj.type}, dynamic: ${dynamic}, position:`, obj.position);
         }
       }
+    }
+
+    // Add any extra per-room object collisions (e.g., laptops) managed outside the static definitions
+    const extraObjects = extraRoomObjectCollisions[currentRoomId];
+    if (extraObjects) {
+      extraObjects.forEach((obj, index) => {
+        const objectId = obj.id || `${currentRoomId}-extra-${index}`;
+        wallCollisionManager.addObject(obj.position, obj.size, objectId, obj.type, !!obj.dynamic);
+      });
     }
     
     // Add hallway walls (thick walls around hallways)
@@ -1196,30 +1282,19 @@ function initializeMainMenu() {
 // Load settings from main menu when starting game
 function loadSettingsFromMainMenu() {
   try {
-    localStorage.removeItem('gameSettings');
-    
-    // Set the correct default settings
-    const correctSettings = {
-      sensitivity: 1.0,
+    // Ensure input system has loaded saved bindings/settings
+    initInput();
+
+    // Ensure matrix sky defaults are synced with the game store
+    const matrixDefaults = {
       enableMatrixSky: true,
-      matrixSkySpeed: 0.01, // 2x faster than 0.005
+      matrixSkySpeed: 0.01,
       matrixSkyIntensity: 1.0
     };
-    
-    localStorage.setItem('gameSettings', JSON.stringify(correctSettings));
-    
-    // Update gameStore settings with correct values
+
     if (window.gameStore && window.gameStore.settings) {
-      window.gameStore.settings.enableMatrixSky = correctSettings.enableMatrixSky;
-      window.gameStore.settings.matrixSkySpeed = correctSettings.matrixSkySpeed;
-      window.gameStore.settings.matrixSkyIntensity = correctSettings.matrixSkyIntensity;
+      Object.assign(window.gameStore.settings, matrixDefaults);
     }
-    
-    // Update input system settings if available
-    if (window.Input && correctSettings.sensitivity !== undefined) {
-      window.Input.setSettings({ sensitivity: correctSettings.sensitivity });
-    }
-    
   } catch (error) {
     console.error('Failed to load settings from main menu:', error);
   }
@@ -1725,6 +1800,9 @@ let lastTime = 0;
 function animate(currentTime) {
   requestAnimationFrame(animate);
   
+  // Count frames for performance monitoring
+  frameCount++;
+  
   const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
   lastTime = currentTime;
   
@@ -1818,12 +1896,15 @@ function animate(currentTime) {
     activePlayer.userData.lastValidPosition = activePlayer.position.clone();
   }
   
-  // Update all doors in the scene
-  scene.traverse((object) => {
-    if (object.userData && object.userData.category === 'door' && object.userData.update) {
-      object.userData.update(deltaTime);
-    }
-  });
+  // Update only doors in the current room group
+  const currentRoomObj = gameState[currentRoomId];
+  if (currentRoomObj && currentRoomObj.group) {
+    currentRoomObj.group.traverse((object) => {
+      if (object.userData && object.userData.category === 'door' && object.userData.update) {
+        object.userData.update(deltaTime);
+      }
+    });
+  }
   
   // Check door interactions
   const doorInteraction = wallCollisionManager.checkDoorInteraction(activePlayer.position, 2.0);
@@ -1899,25 +1980,15 @@ function animate(currentTime) {
     gameState.room1.updateRoom1Dialogue();
   }
 
-  // Update Room 3 systems
-  if (gameState.room3 && typeof gameState.room3.update === 'function') {
-    gameState.room3.update(deltaTime);
-  }
-
-  // Update Room 4 systems (floating binary animation)
-  if (gameState.room4 && typeof gameState.room4.update === 'function') {
-    gameState.room4.update(deltaTime);
-  }
-  
-  // Update Room 2 systems
-  if (gameState.room2 && typeof gameState.room2.update === 'function') {
-    gameState.room2.update(deltaTime);
+  // Update only the active room systems
+  if (currentRoomObj && typeof currentRoomObj.update === 'function') {
+    currentRoomObj.update(deltaTime);
   }
 
   // Room 3 access door is handled by room0.js westDoor
 
   // Enter Room 3 logic and stage progression
-  if (insideRoom3 && gameState.stage < 3 && gameState.room3 && typeof gameState.room3.enter === 'function') {
+  if (insideRoom3 && gameState.stage <  3 && gameState.room3 && typeof gameState.room3.enter === 'function') {
     gameState.room3.enter(2);
   }
   
@@ -1982,13 +2053,17 @@ function animate(currentTime) {
   levelManager.update(deltaTime);
   
   // Stage 0: Update camera
-  attachCamera(camera, player);
+  attachCamera(camera, player, scene);
   
   // Performance debugger removed
   
   // Stage 0: Render scene
   renderer.clear();
   renderer.render(scene, camera);
+  
+  // Performance monitoring
+  frameCount++;
+  
   // Glasses vignette: fade based on inventory selection each frame
   const inv = getPlayerInventory ? getPlayerInventory() : null;
   const selected = inv && (inv.getSelectedItem ? inv.getSelectedItem() : inv.slots?.[inv.selectedSlot]);

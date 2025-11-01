@@ -126,8 +126,7 @@ export const roomWallDefinitions = {
       // Light fixture (position: 0, 4.0, 0) -> World: (29, 4.0, 0)
       { position: new THREE.Vector3(29, 4.0, 0), size: new THREE.Vector3(2.0, 0.5, 2.0), type: 'lightBox' },
       
-      // Laptop (position: -2, 0, -6) -> World: (27, 0.8, -6)
-      { position: new THREE.Vector3(27, 0.8, -6), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' }
+      // (Laptop collision handled dynamically when the room is active)
     ],
     hallways: [
       // Hub connection
@@ -170,8 +169,7 @@ export const roomWallDefinitions = {
       // Book (position: -5, 0.15, 3.5) -> World: (-5, 0.15, 27.0)
       { position: new THREE.Vector3(-5, 0.15, 27.0), size: new THREE.Vector3(0.6, 0.3, 0.4), type: 'book' },
       
-      // Note (position: -2.2, 0.205, -1.8) -> World: (-2.2, 0.205, 21.7)
-      { position: new THREE.Vector3(-2.2, 0.205, 21.7), size: new THREE.Vector3(0.4, 0.1, 0.6), type: 'note' },
+      // Note sheet: no collision (removed collider to allow smooth pickup and movement)
       
       // Candle (position: -1.5, 0.2, -1.6) -> World: (-1.5, 0.2, 21.9)
       { position: new THREE.Vector3(-1.5, 0.2, 21.9), size: new THREE.Vector3(0.2, 0.4, 0.2), type: 'candle' },
@@ -241,8 +239,7 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(4.5, 2, -17.5), size: new THREE.Vector3(9, 4, 0.5) }
     ],
     objects: [
-      // Laptop workstation (position: 0, 0, -3) -> World: (0, 0.8, -29.5)
-      { position: new THREE.Vector3(0, 0.8, -29.5), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' }
+      // (Laptop collision handled dynamically when the room is active)
     ],
     hallways: [
       // Hub connection - Room 4 is at (0, 0, -26.5), so hallway is at z = -26.5 + 9 = -17.5
