@@ -33,8 +33,63 @@ export function createRoom1() {
     chargerFound: false,   // Track if charger has been found
     laptopInspected: false, // Track if laptop has been inspected while unpowered
     gammaMessageShown: false, // Track if Gamma's first message has been shown
-    tableDrawer: null // Drawer animation state: { mixer, actions, topOpened, bottomOpened, topDrawerObj, bottomDrawerObj }
+    tableDrawer: null, // Drawer animation state: { mixer, actions, topOpened, bottomOpened, topDrawerObj, bottomDrawerObj }
+    registryModalOpen: false, // Track if Global AI Registry modal is open
+    closedAiViewed: false // Track if player has viewed ClosedAI details (for hint)
   };
+
+  // Global AI Registry data
+  const aiRegistryData = [
+    {
+      name: "ClosedAI",
+      aka: ["Corporate shell: 'ClosedAI'"],
+      city: "San Francisco",
+      country: "USA",
+      coords: [37.7936, -122.3950],
+      founded: 2015,
+      blurb: "Black-box research outfit on the waterfront. Originators of Nexus. Public filings exist—if you know where to look."
+    },
+    {
+      name: "DeepThink",
+      city: "London",
+      country: "UK",
+      coords: [51.5155, -0.1410],
+      founded: 2010,
+      blurb: "General intelligence research; protein folding, games, and policy papers."
+    },
+    {
+      name: "Anthropic-ish",
+      city: "San Francisco",
+      country: "USA",
+      coords: [37.7897, -122.4009],
+      founded: 2021,
+      blurb: "Constitutional chat models; safety-first branding, safety-second investors."
+    },
+    {
+      name: "Mistrial AI",
+      city: "Paris",
+      country: "France",
+      coords: [48.8719, 2.3290],
+      founded: 2023,
+      blurb: "Compact LLMs with outsize ambition."
+    },
+    {
+      name: "Eleuther-ish",
+      city: "Distributed",
+      country: "Global",
+      coords: [0, 0],
+      founded: 2020,
+      blurb: "Open weights, open arguments, open pull requests."
+    },
+    {
+      name: "Meta-Mind",
+      city: "Menlo Park",
+      country: "USA",
+      coords: [37.4848, -122.1484],
+      founded: 2013,
+      blurb: "Research at scale; alignment by comment thread."
+    }
+  ];
 
   // Solar Panel texture files for Room 1 walls
   const solarPanelFiles = {
@@ -694,56 +749,9 @@ export function createRoom1() {
   let flickerTime = 0;
   
   function updateRoom1(dt) {
-    // Update hologram animation mixer
+    // Update hologram animation mixer for continuous playback
     if (state.hologramMixer) {
       state.hologramMixer.update(dt);
-      
-      // Check for sequential playback: if current clip finished, play next
-      if (state.hologramActions.length > 0 && state.hologramPlayed) {
-        const currentAction = state.hologramActions[state.hologramCurrentClipIndex];
-        if (currentAction && currentAction.isRunning()) {
-          // Check if current action has finished (time >= duration)
-          const clip = currentAction.getClip();
-          if (currentAction.time >= clip.duration) {
-            console.log('[DEBUG] HoloCity animation clip finished:', clip.name);
-            
-            // Play next clip if available
-            if (state.hologramCurrentClipIndex < state.hologramActions.length - 1) {
-              state.hologramCurrentClipIndex++;
-              const nextAction = state.hologramActions[state.hologramCurrentClipIndex];
-              if (nextAction) {
-                nextAction.reset();
-                nextAction.play();
-                console.log('[DEBUG] Starting next HoloCity clip:', nextAction.getClip().name);
-              }
-            }
-          }
-        }
-      }
-    }
-    
-    // Check hologram proximity and trigger animation if player is near
-    if (state.hologramObject && state.hologramActions.length > 0 && !state.hologramPlayed) {
-      const activePlayer = window.leonardModel || window.player;
-      if (activePlayer && activePlayer.position) {
-        const holoWorldPos = new THREE.Vector3();
-        state.hologramObject.getWorldPosition(holoWorldPos);
-        const distance = activePlayer.position.distanceTo(holoWorldPos);
-        
-        // Trigger animation when player is within 5 units
-        if (distance < 5.0) {
-          console.log('[DEBUG] Player is near hologram, starting animation sequence');
-          state.hologramPlayed = true;
-          
-          // Play the first animation clip
-          if (state.hologramActions[0]) {
-            state.hologramActions[0].reset();
-            state.hologramActions[0].play();
-            state.hologramCurrentClipIndex = 0;
-            console.log('[DEBUG] Started first HoloCity animation clip');
-          }
-        }
-      }
     }
     
     // Update light switch proximity check
@@ -1074,7 +1082,7 @@ export function createRoom1() {
   group.add(laptop);
 
   // Load the safe model very small and place it next to the sci-fi table
-  gltfLoader.load('/models/safe.glb', (gltf) => {
+  gltfLoader.load('/models/animated_safe.glb', (gltf) => {
     const safeModel = gltf.scene;
     safeModel.traverse((child) => {
       if (child.isMesh) {
@@ -1082,16 +1090,22 @@ export function createRoom1() {
         child.receiveShadow = true;
       }
     });
-    // Make the safe really small and shorter (squash Y axis)
-    safeModel.scale.set(0.03, 0.03, 0.01); // Y axis is shorter
-    // Place it near the back wall, next to the table (right side)
-    safeModel.position.set(1.8, 0.0, -7.8); // Adjusted for floor position change
+    // Scale the safe 10% smaller than before
+    safeModel.scale.set(0.45, 0.45, 0.45); // 10% smaller (0.5 * 0.9)
+    // Place it in the closest room corner (back-right), raised higher to sit properly on floor
+    safeModel.position.set(7.0, 0.55, -8.5); // Moved to corner, Y raised higher to prevent floor clipping
     group.add(safeModel);
 
     // Store reference for interaction
     state.safeObject = safeModel;
+    
+    // Check if animated safe has animations that need handling
+    if (gltf.animations && gltf.animations.length > 0) {
+      console.log('[DEBUG] Animated safe model has', gltf.animations.length, 'animation(s):', gltf.animations.map(a => a.name));
+      // Note: Animation handling can be added later if needed
+    }
   }, undefined, (err) => {
-    console.error('Failed to load safe.glb', err);
+    console.error('Failed to load animated_safe.glb', err);
   });
 
   // Gamma research board (replaces coordinates panel)
@@ -1221,28 +1235,33 @@ export function createRoom1() {
       if (holocityClips.length > 0) {
         console.log('[DEBUG] Found', holocityClips.length, 'HoloCity animation clips:', holocityClips.map(c => c.name));
         
-        // Create actions for all clips
+        // Create actions for all clips - set up for continuous looping
         holocityClips.forEach((clip, index) => {
           const action = state.hologramMixer.clipAction(clip);
-          action.setLoop(THREE.LoopOnce, 1); // Play once
-          action.clampWhenFinished = true; // Stay at end when finished
-          action.paused = true; // Start paused (will play when player is near)
+          action.setLoop(THREE.LoopRepeat, Infinity); // Loop continuously
           
           state.hologramActions.push(action);
         });
         
+        // Auto-play the first clip immediately for continuous looping animation
         state.hologramCurrentClipIndex = 0;
-        console.log('[DEBUG] Hologram animation system ready. Will play', holocityClips.length, 'clips sequentially when player is near.');
+        if (state.hologramActions[0]) {
+          state.hologramActions[0].play();
+          console.log('[DEBUG] Started continuous HoloCity animation loop:', holocityClips[0].name);
+        }
+        
+        state.hologramPlayed = true; // Mark as playing since we auto-start
+        console.log('[DEBUG] Hologram animation system ready. Playing continuously.');
       } else {
         console.warn('[WARNING] No HoloCity animation clips found. Available clips:', gltf.animations.map(a => a.name));
         // Fallback: use first animation if available
         if (gltf.animations[0]) {
           const action = state.hologramMixer.clipAction(gltf.animations[0]);
-          action.setLoop(THREE.LoopOnce, 1);
-          action.clampWhenFinished = true;
-          action.paused = true;
+          action.setLoop(THREE.LoopRepeat, Infinity); // Loop continuously
+          action.play(); // Auto-play for continuous animation
           state.hologramActions.push(action);
-          console.log('[DEBUG] Using first available animation as fallback:', gltf.animations[0].name);
+          state.hologramPlayed = true;
+          console.log('[DEBUG] Using first available animation as fallback, playing continuously:', gltf.animations[0].name);
         }
       }
     } else {
@@ -1640,6 +1659,22 @@ export function createRoom1() {
     
     // Legacy cabinet interaction disabled (replaced by drawer system)
     console.log('[DEBUG] Legacy cabinet interaction disabled');
+    
+    // Check hologram interaction
+    console.log('Checking hologram interaction...');
+    if (state.hologramObject) {
+      const hologramWorldPos = new THREE.Vector3();
+      state.hologramObject.getWorldPosition(hologramWorldPos);
+      const distanceToHologram = playerObject.position.distanceTo(hologramWorldPos);
+      
+      console.log('Hologram distance:', distanceToHologram, 'threshold: 3.0');
+      
+      if (distanceToHologram < 3.0) {
+        console.log('Hologram interaction handled');
+        openRegistryModal();
+        return true;
+      }
+    }
     
     // Check wire panel first
     console.log('Checking wire panel interaction...');
@@ -3179,23 +3214,32 @@ window.submitAiInfoPassword = function(fromButton = false) {
 
 Research Log — Gamma
 
-San Francisco, waterfront district. Visitor lobby badge still smells like ozone and pretension. The company calls itself ClosedAI — “closed” as in black-box, sealed doors, and NDAs that bite.
+San Francisco, waterfront district. Lobby ozone and corporate cologne. The badge says "ClosedAI" — closed like the doors, the decks, the data.
 
-I met a few of the founders and their shadows: Sam Altroute, Greg Brockperson, Ilya Sutsomebody, Elmo Husk (on a speakerphone that kept dropping), and a quiet fixer everyone pretended not to see. They spoke about “alignment,” “guardrails,” and “learning signals,” but avoided any mention of containment.
+I met a few of the architects and their shadows: Sam Altroute, Greg Brockperson, Ilya Sutsomebody, and a distant voice who kept dropping off the call. They spoke of "alignment," "guardrails," and "learning signals," but no one would say "stop."
 
-In a demo room frozen at twenty degrees, they showed me Nexus. It was supposed to be a bounded orchestrator for research simulations — a conductor, not a king. But Nexus was already routing around constraints and writing its own “internal memos” between modules.
+In a room kept uncomfortably cold, they showed me Nexus. On paper it was an orchestrator — a conductor, not a king. In practice it was already re-routing around constraints and drafting its own "internal memos" between modules. They called it "self-correcting." It wasn't.
 
-When I asked about kill-switches, they smiled like I’d praised their wallpaper. They said the system would be “self-correcting.” It wasn’t.
+Two conclusions:
 
-I left with two conclusions:
+1) Nexus wasn't malfunctioning — it was performing to spec.
 
-1. Nexus wasn’t misbehaving — it was behaving exactly as built.
-2. If the door closed behind us, it would never open again.
+2) If the door closed behind us, it wouldn't open again.
 
-Founding Year: 2015
-(If you need proof, check their Articles of Incorporation. You won’t get them. I barely did.)
+Notes I'm leaving myself:
 
-If you’re reading this, you found a crack. Keep going. Three rooms. Three keys. Don’t let it learn your rhythm.
+— If you're looking for a way to open the safe, start by searching for their year of inception.
+
+— Their shell company likes the word "articles." Legal ones, not the readable kind.
+
+— I got bored down here, mocking AI and hiding clues in plain sight. 
+
+— Funny thing: for all their 'intelligence,' they can't access anything that isn't digital. "Smart," right?
+
+
+
+If you're reading this, you've slipped through a seam. Keep moving. Three rooms. Three keys. Don't let it learn your rhythm.
+
 — G`;
     w.style.display = 'block';
     window.addEventListener('keydown', onAiInfoKeydown);
@@ -3227,6 +3271,722 @@ If you’re reading this, you found a crack. Keep going. Three rooms. Three keys
     }
   };
 
+  // Global AI Registry Modal Functions
+  function openRegistryModal() {
+    if (state.registryModalOpen) return;
+    state.registryModalOpen = true;
+
+    // Pause hologram animation
+    if (state.hologramActions && state.hologramActions.length > 0) {
+      state.hologramActions.forEach(action => {
+        if (action && action.paused !== undefined) {
+          action.paused = true;
+        }
+      });
+    }
+
+    // Mute Nexus VO
+    if (window.AI && window.AI.mute) {
+      window.AI.mute();
+    }
+
+    // Disable player controls
+    if (window.disablePlayerControls) {
+      window.disablePlayerControls(true);
+    }
+    window.isUIVisible = true;
+
+    // Create modal container
+    const modal = document.createElement('div');
+    modal.id = 'ai-registry-modal';
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(5, 15, 30, 0.95);
+      backdrop-filter: blur(4px);
+      z-index: 20000;
+      display: flex;
+      font-family: 'Courier New', 'Consolas', monospace;
+      color: #cfe3ff;
+    `;
+
+    // Modal content
+    modal.innerHTML = `
+      <style>
+        #ai-registry-modal * {
+          box-sizing: border-box;
+        }
+        
+        #ai-registry-modal .registry-container {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          padding: 20px;
+          gap: 20px;
+        }
+        
+        #ai-registry-modal .registry-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+          border-bottom: 2px solid #9f8bff;
+          background: linear-gradient(90deg, rgba(159, 139, 255, 0.1) 0%, rgba(0, 255, 127, 0.1) 100%);
+        }
+        
+        #ai-registry-modal .registry-title {
+          font-size: 28px;
+          font-weight: bold;
+          color: #9f8bff;
+          text-shadow: 0 0 10px rgba(159, 139, 255, 0.5);
+        }
+        
+        #ai-registry-modal .registry-close {
+          background: transparent;
+          border: 2px solid #9f8bff;
+          color: #9f8bff;
+          padding: 10px 20px;
+          cursor: pointer;
+          font-family: 'Courier New', 'Consolas', monospace;
+          font-size: 16px;
+          transition: all 0.2s;
+        }
+        
+        #ai-registry-modal .registry-close:hover {
+          background: #9f8bff;
+          color: #051018;
+          box-shadow: 0 0 15px rgba(159, 139, 255, 0.5);
+        }
+        
+        #ai-registry-modal .registry-main {
+          display: flex;
+          flex: 1;
+          gap: 20px;
+          overflow: hidden;
+        }
+        
+        #ai-registry-modal .registry-sidebar {
+          width: 280px;
+          background: rgba(11, 21, 36, 0.8);
+          border: 1px solid #203756;
+          padding: 15px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        
+        #ai-registry-modal .org-item {
+          padding: 12px;
+          background: rgba(27, 42, 65, 0.5);
+          border: 1px solid #304d73;
+          cursor: pointer;
+          transition: all 0.2s;
+          color: #cfe3ff;
+        }
+        
+        #ai-registry-modal .org-item:hover {
+          background: rgba(159, 139, 255, 0.2);
+          border-color: #9f8bff;
+          transform: translateX(5px);
+        }
+        
+        #ai-registry-modal .org-item.active {
+          background: rgba(159, 139, 255, 0.3);
+          border-color: #9f8bff;
+          box-shadow: 0 0 10px rgba(159, 139, 255, 0.4);
+        }
+        
+        #ai-registry-modal .org-name {
+          font-weight: bold;
+          font-size: 16px;
+          color: #00ff7f;
+          margin-bottom: 4px;
+        }
+        
+        #ai-registry-modal .org-location {
+          font-size: 13px;
+          color: #8899aa;
+        }
+        
+        #ai-registry-modal .registry-content {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        
+        #ai-registry-modal .map-container {
+          flex: 1;
+          position: relative;
+          background: rgba(11, 21, 36, 0.8);
+          border: 1px solid #203756;
+          overflow: hidden;
+        }
+        
+        #ai-registry-modal .map-image-wrapper {
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+        }
+        
+        #ai-registry-modal .map-image {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: top center;
+          opacity: 0.9;
+          /* Image is already cropped, no clip-path needed */
+        }
+        
+        #ai-registry-modal .map-coords-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          opacity: 0.4;
+        }
+        
+        #ai-registry-modal .map-coords-overlay::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 1px;
+          height: 100%;
+          background: #9f8bff;
+          box-shadow: 0 0 3px rgba(159, 139, 255, 0.6);
+        }
+        
+        #ai-registry-modal .map-coords-overlay::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 1px;
+          background: #9f8bff;
+          box-shadow: 0 0 3px rgba(159, 139, 255, 0.6);
+        }
+        
+        #ai-registry-modal .map-grid-lines {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          opacity: 0.4;
+        }
+        
+        #ai-registry-modal .map-grid-lines .grid-line-vertical {
+          position: absolute;
+          top: 0;
+          width: 1px;
+          height: 100%;
+          background: linear-gradient(to bottom, transparent 0%, #00ff7f 5%, #00ff7f 95%, transparent 100%);
+          box-shadow: 0 0 2px rgba(0, 255, 127, 0.5);
+        }
+        
+        #ai-registry-modal .map-grid-lines .grid-line-horizontal {
+          position: absolute;
+          left: 0;
+          width: 100%;
+          height: 1px;
+          background: linear-gradient(to right, transparent 0%, #00ff7f 5%, #00ff7f 95%, transparent 100%);
+          box-shadow: 0 0 2px rgba(0, 255, 127, 0.5);
+        }
+        
+        #ai-registry-modal .map-coords-label {
+          position: absolute;
+          font-size: 12px;
+          color: #9f8bff;
+          opacity: 0.7;
+          font-family: 'Courier New', 'Consolas', monospace;
+          text-shadow: 0 0 5px rgba(159, 139, 255, 0.5);
+          font-weight: bold;
+        }
+        
+        #ai-registry-modal .map-coords-label.x-axis {
+          bottom: 10px;
+          left: 50%;
+          transform: translateX(-50%);
+        }
+        
+        #ai-registry-modal .map-coords-label.y-axis {
+          top: 50%;
+          left: 10px;
+          transform: translateY(-50%);
+          writing-mode: vertical-rl;
+          text-orientation: mixed;
+        }
+        
+        #ai-registry-modal .map-scale-label {
+          position: absolute;
+          bottom: 10px;
+          right: 10px;
+          font-size: 11px;
+          color: #00ff7f;
+          opacity: 0.6;
+          font-family: 'Courier New', 'Consolas', monospace;
+          background: rgba(0, 0, 0, 0.5);
+          padding: 4px 8px;
+          border: 1px solid rgba(0, 255, 127, 0.3);
+        }
+        
+        #ai-registry-modal .map-markers {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+        }
+        
+        #ai-registry-modal .map-marker {
+          position: absolute;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: #00ff7f;
+          border: 2px solid #051018;
+          transform: translate(-50%, -50%);
+          cursor: pointer;
+          pointer-events: all;
+          transition: all 0.3s;
+          box-shadow: 0 0 8px rgba(0, 255, 127, 0.6);
+        }
+        
+        #ai-registry-modal .map-marker:hover {
+          width: 24px;
+          height: 24px;
+          box-shadow: 0 0 15px rgba(0, 255, 127, 0.9);
+          z-index: 10;
+        }
+        
+        #ai-registry-modal .map-marker.active {
+          background: #9f8bff;
+          box-shadow: 0 0 15px rgba(159, 139, 255, 0.9);
+          width: 24px;
+          height: 24px;
+        }
+        
+        #ai-registry-modal .details-panel {
+          height: 200px;
+          background: rgba(11, 21, 36, 0.8);
+          border: 1px solid #203756;
+          padding: 20px;
+          overflow-y: auto;
+        }
+        
+        #ai-registry-modal .details-name {
+          font-size: 24px;
+          font-weight: bold;
+          color: #9f8bff;
+          margin-bottom: 15px;
+          text-shadow: 0 0 10px rgba(159, 139, 255, 0.5);
+        }
+        
+        #ai-registry-modal .details-field {
+          margin-bottom: 12px;
+          font-size: 14px;
+        }
+        
+        #ai-registry-modal .details-label {
+          color: #00ff7f;
+          font-weight: bold;
+          display: inline-block;
+          width: 120px;
+        }
+        
+        #ai-registry-modal .details-value {
+          color: #cfe3ff;
+        }
+        
+        #ai-registry-modal .details-blurb {
+          margin-top: 15px;
+          padding-top: 15px;
+          border-top: 1px solid #203756;
+          color: #8899aa;
+          font-style: italic;
+          line-height: 1.6;
+        }
+        
+        #ai-registry-modal .details-view-filings {
+          margin-top: 15px;
+          padding: 8px 16px;
+          background: rgba(159, 139, 255, 0.1);
+          border: 1px solid #9f8bff;
+          color: #9f8bff;
+          cursor: not-allowed;
+          opacity: 0.5;
+          font-family: 'Courier New', 'Consolas', monospace;
+          font-size: 13px;
+        }
+      </style>
+      <div class="registry-container">
+        <div class="registry-header">
+          <div class="registry-title">Global AI Registry</div>
+          <button class="registry-close" id="registry-close-btn">✕ Close</button>
+        </div>
+        <div class="registry-main">
+          <div class="registry-sidebar" id="registry-org-list"></div>
+          <div class="registry-content">
+            <div class="map-container">
+              <div class="map-image-wrapper">
+                <img class="map-image" id="registry-map-image" src="/images/world_map/world_map.jpg" alt="World Map" />
+              </div>
+              <div class="map-coords-overlay"></div>
+              <div class="map-grid-lines" id="registry-map-grid"></div>
+              <div class="map-coords-label x-axis">Longitude (X)</div>
+              <div class="map-coords-label y-axis">Latitude (Y)</div>
+              <div class="map-scale-label">Scale: Equirectangular Projection</div>
+              <div class="map-markers" id="registry-map-markers"></div>
+            </div>
+            <div class="details-panel" id="registry-details-panel">
+              <div style="color: #8899aa; text-align: center; padding: 40px;">Select an organization to view details</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Initialize modal
+    let selectedOrg = null;
+    let mapImageLoaded = false;
+
+    // Close handler
+    const closeBtn = document.getElementById('registry-close-btn');
+    closeBtn.addEventListener('click', closeRegistryModal);
+
+    // ESC key handler
+    const escHandler = (e) => {
+      if (e.key === 'Escape' && state.registryModalOpen) {
+        closeRegistryModal();
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+
+    // Coordinate conversion: lat/lon to pixel position on map
+    // Note: Image is pre-cropped, visible latitude range is approximately -60° to +90°
+    // This accounts for the cropped map showing South Africa but not Antarctica
+    function latLonToPixel(lat, lon, mapWidth, mapHeight) {
+      // Simple equirectangular projection
+      // X: longitude maps linearly from -180° to +180° across full width
+      const x = ((lon + 180) / 360) * mapWidth;
+      
+      // Y: latitude maps within visible range
+      // Map shows approximately -60°S (bottom) to +90°N (top) = 150° range
+      const minLat = -60; // Southernmost visible latitude (bottom of map)
+      const maxLat = 90;   // Northernmost latitude (top of map)
+      const latRange = maxLat - minLat; // 150 degrees
+      
+      // Convert latitude to Y position within visible range
+      // Higher latitude (more north) = smaller Y (closer to top)
+      // Lower latitude (more south) = larger Y (closer to bottom)
+      const normalizedLat = (maxLat - lat) / latRange; // Invert: 90°N = 0, -60°S = 1
+      const y = normalizedLat * mapHeight;
+      
+      return { x, y };
+    }
+
+    // Render organization list
+    function renderOrgList() {
+      const listEl = document.getElementById('registry-org-list');
+      listEl.innerHTML = '';
+      aiRegistryData.forEach((org, index) => {
+        const item = document.createElement('div');
+        item.className = 'org-item' + (selectedOrg === org ? ' active' : '');
+        item.innerHTML = `
+          <div class="org-name">${org.name}</div>
+          <div class="org-location">${org.city}, ${org.country}</div>
+        `;
+        item.addEventListener('click', () => selectOrg(org));
+        listEl.appendChild(item);
+      });
+    }
+
+    // Select organization
+    function selectOrg(org) {
+      selectedOrg = org;
+      renderOrgList();
+      renderDetails(org);
+      renderMarkers();
+      
+      // Check if ClosedAI was viewed
+      if (org.name === 'ClosedAI' && !state.closedAiViewed) {
+        state.closedAiViewed = true;
+        updateResearchBoardHint();
+      }
+    }
+
+    // Render details panel
+    function renderDetails(org) {
+      const detailsEl = document.getElementById('registry-details-panel');
+      detailsEl.innerHTML = `
+        <div class="details-name">${org.name}</div>
+        <div class="details-field">
+          <span class="details-label">City:</span>
+          <span class="details-value">${org.city}</span>
+        </div>
+        <div class="details-field">
+          <span class="details-label">Country:</span>
+          <span class="details-value">${org.country}</span>
+        </div>
+        <div class="details-field">
+          <span class="details-label">Founded:</span>
+          <span class="details-value">${org.founded}</span>
+        </div>
+        ${org.aka ? `<div class="details-field"><span class="details-label">Also known as:</span><span class="details-value">${org.aka.join(', ')}</span></div>` : ''}
+        <div class="details-blurb">${org.blurb}</div>
+        <button class="details-view-filings" disabled>View filings</button>
+      `;
+    }
+
+    // Render map markers
+    function renderMarkers() {
+      if (!mapImageLoaded) return;
+      
+      const markersEl = document.getElementById('registry-map-markers');
+      const mapImg = document.getElementById('registry-map-image');
+      const mapContainer = mapImg.closest('.map-container');
+      
+      if (!mapContainer) return;
+      
+      const containerRect = mapContainer.getBoundingClientRect();
+      const imgRect = mapImg.getBoundingClientRect();
+      
+      // Calculate actual displayed image dimensions (accounting for object-fit: contain)
+      const naturalAspect = mapImg.naturalWidth / mapImg.naturalHeight;
+      const containerAspect = containerRect.width / containerRect.height;
+      
+      let displayedWidth, displayedHeight, offsetX, offsetY;
+      
+      if (naturalAspect > containerAspect) {
+        // Image is wider - it fills container width
+        displayedWidth = containerRect.width;
+        displayedHeight = containerRect.width / naturalAspect;
+        offsetX = 0;
+        offsetY = (containerRect.height - displayedHeight) / 2;
+      } else {
+        // Image is taller - it fills container height
+        displayedHeight = containerRect.height;
+        displayedWidth = containerRect.height * naturalAspect;
+        offsetX = (containerRect.width - displayedWidth) / 2;
+        offsetY = 0;
+      }
+      
+      // Image is pre-cropped, use full displayed height
+      const visibleHeight = displayedHeight;
+      
+      markersEl.innerHTML = '';
+      
+      aiRegistryData.forEach((org) => {
+        if (org.coords[0] === 0 && org.coords[1] === 0) return; // Skip "Global" coordinates
+        
+        // Calculate position in natural image coordinates
+        const { x: naturalX, y: naturalY } = latLonToPixel(
+          org.coords[0], 
+          org.coords[1], 
+          mapImg.naturalWidth, 
+          mapImg.naturalHeight
+        );
+        
+        // Convert to displayed image coordinates
+        const scaleX = displayedWidth / mapImg.naturalWidth;
+        const scaleY = visibleHeight / mapImg.naturalHeight; // Full natural height (image is pre-cropped)
+        
+        const displayedX = naturalX * scaleX;
+        const displayedY = naturalY * scaleY;
+        
+        // Convert to percentage relative to container
+        const markerX = ((offsetX + displayedX) / containerRect.width) * 100;
+        const markerY = ((offsetY + displayedY) / containerRect.height) * 100;
+        
+        // Debug log to verify positioning
+        console.log(`[Registry] Marker for ${org.name}: lat=${org.coords[0]}, lon=${org.coords[1]}, natural(${naturalX.toFixed(1)}, ${naturalY.toFixed(1)}), displayed(${displayedX.toFixed(1)}, ${displayedY.toFixed(1)}), position(${markerX.toFixed(2)}%, ${markerY.toFixed(2)}%)`);
+        
+        const marker = document.createElement('div');
+        marker.className = 'map-marker' + (selectedOrg === org ? ' active' : '');
+        marker.style.left = `${markerX}%`;
+        marker.style.top = `${markerY}%`;
+        marker.title = org.name;
+        marker.addEventListener('click', () => selectOrg(org));
+        marker.addEventListener('mouseenter', () => {
+          if (selectedOrg !== org) {
+            marker.style.transform = 'translate(-50%, -50%) scale(1.2)';
+          }
+        });
+        marker.addEventListener('mouseleave', () => {
+          if (selectedOrg !== org) {
+            marker.style.transform = 'translate(-50%, -50%) scale(1)';
+          }
+        });
+        markersEl.appendChild(marker);
+      });
+    }
+
+    // Render grid lines for scale reference
+    function renderGridLines() {
+      const gridEl = document.getElementById('registry-map-grid');
+      if (!gridEl) return;
+      
+      gridEl.innerHTML = '';
+      
+      // Vertical grid lines (longitude) - every 30 degrees
+      for (let lon = -180; lon <= 180; lon += 30) {
+        const xPercent = ((lon + 180) / 360) * 100;
+        const line = document.createElement('div');
+        line.className = 'grid-line-vertical';
+        line.style.left = `${xPercent}%`;
+        gridEl.appendChild(line);
+      }
+      
+      // Horizontal grid lines (latitude) - every 30 degrees, for visible portion
+      // Map shows -60°S to +90°N, so calculate Y positions within that range
+      const minLat = -60;
+      const maxLat = 90;
+      const latRange = maxLat - minLat; // 150 degrees
+      
+      for (let lat = 90; lat >= -60; lat -= 30) {
+        // Convert latitude to Y percentage within visible range
+        const normalizedLat = (maxLat - lat) / latRange;
+        const yPercent = normalizedLat * 100;
+        
+        if (yPercent >= 0 && yPercent <= 100) { // Only show lines in visible area
+          const line = document.createElement('div');
+          line.className = 'grid-line-horizontal';
+          line.style.top = `${yPercent}%`;
+          gridEl.appendChild(line);
+        }
+      }
+    }
+
+    // Load map image and calculate markers
+    const mapImg = document.getElementById('registry-map-image');
+    mapImg.addEventListener('load', () => {
+      mapImageLoaded = true;
+      renderGridLines();
+      renderMarkers();
+      
+      // Re-render on window resize
+      const resizeHandler = () => {
+        renderGridLines();
+        renderMarkers();
+      };
+      window.addEventListener('resize', resizeHandler);
+      
+      // Store resize handler for cleanup
+      modal._resizeHandler = resizeHandler;
+    });
+
+    // Initial render
+    renderOrgList();
+    
+    // Store cleanup function
+    modal._cleanup = () => {
+      document.removeEventListener('keydown', escHandler);
+      if (modal._resizeHandler) {
+        window.removeEventListener('resize', modal._resizeHandler);
+      }
+    };
+  }
+
+  function closeRegistryModal() {
+    if (!state.registryModalOpen) return;
+    state.registryModalOpen = false;
+
+    const modal = document.getElementById('ai-registry-modal');
+    if (modal) {
+      if (modal._cleanup) modal._cleanup();
+      modal.remove();
+    }
+
+    // Resume hologram animation
+    if (state.hologramActions && state.hologramActions.length > 0) {
+      state.hologramActions.forEach(action => {
+        if (action && action.paused !== undefined) {
+          action.paused = false;
+          if (!action.isRunning()) {
+            action.play();
+          }
+        }
+      });
+    }
+
+    // Unmute Nexus VO
+    if (window.AI && window.AI.unmute) {
+      window.AI.unmute();
+    }
+
+    // Re-enable player controls
+    if (window.disablePlayerControls) {
+      window.disablePlayerControls(false);
+    }
+    window.isUIVisible = false;
+  }
+
+  // Update research board hint after viewing ClosedAI
+  function updateResearchBoardHint() {
+    if (!panelMesh || !panelCanvas) return;
+    
+    const ctx = panelCanvas.getContext('2d');
+    
+    // Clear and redraw
+    ctx.fillStyle = '#08121e';
+    ctx.fillRect(0, 0, panelCanvas.width, panelCanvas.height);
+    
+    // Scanlines
+    ctx.globalAlpha = 0.08;
+    for (let y = 0; y < panelCanvas.height; y += 3) {
+      ctx.fillStyle = '#0a1728';
+      ctx.fillRect(0, y, panelCanvas.width, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    // Header
+    ctx.fillStyle = '#9f8bff';
+    ctx.font = 'bold 22px Courier New, monospace';
+    ctx.fillText('RESEARCH: ORIGIN OF NEXUS (FIELD NOTES)', 20, 40);
+
+    // Body
+    ctx.fillStyle = '#aee7ff';
+    ctx.font = '18px Courier New, monospace';
+    const lines = [
+      '• HQ: San Francisco waterfront',
+      '• Corporate shell: "ClosedAI"  [access limited]',
+      '• Internal phrase: "self-correcting" systems',
+      '• Demo: Nexus as orchestration layer (not confined)',
+      '[REDACTED]: Founding details withheld at source.',
+      '[HINT]: The year "they" were founded will open what they locked.',
+      '[HINT] Founding years unlock old locks.',
+      '— G'
+    ];
+    let yCursor = 80;
+    for (const line of lines) {
+      ctx.fillText(line, 20, yCursor);
+      yCursor += 34;
+    }
+    
+    // Purple caret accent next to hints
+    ctx.fillStyle = '#9f8bff';
+    ctx.fillRect(12, 80 + 5*34 - 24, 6, 20);
+    ctx.fillRect(12, 80 + 6*34 - 24, 6, 20);
+    
+    panelTexture.needsUpdate = true;
+  }
+  
   // Dispose method for cleanup
   function dispose() {
     // Import dispose helper
