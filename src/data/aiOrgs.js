@@ -64,16 +64,6 @@ export const aiOrgs = [
     distributed: true, 
     summary: "Open research collective; nodes everywhere." 
   },
-  { 
-    id: "meta-mind", 
-    name: "Meta-Mind", 
-    city: "Menlo Park", 
-    country: "USA", 
-    lat: 37.45296, 
-    lon: -122.1817, 
-    founded: 2013, 
-    summary: "Scaled systems with social shadows." 
-  },
 
   // New (one per continent where possible)
   { 
