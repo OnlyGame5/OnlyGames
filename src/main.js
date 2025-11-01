@@ -1961,9 +1961,27 @@ function animate(currentTime) {
     gameState.room1.updateRoom1Dialogue();
   }
 
-  // Update only the active room systems
+  // Update Room 2 systems (truth filter for hidden clues)
+  if (gameState.room2 && typeof gameState.room2.update === 'function') {
+    gameState.room2.update(deltaTime);
+  }
+
+  // Update Room 3 systems
+  if (gameState.room3 && typeof gameState.room3.update === 'function') {
+    gameState.room3.update(deltaTime);
+  }
+
+  // Update Room 4 systems (floating binary truth filter)
+  if (gameState.room4 && typeof gameState.room4.update === 'function') {
+    gameState.room4.update(deltaTime);
+  }
+
+  // Update only the active room systems (for doors)
   if (currentRoomObj && typeof currentRoomObj.update === 'function') {
-    currentRoomObj.update(deltaTime);
+    // Don't call update again if we already called it above
+    if (currentRoomObj !== gameState.room2 && currentRoomObj !== gameState.room3 && currentRoomObj !== gameState.room4) {
+      currentRoomObj.update(deltaTime);
+    }
   }
 
   // Room 3 access door is handled by room0.js westDoor
