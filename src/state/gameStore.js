@@ -293,7 +293,8 @@ class GameStore {
 
   // Room 3 access control
   isRoom3Accessible() {
-    return this.rooms.room2.isComplete;
+    // Room 3 (Server Room) is accessible when Room 4 is completed
+    return this.rooms.room4.isComplete;
   }
 }
 

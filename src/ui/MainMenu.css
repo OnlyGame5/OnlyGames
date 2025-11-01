@@ -373,9 +373,17 @@
 
 .quality-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
   margin-bottom: 25px;
+  max-width: 100%;
+}
+
+@media (max-width: 900px) {
+  .quality-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
 }
 
 .quality-option {
@@ -531,10 +539,6 @@
 }
 
 @media (max-width: 768px) {
-  .quality-grid {
-    grid-template-columns: 1fr;
-  }
-  
   .performance-panel {
     max-width: 95%;
     padding: 20px;

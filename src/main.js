@@ -478,20 +478,20 @@ setInterval(() => {
   const now = performance.now();
   const fps = (frameCount * 1000) / (now - lastFPSCheck);
   
-  // Only auto-adjust if FPS is consistently low
-  if (fps < 25) {
+  // Only auto-adjust if FPS is consistently low AND user hasn't manually set quality
+  if (fps < 25 && !performanceSettings.isManuallySet()) {
     const stats = performanceSettings.getPerformanceStats();
     console.log(`Low FPS detected (${fps.toFixed(1)}), current quality: ${stats.quality}`);
     
     // Auto-downgrade quality if possible
     const currentQuality = performanceSettings.getQuality();
-    const qualities = ['high', 'medium', 'low', 'potato'];
+    const qualities = ['high', 'medium', 'potato'];
     const currentIndex = qualities.indexOf(currentQuality);
     
     if (currentIndex >= 0 && currentIndex < qualities.length - 1) {
       const newQuality = qualities[currentIndex + 1];
       console.log(`Auto-downgrading quality from ${currentQuality} to ${newQuality}`);
-      performanceSettings.setQuality(newQuality);
+      performanceSettings.setQuality(newQuality, false); // false = automatic, not manual
       performanceSettings.applyToRenderer(renderer);
     }
   }
@@ -1110,21 +1110,44 @@ async function initGame() {
     gameState.hallwayToRoom4 = hallwayToRoom4;
 
     // Room 3 access is controlled by the existing westDoor in room0.js
-    // Subscribe to Room 2 completion to unlock the west door
+    // Subscribe to Room 2 completion to unlock the north door only
     gameStore.subscribe('room2Complete', (completed) => {
       if (completed) {
-        console.log('Room 2 completed - unlocking west door to Room 3');
+        console.log('Room 2 completed - unlocking north door to Room 4');
+        
+        // Find the main door (north door to Room 4) and unlock it
+        const room0NorthDoor = gameState.room0?.door; // The main door is the north door
+        if (room0NorthDoor) {
+          room0NorthDoor.userData.setLocked(false);
+          // Don't auto-open, just unlock (turn from red to green)
+          console.log('North door to Room 4 unlocked');
+        }
+                
+        // Force minimap redraw to show Room 4 and hallway as accessible (green)
+        if (minimap) {
+          minimap.forceRedraw();
+          console.log('Minimap marked for redraw after Room 2 completion');
+        }
+      }
+    });
+    
+    // Subscribe to Room 4 completion to unlock the west door (Server Room)
+    gameStore.subscribe('room4Complete', (completed) => {
+      if (completed) {
+        console.log('Room 4 completed - unlocking west door to Room 3 (Server Room)');
+        
         // Find the west door in room0 and unlock it
         const room0WestDoor = gameState.room0?.westDoor;
         if (room0WestDoor) {
           room0WestDoor.userData.setLocked(false);
           room0WestDoor.userData.openDoor();
+          console.log('West door to Room 3 (Server Room) unlocked and opened');
         }
                 
         // Force minimap redraw to show Room 3 and hallway as accessible (green)
         if (minimap) {
           minimap.forceRedraw();
-          console.log('Minimap marked for redraw after Room 2 completion');
+          console.log('Minimap marked for redraw after Room 4 completion');
         }
       }
     });

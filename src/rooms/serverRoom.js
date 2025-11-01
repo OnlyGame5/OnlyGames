@@ -1808,10 +1808,15 @@ export class ServerRoom {
       if (nearest && nearestDist < 2.2) {
         if (selected && selected.name === 'key_card') {
           const room4Complete = window.room4KeyCardGranted === true || gameStore.rooms.room4.isComplete === true;
-          const serverOverrideReady = (this.purgeMinigame && this.purgeMinigame.isSolved === true) || gameStore.rooms.room3.puzzles.overrideSolved === true;
+          
+          // Check BOTH puzzles are completed: Data Storm AND Purge Protocol
+          const dataStormSolved = gameStore.rooms.room3.puzzles.dataStormSolved === true;
+          const purgeProtocolSolved = (this.purgeMinigame && this.purgeMinigame.isSolved === true) || gameStore.rooms.room3.puzzles.overrideSolved === true;
+          const serverOverrideReady = dataStormSolved && purgeProtocolSolved;
+          
           if (!room4Complete && !serverOverrideReady) {
-            AI.showInteractionFeedback?.('Override locked. Finish the Room 4 terminal first.');
-            window.AI?.say?.('How did you get here? You need to complete the server room.');
+            AI.showInteractionFeedback?.('Override locked. Complete the laptop puzzle and minigame first.');
+            window.AI?.say?.('Finish both the Data Storm puzzle and Purge Protocol minigame before inserting access cards.');
             return true;
           }
           if (!nearest.slot) {
@@ -1865,7 +1870,7 @@ export class ServerRoom {
     // --- NEW MULTI-STATE LOGIC ---
 
     // Priority 1: If Data Storm is already solved, launch the minigame.
-    if (gameStore.flags.room3.dataStormSolved) {
+    if (gameStore.rooms.room3.puzzles.dataStormSolved) {
       console.log("Data Storm solved. Launching Purge Protocol.");
       this.openUnlockedUI(true); // Open in minigame mode
       return true;
