@@ -1141,8 +1141,8 @@ export function createRoom1() {
       max: box.max.clone()
     });
     
-    // Position elevated - higher and closer to viewer
-    holo.position.set(0, 1.8, -7.0);  // Higher Y, closer Z
+    // Position elevated - lower to not block text, but above ground
+    holo.position.set(0, 0.5, -7.0);  // Lower Y to avoid blocking screen text
     holo.rotation.y = 0;
     holo.scale.set(0.6, 0.6, 0.6);  // Larger scale for visibility
     holo.name = 'research-hologram';
@@ -2748,7 +2748,7 @@ Three rooms, three keys… and a chance in between.</div>
       .sticky-ink { color: #6a1b9a; }
 
       /* ai_info windowing */
-      .window { position: absolute; top: 70px; left: 80px; width: 760px; height: 480px; background: #0b1524; border: 1px solid #1b2a41; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10020; display: none; color: #cfe3ff; font-family: 'Courier New','Consolas', monospace; }
+      .window { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 900px; height: 600px; background: #0b1524; border: 1px solid #1b2a41; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10020; display: none; color: #cfe3ff; font-family: 'Courier New','Consolas', monospace; }
       .window .titlebar { height: 36px; background: #0e223a; display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid #203756; }
       .window .titlebar .title { flex: 1; font-weight: bold; color: #9fc2ff; }
       .window .titlebar .close { cursor: pointer; padding: 6px 10px; border: 1px solid #304d73; color: #9fc2ff; }
@@ -2772,8 +2772,10 @@ Three rooms, three keys… and a chance in between.</div>
       .modal input { width: 100%; padding: 10px; background: #0d1a2b; border: 1px solid #304d73; color: #cfe3ff; }
       .modal .error { color: #ff6b6b; height: 18px; margin-top: 8px; }
 
-      .notepad .body { padding: 0; }
-      .notepad .content { padding: 18px; font-family: 'Courier New','Consolas', monospace; color: #e8f0ff; white-space: pre-wrap; }
+      .notepad .body { padding: 0; height: calc(100% - 36px); overflow: hidden; }
+      .notepad .content { padding: 18px; font-family: 'Courier New','Consolas', monospace; color: #e8f0ff; white-space: pre-wrap; overflow: visible; height: 100%; }
+      /* Make notepad window larger to fit all text */
+      #aiinfo-notepad { width: 900px; height: 650px; }
 
       .viewer { position: fixed; inset: 0; display: none; z-index: 1006; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; }
       .viewer img { max-width: 80vw; max-height: 80vh; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #203756; }
