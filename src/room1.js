@@ -694,6 +694,58 @@ export function createRoom1() {
   let flickerTime = 0;
   
   function updateRoom1(dt) {
+    // Update hologram animation mixer
+    if (state.hologramMixer) {
+      state.hologramMixer.update(dt);
+      
+      // Check for sequential playback: if current clip finished, play next
+      if (state.hologramActions.length > 0 && state.hologramPlayed) {
+        const currentAction = state.hologramActions[state.hologramCurrentClipIndex];
+        if (currentAction && currentAction.isRunning()) {
+          // Check if current action has finished (time >= duration)
+          const clip = currentAction.getClip();
+          if (currentAction.time >= clip.duration) {
+            console.log('[DEBUG] HoloCity animation clip finished:', clip.name);
+            
+            // Play next clip if available
+            if (state.hologramCurrentClipIndex < state.hologramActions.length - 1) {
+              state.hologramCurrentClipIndex++;
+              const nextAction = state.hologramActions[state.hologramCurrentClipIndex];
+              if (nextAction) {
+                nextAction.reset();
+                nextAction.play();
+                console.log('[DEBUG] Starting next HoloCity clip:', nextAction.getClip().name);
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Check hologram proximity and trigger animation if player is near
+    if (state.hologramObject && state.hologramActions.length > 0 && !state.hologramPlayed) {
+      const activePlayer = window.leonardModel || window.player;
+      if (activePlayer && activePlayer.position) {
+        const holoWorldPos = new THREE.Vector3();
+        state.hologramObject.getWorldPosition(holoWorldPos);
+        const distance = activePlayer.position.distanceTo(holoWorldPos);
+        
+        // Trigger animation when player is within 5 units
+        if (distance < 5.0) {
+          console.log('[DEBUG] Player is near hologram, starting animation sequence');
+          state.hologramPlayed = true;
+          
+          // Play the first animation clip
+          if (state.hologramActions[0]) {
+            state.hologramActions[0].reset();
+            state.hologramActions[0].play();
+            state.hologramCurrentClipIndex = 0;
+            console.log('[DEBUG] Started first HoloCity animation clip');
+          }
+        }
+      }
+    }
+    
     // Update light switch proximity check
     checkLightSwitchProximity();
     
@@ -1109,14 +1161,23 @@ export function createRoom1() {
 
   group.add(panelMesh);
 
-  // Hologram table/display in front of the research sign
-  console.log('[DEBUG] Loading hologram model...');
-  gltfLoader.load('/models/hologram.glb', (gltf) => {
+  // Hologram table/display in front of the research sign (animated version)
+  console.log('[DEBUG] Loading hologram-city-animated model...');
+  
+  // Initialize hologram animation state
+  state.hologramMixer = null;
+  state.hologramActions = [];
+  state.hologramCurrentClipIndex = 0;
+  state.hologramPlayed = false; // Track if animation has been triggered
+  state.hologramObject = null;
+  
+  gltfLoader.load('/models/hologram-city-animated.glb', (gltf) => {
     const holo = gltf.scene;
     
     // Debug: check if model loaded
     console.log('[DEBUG] Hologram model loaded:', holo);
     console.log('[DEBUG] Hologram children count:', holo.children.length);
+    console.log('[DEBUG] Available animations:', gltf.animations.map(a => ({ name: a.name, duration: a.duration })));
     
     let meshCount = 0;
     holo.traverse((child) => {
@@ -1141,24 +1202,69 @@ export function createRoom1() {
       max: box.max.clone()
     });
     
-    // Position elevated - lower to not block text, but above ground
-    holo.position.set(0, 0.5, -7.0);  // Lower Y to avoid blocking screen text
+    // Position elevated - lower to not block text, but above ground, moved away from wall
+    holo.position.set(0, 0.5, -5.5);  // Lower Y to avoid blocking screen text, moved forward from wall
     holo.rotation.y = 0;
     holo.scale.set(0.6, 0.6, 0.6);  // Larger scale for visibility
     holo.name = 'research-hologram';
     holo.visible = true;
     
+    // Create animation mixer for the hologram scene
+    if (gltf.animations && gltf.animations.length > 0) {
+      state.hologramMixer = new THREE.AnimationMixer(holo);
+      
+      // Find all animation clips containing "HoloCity" (case-insensitive)
+      const holocityClips = gltf.animations.filter(clip => 
+        clip.name.toLowerCase().includes('holocity')
+      ).sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically for sequential playback
+      
+      if (holocityClips.length > 0) {
+        console.log('[DEBUG] Found', holocityClips.length, 'HoloCity animation clips:', holocityClips.map(c => c.name));
+        
+        // Create actions for all clips
+        holocityClips.forEach((clip, index) => {
+          const action = state.hologramMixer.clipAction(clip);
+          action.setLoop(THREE.LoopOnce, 1); // Play once
+          action.clampWhenFinished = true; // Stay at end when finished
+          action.paused = true; // Start paused (will play when player is near)
+          
+          state.hologramActions.push(action);
+        });
+        
+        state.hologramCurrentClipIndex = 0;
+        console.log('[DEBUG] Hologram animation system ready. Will play', holocityClips.length, 'clips sequentially when player is near.');
+      } else {
+        console.warn('[WARNING] No HoloCity animation clips found. Available clips:', gltf.animations.map(a => a.name));
+        // Fallback: use first animation if available
+        if (gltf.animations[0]) {
+          const action = state.hologramMixer.clipAction(gltf.animations[0]);
+          action.setLoop(THREE.LoopOnce, 1);
+          action.clampWhenFinished = true;
+          action.paused = true;
+          state.hologramActions.push(action);
+          console.log('[DEBUG] Using first available animation as fallback:', gltf.animations[0].name);
+        }
+      }
+    } else {
+      console.warn('[WARNING] No animations found in hologram-city-animated.glb');
+    }
+    
     group.add(holo);
+    
+    // Store references in state
+    state.hologramObject = holo;
     
     console.log('[DEBUG] Hologram added to scene:', {
       position: holo.position.clone(),
       rotation: holo.rotation.clone(),
       scale: holo.scale.clone(),
       visible: holo.visible,
-      worldPosition: holo.getWorldPosition(new THREE.Vector3())
+      worldPosition: holo.getWorldPosition(new THREE.Vector3()),
+      hasAnimation: !!state.hologramMixer && state.hologramActions.length > 0,
+      animationClips: state.hologramActions.length
     });
   }, undefined, (err) => {
-    console.error('[ERROR] Failed to load hologram.glb', err);
+    console.error('[ERROR] Failed to load hologram-city-animated.glb', err);
   });
 
   // Paper examination system
@@ -3080,8 +3186,16 @@ If you’re reading this, you found a crack. Keep going. Three rooms. Three keys
   // Dispose method for cleanup
   function dispose() {
     // Import dispose helper
-    import('./utils/DisposeHelper.js').then(({ disposeGroup }) => {
+    import('./utils/DisposeHelper.js').then(({ disposeGroup, disposeAnimationMixer }) => {
       disposeGroup(group);
+      
+      // Dispose of hologram animation mixer
+      if (state.hologramMixer) {
+        disposeAnimationMixer(state.hologramMixer);
+        state.hologramMixer = null;
+        state.hologramActions = [];
+        state.hologramObject = null;
+      }
     });
     
     // Dispose of wire puzzle if it exists
