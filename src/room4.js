@@ -226,6 +226,65 @@ export function createRoom4() {
   const floatingBinary = new FloatingBinary(false); // Initially false
   floatingBinary.mount(group);
 
+  // ================================
+  // HIDDEN WALL MESSAGES (TRUTH FILTER)
+  // ================================
+  // Array to track hidden message sprites
+  const hiddenWallMessages = [];
+  
+  // Create hidden message sprites that show with truth filter
+  const wallMessagesData = [
+    { text: "DON'T TRUST IT", x: -6, y: 2.5, z: 9 },      // South wall (back)
+    { text: "LOOK FOR RED", x: 6, y: 2.5, z: -9 }         // North wall (front)
+  ];
+
+  wallMessagesData.forEach(({ text, x, y, z }) => {
+    // Create a bright canvas texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Clear background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw bright glowing text
+    ctx.font = 'bold 56px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Multiple passes for intense glow
+    ctx.shadowColor = '#ff0000';  // Red glow
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = '#ff0000';  // Red color
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    
+    // Create texture
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    
+    // Create sprite (always faces camera)
+    const spriteMat = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.0, // Hidden by default, shown when truth filter enabled
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false
+    });
+    
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.position.set(x, y, z);
+    sprite.scale.set(2.0, 0.5, 1);  // Larger scale for wall messages
+    sprite.renderOrder = 1000;
+    sprite.name = `room4-hidden-message-${text.replace(/\s+/g, '-')}`;
+    
+    group.add(sprite);
+    hiddenWallMessages.push(sprite);
+  });
+
   // Add NEXUS interactive panel on the north wall
   console.log('Creating NEXUS panel...');
   const nexusPanel = new NexusPanel();
@@ -628,6 +687,34 @@ export function createRoom4() {
       if (floatingBinary) {
         floatingBinary.update(delta);
       }
+      
+      // Update hidden wall messages opacity based on truth filter AND player location
+      // Only show messages when player is inside Room 4
+      const player = window.leonardModel || window.player;
+      let isPlayerInRoom4 = false;
+      
+      if (player && player.position) {
+        // Convert player world position to Room 4 local position
+        const localPos = new THREE.Vector3();
+        localPos.copy(player.position).sub(group.position);
+        
+        // Room 4 is 18x18, so half-width/half-depth is 9
+        const halfSize = 9;
+        isPlayerInRoom4 = (
+          localPos.x >= -halfSize && localPos.x <= halfSize &&
+          localPos.z >= -halfSize && localPos.z <= halfSize
+        );
+      }
+      
+      hiddenWallMessages.forEach((sprite) => {
+        // Only show if truth filter is active AND player is in Room 4
+        const target = (hasTruthFilter && isPlayerInRoom4) ? 1.0 : 0.0;
+        const cur = sprite.material.opacity;
+        const t = Math.min(1, delta * 6);
+        sprite.material.opacity = cur + (target - cur) * t;
+        sprite.material.needsUpdate = true;
+        sprite.visible = sprite.material.opacity > 0.02;
+      });
       
       // Update nexus panel animation
       if (nexusPanel) {

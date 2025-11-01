@@ -998,9 +998,10 @@ function createRoom4LaptopInterface(roomId) {
       'Decoder Instructions',
       `
         <h3>Complete the Binary Decoder</h3>
-        <p>The floating binary streams in this room contain hidden data. Use the decoder panel on the north wall to translate them.</p>
-        <p>Once decoded, you will receive a <strong>five-letter password</strong> required to access the NEXUS terminal.</p>
-        <div class="status info">Tip: The truth filter glasses will reveal the correct binary.</div>
+        <p>The floating binary streams in this room contain hidden encryption. Use the decoder panel on the north wall to translate them.</p>
+        <p>Once decoded, you will receive a <strong>five-letter password</strong> required to access the terminal.</p>
+        <p>Return to this laptop to submit the password and gain access to your card.</p>
+        <div class="status info">Tip: DON'T TRUST IT! REVEAL THE TRUTH!</div>
       `
     );
     windowsLayer.appendChild(win);
