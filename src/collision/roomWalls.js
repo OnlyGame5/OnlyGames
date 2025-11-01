@@ -44,7 +44,7 @@ export const roomWallDefinitions = {
       // South Door (to Room 2) - Locked until Room 1 completed - Thinner collision box
       { position: new THREE.Vector3(0, 1.75, 6.5), size: new THREE.Vector3(3.0, 3.5, 0.2), type: 'door', id: 'south-door', dynamic: true },
       
-      // West Door (to Room 3) - Locked until Room 2 completed - Thinner collision box
+      // West Door (to Room 3) - Locked until Room 4 completed - Thinner collision box
       { position: new THREE.Vector3(-9, 1.75, 0), size: new THREE.Vector3(0.2, 3.5, 3.0), type: 'door', id: 'west-door', dynamic: true },
       
       // Main Door (RESTRICTED SECTOR) - Locked until key is found - Thinner collision box

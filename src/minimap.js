@@ -478,7 +478,7 @@ export class Minimap {
           this.ctx.shadowColor = isRoomAccessible ? '#00ff41' : '#ff0000';
           this.ctx.shadowBlur = 2;
           
-          // Special handling for room3 label based on room2 completion
+          // Special handling for room3 label based on room4 completion
           let displayName;
           if (roomName === 'room3') {
             displayName = this.getRoom3DisplayName();
@@ -685,12 +685,14 @@ export class Minimap {
                 gameStore.rooms.room1.puzzles.pageTakenFromSafe);
         
       case 'hubToRoom3':
-        // West hallway - accessible when room2 is completed
-        return gameStore.rooms.room2.isComplete;
+        // West hallway - accessible when room4 is completed
+        return gameStore.rooms.room4.isComplete;
         
       case 'hubToRoom4':
-        // North hallway - accessible when main door is unlocked (key used)
-        return gameStore.stage >= 1 || this.isMainDoorUnlocked();
+        // North hallway - accessible when room2 is completed OR main door is unlocked (key used)
+        return gameStore.rooms.room2.isComplete || 
+               gameStore.stage >= 1 || 
+               this.isMainDoorUnlocked();
         
       default:
         return false; // Unknown hallway, default to locked
@@ -723,12 +725,14 @@ export class Minimap {
                 gameStore.rooms.room1.puzzles.pageTakenFromSafe);
         
       case 'room3':
-        // Room 3 - accessible when room2 is completed
-        return gameStore.rooms.room2.isComplete;
+        // Room 3 (Server Room) - accessible when room4 is completed
+        return gameStore.rooms.room4.isComplete;
         
       case 'room4':
-        // Room 4 - accessible when main door is unlocked (key used)
-        return gameStore.stage >= 1 || this.isMainDoorUnlocked();
+        // Room 4 - accessible when room2 is completed OR main door is unlocked (key used)
+        return gameStore.rooms.room2.isComplete || 
+               gameStore.stage >= 1 || 
+               this.isMainDoorUnlocked();
         
       default:
         return false; // Unknown room, default to locked
@@ -746,7 +750,7 @@ export class Minimap {
     return false;
   }
   
-  // Helper method to get the display name for room3 based on room2 completion
+  // Helper method to get the display name for room3 based on room4 completion
   getRoom3DisplayName() {
     // Check if gameStore is available
     if (!window.gameStore) {
@@ -755,8 +759,8 @@ export class Minimap {
     
     const gameStore = window.gameStore;
     
-    // Show "SERVER ROOM" only when room2 is completed
-    if (gameStore.rooms.room2.isComplete) {
+    // Show "SERVER ROOM" only when room4 is completed
+    if (gameStore.rooms.room4.isComplete) {
       return 'SERVER ROOM';
     } else {
       return 'CLASSIFIED';

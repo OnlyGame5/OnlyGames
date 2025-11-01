@@ -8,12 +8,15 @@ import * as THREE from 'three';
 export class PerformanceSettings {
   constructor() {
     this.settings = {
-      quality: 'high', // Default to high quality
+      quality: 'high', // Default to high quality (was medium)
       pixelRatio: null,
       shadows: null,
       antialiasing: null,
       toneMapping: null
     };
+    
+    // Track if user has manually set quality (prevents auto-downgrade)
+    this.userManuallySetQuality = false;
     
     console.log('PerformanceSettings: Initial settings:', { ...this.settings });
     
@@ -23,7 +26,22 @@ export class PerformanceSettings {
     console.log('PerformanceSettings: After loading from localStorage:', { ...this.settings });
     
     // Force high quality if no valid quality is set or if it was auto/potato from old detection
-    const validQualities = ['low', 'medium', 'high', 'potato'];
+    const validQualities = ['medium', 'high', 'potato'];
+    // Migrate old quality names to new ones
+    const oldQuality = this.settings.quality;
+    if (oldQuality === 'low') {
+      this.settings.quality = 'medium'; // old 'low' -> new 'medium'
+      console.log(`Migrated quality from 'low' to 'medium'`);
+      this.saveSettings();
+    } else if (oldQuality === 'medium') {
+      this.settings.quality = 'high'; // old 'medium' -> new 'high'
+      console.log(`Migrated quality from 'medium' to 'high'`);
+      this.saveSettings();
+    } else if (oldQuality === 'high') {
+      this.settings.quality = 'high'; // old 'high' -> new 'high' (which uses old 'medium' settings)
+      console.log(`Migrated old 'high' quality to new 'high' (using previous medium settings)`);
+      this.saveSettings();
+    }
     if (!validQualities.includes(this.settings.quality) || this.settings.quality === 'auto') {
       console.log(`PerformanceSettings: Invalid quality "${this.settings.quality}", forcing to high`);
       this.settings.quality = 'high';
@@ -74,10 +92,9 @@ export class PerformanceSettings {
     
     console.log(`Hardware score: ${score} (cores: ${cores}, memory: ${memoryGB}GB, pixelRatio: ${devicePixelRatio})`);
     
-    // Determine quality level
-    if (score >= 8) return 'high';
-    if (score >= 6) return 'medium';
-    if (score >= 3) return 'low';
+    // Determine quality level (removed old 'high', now we have: high, medium, potato)
+    if (score >= 6) return 'high'; // Was medium, now high
+    if (score >= 3) return 'medium'; // Was low, now medium
     return 'potato'; // Ultra-low for very weak hardware
   }
   
@@ -87,7 +104,7 @@ export class PerformanceSettings {
   applyToRenderer(renderer) {
     const quality = this.settings.quality;
     const profiles = this.getQualityProfiles();
-    const profile = profiles[quality] || profiles.medium;
+    const profile = profiles[quality] || profiles.high; // Default to high (was medium)
     
     console.log(`Applying ${quality} quality profile:`, profile);
     
@@ -140,8 +157,8 @@ export class PerformanceSettings {
           simplifiedMaterials: true
         }
       },
-      low: {
-        name: 'Low Quality',
+      medium: {
+        name: 'Medium Quality',
         description: 'Basic settings for integrated graphics',
         pixelRatio: 0.75,
         shadows: {
@@ -159,8 +176,8 @@ export class PerformanceSettings {
           simplifiedMaterials: false
         }
       },
-      medium: {
-        name: 'Medium Quality',
+      high: {
+        name: 'High Quality',
         description: 'Balanced settings for most hardware',
         pixelRatio: Math.min(maxPixelRatio, 1.0),
         shadows: {
@@ -177,40 +194,34 @@ export class PerformanceSettings {
           reducedParticles: false,
           simplifiedMaterials: false
         }
-      },
-      high: {
-        name: 'High Quality',
-        description: 'Enhanced settings for powerful hardware',
-        pixelRatio: maxPixelRatio,
-        shadows: {
-          enabled: true,
-          type: THREE.PCFShadowMap
-        },
-        lighting: {
-          physicallyCorrect: true
-        },
-        toneMapping: THREE.ACESFilmicToneMapping,
-        exposure: 0.9,
-        optimizations: {
-          disableObjectSorting: false,
-          reducedParticles: false,
-          simplifiedMaterials: false
-        }
       }
     };
   }
   
   /**
    * Set quality level
+   * @param {string} quality - Quality level to set
+   * @param {boolean} isManual - Whether this is a manual user selection (default: true)
    */
-  setQuality(quality) {
+  setQuality(quality, isManual = true) {
     this.settings.quality = quality;
+    // Track if user manually set this quality level
+    if (isManual) {
+      this.userManuallySetQuality = true;
+    }
     this.saveSettings();
     
     // Dispatch event for UI updates
     window.dispatchEvent(new CustomEvent('performanceSettingsChanged', {
       detail: { quality, profile: this.getQualityProfiles()[quality] }
     }));
+  }
+  
+  /**
+   * Check if user has manually set quality (prevents auto-downgrade)
+   */
+  isManuallySet() {
+    return this.userManuallySetQuality;
   }
   
   /**
@@ -226,7 +237,7 @@ export class PerformanceSettings {
   getQualityInfo(quality = null) {
     const q = quality || this.settings.quality;
     const profiles = this.getQualityProfiles();
-    return profiles[q] || profiles.medium;
+    return profiles[q] || profiles.high; // Default to high (was medium)
   }
   
   /**
@@ -234,7 +245,11 @@ export class PerformanceSettings {
    */
   saveSettings() {
     try {
-      localStorage.setItem('performanceSettings', JSON.stringify(this.settings));
+      const toSave = {
+        ...this.settings,
+        userManuallySetQuality: this.userManuallySetQuality
+      };
+      localStorage.setItem('performanceSettings', JSON.stringify(toSave));
     } catch (e) {
       console.warn('Failed to save performance settings:', e);
     }
@@ -247,7 +262,10 @@ export class PerformanceSettings {
     try {
       const saved = localStorage.getItem('performanceSettings');
       if (saved) {
-        this.settings = { ...this.settings, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        this.settings = { ...this.settings, ...parsed };
+        // Restore manual setting flag
+        this.userManuallySetQuality = parsed.userManuallySetQuality || false;
       }
     } catch (e) {
       console.warn('Failed to load performance settings:', e);
@@ -259,6 +277,7 @@ export class PerformanceSettings {
    */
   resetToAuto() {
     this.settings.quality = this.detectOptimalQuality();
+    this.userManuallySetQuality = false; // Auto-detection is not manual
     this.saveSettings();
     
     window.dispatchEvent(new CustomEvent('performanceSettingsChanged', {
@@ -271,6 +290,7 @@ export class PerformanceSettings {
    */
   resetToHigh() {
     this.settings.quality = 'high';
+    this.userManuallySetQuality = true; // User is manually resetting to high
     this.saveSettings();
     
     window.dispatchEvent(new CustomEvent('performanceSettingsChanged', {
@@ -285,6 +305,7 @@ export class PerformanceSettings {
     try {
       localStorage.removeItem('performanceSettings');
       this.settings.quality = 'high';
+      this.userManuallySetQuality = false; // Clearing means no manual preference
       console.log('Performance settings cleared, defaulting to high quality');
     } catch (e) {
       console.warn('Failed to clear performance settings:', e);

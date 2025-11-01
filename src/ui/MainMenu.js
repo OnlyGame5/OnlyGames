@@ -632,9 +632,9 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
           cleanup();
           break;
         case 'apply':
-          // Apply the selected quality
-          performanceSettings.setQuality(selectedQuality);
-          console.log(`Performance quality set to: ${selectedQuality}`);
+          // Apply the selected quality (manual user selection)
+          performanceSettings.setQuality(selectedQuality, true); // true = manual user selection
+          console.log(`Performance quality set to: ${selectedQuality} (manual)`);
           
           // Dispatch event to notify main.js to update renderer
           window.dispatchEvent(new CustomEvent('performanceSettingsChanged', {
@@ -649,6 +649,7 @@ export function createMainMenu({ onStartGame, onSettings, onCredits, onExit }) {
           break;
         case 'auto-detect':
           const autoQuality = performanceSettings.detectOptimalQuality();
+          performanceSettings.setQuality(autoQuality, false); // false = auto-detected, not manual
           
           // Update UI to show auto-detected quality
           performanceOverlay.querySelectorAll('.quality-option').forEach(opt => {
