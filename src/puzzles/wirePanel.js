@@ -29,10 +29,12 @@ export function createWirePanel(opts = {}) {
   // Create shuffling animation function (global scope)
   function createShufflingAnimation() {
     const colors = [
-      { id: 'R', color: '#ff3b30', name: 'Red', label: 'A' },
-      { id: 'G', color: '#34c759', name: 'Green', label: 'B' },
-      { id: 'B', color: '#0a84ff', name: 'Blue', label: 'C' },
-      { id: 'Y', color: '#ffcc00', name: 'Yellow', label: 'D' }
+      { id: 'R', color: '#ff3b30', name: 'Red', label: 'R' },
+      { id: 'G', color: '#34c759', name: 'Green', label: 'G' },
+      { id: 'B', color: '#0a84ff', name: 'Blue', label: 'B' },
+      { id: 'Y', color: '#ffcc00', name: 'Yellow', label: 'Y' },
+      { id: 'P', color: '#af52de', name: 'Purple', label: 'P' },
+      { id: 'O', color: '#ff9500', name: 'Orange', label: 'O' }
     ];
     
     const animationDuration = 2000; // 2 seconds
@@ -94,8 +96,8 @@ export function createWirePanel(opts = {}) {
       border: 3px solid #4c535a;
       border-radius: 15px;
       padding: 30px;
-      width: 600px;
-      height: 400px;
+      width: 700px;
+      height: 450px;
       position: relative;
       box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
       cursor: default;
@@ -135,16 +137,18 @@ export function createWirePanel(opts = {}) {
       margin-bottom: 40px;
     `;
 
-    // Randomize the visual layout but keep the same logical order
+    // Define colors array - show directly without shuffling
     const colors = [
-      { id: 'R', color: '#ff3b30', name: 'Red', label: 'A' },
-      { id: 'G', color: '#34c759', name: 'Green', label: 'B' },
-      { id: 'B', color: '#0a84ff', name: 'Blue', label: 'C' },
-      { id: 'Y', color: '#ffcc00', name: 'Yellow', label: 'D' }
+      { id: 'R', color: '#ff3b30', name: 'Red', label: 'R' },
+      { id: 'G', color: '#34c759', name: 'Green', label: 'G' },
+      { id: 'B', color: '#0a84ff', name: 'Blue', label: 'B' },
+      { id: 'Y', color: '#ffcc00', name: 'Yellow', label: 'Y' },
+      { id: 'P', color: '#af52de', name: 'Purple', label: 'P' },
+      { id: 'O', color: '#ff9500', name: 'Orange', label: 'O' }
     ];
     
-    // Shuffle the visual order but keep track of the mapping
-    const shuffledColors = [...colors].sort(() => Math.random() - 0.5);
+    // Use colors in order (no shuffling for simplification)
+    const shuffledColors = [...colors];
 
     // Note: createShufflingAnimation function moved to global scope
 
@@ -173,11 +177,11 @@ export function createWirePanel(opts = {}) {
         position: relative;
         user-select: none;
       `;
-      socket.textContent = colorData.label; // Show abstract label initially
+      socket.textContent = colorData.label; // Show color letter directly (R, G, B, Y, P, O)
       
       // Add hover effect
       socket.addEventListener('mouseenter', () => {
-        if (!state.solved && !socket.classList.contains('used') && !state.timeoutActive) {
+        if (!state.solved && !socket.classList.contains('used')) {
           socket.style.transform = 'scale(1.1)';
           socket.style.boxShadow = '0 6px 12px rgba(0,0,0,0.5)';
         }
@@ -216,7 +220,7 @@ export function createWirePanel(opts = {}) {
       justify-content: space-around;
     `;
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 6; i++) {
       const socket = document.createElement('div');
       socket.className = 'bottom-socket';
       socket.dataset.index = i;
@@ -243,7 +247,7 @@ export function createWirePanel(opts = {}) {
       
       // Add hover effect
       socket.addEventListener('mouseenter', () => {
-        if (!state.solved && !socket.classList.contains('occupied') && !state.timeoutActive) {
+        if (!state.solved && !socket.classList.contains('occupied')) {
           socket.style.transform = 'scale(1.1)';
           socket.style.boxShadow = '0 6px 12px rgba(0,0,0,0.5)';
         }
@@ -341,13 +345,47 @@ export function createWirePanel(opts = {}) {
 
     // Prevent pointer lock when popup is open
     overlay.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+      // Don't prevent if clicking on a socket (let drag handler work)
+      if (!e.target.closest('.top-socket') && !e.target.closest('.bottom-socket')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     });
 
     overlay.addEventListener('mouseup', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+      // Handle drag cleanup if we're dragging
+      if (state.isDragging) {
+        // Find the target port under the mouse
+        const targetPort = document.elementFromPoint(e.clientX, e.clientY);
+        
+        // Check if dropping on a valid bottom socket
+        if (targetPort && targetPort.classList.contains('bottom-socket') && !targetPort.classList.contains('occupied')) {
+          const portIndex = parseInt(targetPort.dataset.index);
+          // Try to connect - cleanup will happen in handlePortConnection success or handleMistake
+          handlePortConnection(portIndex, targetPort);
+          
+          // Always clean up drag state after connection attempt
+          // (handleMistake calls resetPuzzle which cleans up, but we need to clean up here too for success case)
+          if (state.isDragging) {
+            cleanupDrag();
+          }
+        } else {
+          // Not dropping on a valid port - just cancel and clean up
+          console.log('Mouse up outside valid port, cancelling drag');
+          cleanupDrag();
+        }
+        
+        // Prevent event from propagating to document handler (which would also try to clean up)
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      
+      // Only prevent propagation if not dragging and not clicking on sockets
+      if (!e.target.closest('.top-socket') && !e.target.closest('.bottom-socket')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     });
 
     // Add keyboard accessibility
@@ -402,7 +440,7 @@ export function createWirePanel(opts = {}) {
 
   // Handle mouse down on source socket (start drag)
   function handleSocketMouseDown(e, colorData, socketElement) {
-    if (state.solved || state.timeoutActive || socketElement.classList.contains('used')) return;
+    if (state.solved || socketElement.classList.contains('used')) return;
     
     // Prevent multiple simultaneous drags
     if (state.isDragging) {
@@ -662,7 +700,7 @@ export function createWirePanel(opts = {}) {
     
     // Check if this port has a connection that can be rewired
     const existingConnection = state.input.find(conn => conn.port === portIndex);
-    if (existingConnection && !state.timeoutActive) {
+    if (existingConnection) {
       disconnectWire(portIndex, portElement);
     }
   }
@@ -694,26 +732,19 @@ export function createWirePanel(opts = {}) {
     console.log('Disconnected wire from port', portIndex);
   }
 
-  // Handle port connection (new logic)
+  // Handle port connection (simplified logic - no port sequence requirement)
   function handlePortConnection(portIndex, portElement) {
-    if (!state.holding || state.timeoutActive) return;
+    if (!state.holding) return;
     
     // Check if port is already occupied
     if (portElement.classList.contains('occupied')) return;
     
-    // Check if this is the correct slot in the sequence
-    const expectedSlotIndex = state.input.length;
-    if (portIndex !== expectedSlotIndex) {
-      // Wrong slot - handle mistake
-      handleMistake('Wrong port sequence! Expected port ' + expectedSlotIndex);
-      return;
-    }
-    
-    // Check if the color is correct for this position
+    // Simplified: Only check if the color is correct for the next position in sequence
+    // Players can connect to any port in any order
     const expectedColor = state.order[state.input.length];
     if (state.holding.color !== expectedColor) {
       // Wrong color for this position - handle mistake
-      handleMistake('Wrong color for this position! Expected: ' + expectedColor);
+      handleMistake('Wrong color! Expected: ' + expectedColor);
       return;
     }
     
@@ -776,58 +807,23 @@ export function createWirePanel(opts = {}) {
     console.log('Connected:', state.holding.color, 'to port', portIndex, 'Input:', state.input);
   }
 
-  // Handle mistakes (new logic)
+  // Handle mistakes (simplified - just reset on any mistake)
   function handleMistake(message) {
     console.log('Mistake:', message);
     
-    if (!state.firstMistakeMade) {
-      // First mistake - trigger timeout
-      state.firstMistakeMade = true;
-      state.timeoutActive = true;
-      state.timeoutRemaining = state.timeoutDuration;
-      
-      // Show timeout message
-      showTimeoutMessage();
-      
-      // Start timeout countdown
-      const timeoutInterval = setInterval(() => {
-        state.timeoutRemaining--;
-        updateTimeoutMessage();
-        
-        if (state.timeoutRemaining <= 0) {
-          clearInterval(timeoutInterval);
-          endTimeout();
-        }
-      }, 1000);
-      
-      // Red flash and reset
-      updateStatusStrip('#ff0000', 0.8);
-      resetSingleConnection();
-      
-      // Flash fault LED during timeout
-      setFaultLED(0.8, true);
-      
-      // Play timeout sound
-      playSound('timeout');
-      
-      // Trigger error haptic feedback
-      triggerHapticFeedback('error');
-      
-    } else {
-      // Subsequent mistakes - immediate reset
-      updateStatusStrip('#ff0000', 0.8);
-      resetSingleConnection();
-      
-      // Brief fault LED flash
-      setFaultLED(0.6);
-      setTimeout(() => setFaultLED(0.1), 500);
-      
-      // Play error sound
-      playSound('error');
-      
-      // Trigger error haptic feedback
-      triggerHapticFeedback('error');
-    }
+    // Simplified: Just reset the puzzle on any mistake
+    updateStatusStrip('#ff0000', 0.8);
+    resetPuzzle();
+    
+    // Brief fault LED flash
+    setFaultLED(0.6);
+    setTimeout(() => setFaultLED(0.1), 500);
+    
+    // Play error sound
+    playSound('error');
+    
+    // Trigger error haptic feedback
+    triggerHapticFeedback('error');
     
     if (window.AI) {
       window.AI.onWirePanelFailure();
@@ -985,7 +981,6 @@ export function createWirePanel(opts = {}) {
 
   // Keyboard Accessibility Functions
   function handleKeyboardInput(e) {
-    if (state.timeoutActive) return;
 
     switch(e.key) {
       case 'Escape':
@@ -993,13 +988,21 @@ export function createWirePanel(opts = {}) {
         break;
       case 'r':
       case 'R':
-        resetPuzzle();
+        // Reset puzzle (use Ctrl+R for reset, R alone selects Red wire)
+        if (e.ctrlKey || e.metaKey) {
+          resetPuzzle();
+        } else {
+          // Select wire R (Red)
+          selectWireByKeyboard('R');
+        }
         break;
       case '1':
       case '2':
       case '3':
       case '4':
-        // Connect to port (0-3)
+      case '5':
+      case '6':
+        // Connect to port (0-5)
         const portIndex = parseInt(e.key) - 1;
         const portElement = document.querySelector(`[data-index="${portIndex}"]`);
         if (portElement && !portElement.classList.contains('occupied')) {
@@ -1009,32 +1012,37 @@ export function createWirePanel(opts = {}) {
           }
         }
         break;
-      case 'a':
-      case 'A':
-        // Select wire A (Red)
-        selectWireByKeyboard('R');
+      case 'g':
+      case 'G':
+        // Select wire G (Green)
+        selectWireByKeyboard('G');
         break;
       case 'b':
       case 'B':
-        // Select wire B (Green)
-        selectWireByKeyboard('G');
-        break;
-      case 'c':
-      case 'C':
-        // Select wire C (Blue)
+        // Select wire B (Blue)
         selectWireByKeyboard('B');
         break;
-      case 'd':
-      case 'D':
-        // Select wire D (Yellow)
+      case 'y':
+      case 'Y':
+        // Select wire Y (Yellow)
         selectWireByKeyboard('Y');
+        break;
+      case 'p':
+      case 'P':
+        // Select wire P (Purple)
+        selectWireByKeyboard('P');
+        break;
+      case 'o':
+      case 'O':
+        // Select wire O (Orange)
+        selectWireByKeyboard('O');
         break;
     }
   }
 
   function selectWireByKeyboard(colorId) {
     const socket = document.querySelector(`[data-color="${colorId}"]`);
-    if (socket && !socket.classList.contains('used') && !state.timeoutActive) {
+    if (socket && !socket.classList.contains('used')) {
       // Simulate mouse down event
       const colorData = {
         id: colorId,
@@ -1065,8 +1073,15 @@ export function createWirePanel(opts = {}) {
   }
 
   function getValidDropZones() {
-    const expectedSlotIndex = state.input.length;
-    return [expectedSlotIndex]; // Only the next slot in sequence is valid
+    // Simplified: Allow any empty port to be connected to
+    const validPorts = [];
+    for (let i = 0; i < 6; i++) {
+      const portElement = document.querySelector(`[data-index="${i}"]`);
+      if (portElement && !portElement.classList.contains('occupied')) {
+        validPorts.push(i);
+      }
+    }
+    return validPorts;
   }
 
   function clearConnectionPreview() {
@@ -1099,7 +1114,9 @@ export function createWirePanel(opts = {}) {
       'R': '#ff3b30',
       'G': '#34c759', 
       'B': '#0a84ff',
-      'Y': '#ffcc00'
+      'Y': '#ffcc00',
+      'P': '#af52de',
+      'O': '#ff9500'
     };
     return colors[colorId] || '#6b6f74';
   }
@@ -1235,7 +1252,7 @@ export function createWirePanel(opts = {}) {
       socket.style.border = '3px solid #4c535a';
       socket.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
       socket.style.cursor = 'grab';
-      socket.textContent = socket.dataset.label; // Reset to abstract label
+      socket.textContent = socket.dataset.label; // Reset to color letter
     });
     
     document.querySelectorAll('.bottom-socket').forEach(socket => {
@@ -1282,14 +1299,7 @@ export function createWirePanel(opts = {}) {
       // Show cursor
       document.body.style.cursor = 'default';
       
-      // Start shuffling animation after a brief delay
-      setTimeout(() => {
-        try {
-          createShufflingAnimation();
-        } catch (error) {
-          console.error('Error in shuffling animation:', error);
-        }
-      }, 500);
+      // Shuffling animation removed for simplification
       
       // Turn on power LED dimly when panel opens
       setPowerLED(0.3);

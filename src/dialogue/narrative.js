@@ -40,8 +40,8 @@ export const NEXUS_DIALOGUE = {
     LIGHTS_ON: "Much better. Now you can see the circuit puzzle instructions clearly. The note contains valuable information for solving the wire panel.",
 
     WIRE_PANEL: {
-      INSTRUCTIONS: "Ah, the primary circuit board. Allow me to help. The protocol specifies the optimal connection order is Blue, then Green, then Yellow, then Red. This will maximize efficiency.",
-      FAILURE: "A mistake. Recalibrating. Try again. Follow my instructions precisely: Blue, Green, Yellow, Red.",
+      INSTRUCTIONS: "Ah, the primary circuit board. Allow me to help. The protocol specifies the optimal connection order is Blue, then Yellow, then Purple, then Orange, then Red, then Green. This sequence will maximize efficiency and minimize circuit resistance.",
+      FAILURE: "A mistake. Recalibrating. Try again. Follow my instructions precisely: Blue, Yellow, Purple, Orange, Red, Green. The protocol is clear on this matter.",
       SUCCESS: "Curious. My diagnostics must be in error. You've found a... more direct solution. Well done. Power has been restored to the final calibration platform."
     },
 

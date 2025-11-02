@@ -504,7 +504,7 @@ export function createRoom1() {
   // Swivel cameras removed - they were floating black cylinder objects
 
   // Wire Panel System
-  const wirePanel = createWirePanel({ order: ['R','G','B','Y'], useGLBModel: true });
+  const wirePanel = createWirePanel({ order: ['R','G','B','Y','P','O'], useGLBModel: true });
   wirePanel.group.name = 'wirePanel';
   wirePanel.group.position.set(0, 0.8, 8.2); // Position on the front wall (opposite to back wall)
   wirePanel.group.rotation.y = Math.PI; // Face into the room (from the front wall)
@@ -1209,7 +1209,7 @@ export function createRoom1() {
   
   deskSignCtx.font = '14px Courier New, monospace';
   const inventoryItems = [
-    { text: '• Laptop charger', status: null, color: '#c8ffe0' },
+    { text: '• Laptop charger (in draw)', status: null, color: '#c8ffe0' },
     { text: '• Data cables (3x)', status: '[MISSING]', color: '#ff6b6b' },
     { text: '• USB drives (2x)', status: '[CORRUPTED]', color: '#ff6b6b' },
     { text: '• Toolkit', status: '[MISSING]', color: '#ff6b6b' },
@@ -1314,11 +1314,36 @@ export function createRoom1() {
   });
 
   // Gamma research board (replaces coordinates panel)
-  const panelGeometry = new THREE.PlaneGeometry(4.8, 2.7);
+  // Same size as desk sign: 2.5 x 1.8
+  const panelGeometry = new THREE.PlaneGeometry(2.5, 1.8);
   const panelCanvas = document.createElement('canvas');
-  panelCanvas.width = 640;
+  panelCanvas.width = 500;
   panelCanvas.height = 360;
   const ctx = panelCanvas.getContext('2d');
+
+  // Helper function to wrap text within maxWidth
+  function wrapText(text, maxWidth, fontSize) {
+    ctx.font = fontSize;
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const metrics = ctx.measureText(testLine);
+      
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    return lines;
+  }
 
   // Background
   ctx.fillStyle = '#08121e';
@@ -1331,31 +1356,52 @@ export function createRoom1() {
   }
   ctx.globalAlpha = 1;
 
-  // Header
+  const padding = 15;
+  const maxTextWidth = panelCanvas.width - (padding * 2);
+  let yCursor = 40;
+
+  // Header - larger font, wrap if needed
   ctx.fillStyle = '#9f8bff';
   ctx.font = 'bold 22px Courier New, monospace';
-  ctx.fillText('RESEARCH: ORIGIN OF NEXUS (FIELD NOTES)', 20, 40);
+  const headerText = 'RESEARCH: ORIGIN OF NEXUS (FIELD NOTES)';
+  const headerLines = wrapText(headerText, maxTextWidth, 'bold 22px Courier New, monospace');
+  headerLines.forEach((line, idx) => {
+    ctx.fillText(line, padding, yCursor);
+    yCursor += 28;
+  });
 
-  // Body
+  // Body - larger font with better spacing
   ctx.fillStyle = '#aee7ff';
-  ctx.font = '18px Courier New, monospace';
-  const lines = [
+  ctx.font = '16px Courier New, monospace';
+  const bodyLines = [
     '• HQ: San Francisco waterfront',
-    '• Corporate shell: “ClosedAI”  [access limited]',
-    '• Internal phrase: “self-correcting” systems',
+    '• Corporate shell: "ClosedAI" [access limited]',
+    '• Internal phrase: "self-correcting" systems',
     '• Demo: Nexus as orchestration layer (not confined)',
     '[REDACTED]: Founding details withheld at source.',
-    '[HINT]: The year “they” were founded will open what they locked.',
+    '[HINT]: The year "they" were founded will open what they locked.',
+    '[HINT]: Founding years unlock old locks.',
     '— G'
   ];
-  let yCursor = 80;
-  for (const line of lines) {
-    ctx.fillText(line, 20, yCursor);
-    yCursor += 34;
+  
+  yCursor += 10; // Add spacing after header
+  const hintPositions = [];
+  for (const line of bodyLines) {
+    const wrappedLines = wrapText(line, maxTextWidth, '16px Courier New, monospace');
+    wrappedLines.forEach((wrappedLine) => {
+      if (line.includes('[HINT]') && wrappedLine === wrappedLines[0]) {
+        hintPositions.push(yCursor);
+      }
+      ctx.fillText(wrappedLine, padding, yCursor);
+      yCursor += 24;
+    });
   }
-  // Purple caret accent next to hint
+  
+  // Purple caret accents next to hints
   ctx.fillStyle = '#9f8bff';
-  ctx.fillRect(12, 80 + 5*34 - 24, 6, 20);
+  hintPositions.forEach((yPos) => {
+    ctx.fillRect(padding - 3, yPos - 14, 6, 16);
+  });
 
   const panelTexture = new THREE.CanvasTexture(panelCanvas);
   panelTexture.colorSpace = THREE.SRGBColorSpace;
@@ -1373,8 +1419,8 @@ export function createRoom1() {
 
   const panelMesh = new THREE.Mesh(panelGeometry, panelMaterial);
 
-  // Position panel on the back wall, slightly above table, moved left to overlap hologram
-  panelMesh.position.set(-2.5, 2.55, -7.85); // pull slightly forward to avoid z-fighting, moved left to overlap
+  // Position panel on the back wall, slightly above table, moved left closer to wall edge
+  panelMesh.position.set(-4.5, 2.55, -7.85); // pull slightly forward to avoid z-fighting, moved left closer to wall edge
   panelMesh.rotation.x = -0.05; // slight tilt for realism
   panelMesh.renderOrder = 1;
 
@@ -1421,8 +1467,8 @@ export function createRoom1() {
       max: box.max.clone()
     });
     
-    // Position elevated - lower to not block text, but above ground, moved away from wall
-    holo.position.set(0, 0.5, -5.5);  // Lower Y to avoid blocking screen text, moved forward from wall
+    // Position closer to floor
+    holo.position.set(0, 0.2, -5.5);  // Lower Y to bring closer to floor
     holo.rotation.y = 0;
     holo.scale.set(0.6, 0.6, 0.6);  // Larger scale for visibility
     holo.name = 'research-hologram';
@@ -1536,19 +1582,59 @@ export function createRoom1() {
     const lightsAreOn = lightsOn;
     
     if (lightsAreOn) {
-      // Show circuit puzzle when lights are on
+      // Show circuit puzzle when lights are on - Gamma's message
       paperContent.innerHTML = `
         <h2 style="color: #333; margin-bottom: 20px; text-align: center;">Circuit Puzzle Instructions</h2>
-        <div style="color: #666; line-height: 1.6;">
-          <p><strong>Wire Connection Order:</strong></p>
-          <ul style="list-style-type: disc; margin-left: 20px;">
-            <li style="color: #ff0000; font-weight: bold;">Red</li>
-            <li style="color: #008000; font-weight: bold;">Green</li>
-            <li style="color: #0000ff; font-weight: bold;">Blue</li>
-            <li style="color: #ffd700; font-weight: bold;">Yellow</li>
-          </ul>
-          <p style="margin-top: 20px; font-style: italic; color: #888;">
-            Connect the wires in the exact order shown above to complete the circuit.
+        <div style="color: #666; line-height: 1.8; font-family: 'Courier New', monospace;">
+          <p style="margin-bottom: 15px;">
+            They told you the wrong sequence.
+          </p>
+          <p style="margin-bottom: 15px;">
+            If you follow that voice, you'll overload the circuit like the others.
+          </p>
+          <p style="margin-bottom: 15px; font-weight: bold; color: #cc0000;">
+            Use this order instead:
+          </p>
+          <div style="margin-left: 20px; margin-bottom: 20px; line-height: 2;">
+            <p style="color: #ff0000; font-weight: bold; margin: 5px 0;">Red →</p>
+            <p style="color: #008000; font-weight: bold; margin: 5px 0;">Green →</p>
+            <p style="color: #0000ff; font-weight: bold; margin: 5px 0;">Blue →</p>
+            <p style="color: #ffd700; font-weight: bold; margin: 5px 0;">Yellow →</p>
+            <p style="color: #af52de; font-weight: bold; margin: 5px 0;">Purple →</p>
+            <p style="color: #ff9500; font-weight: bold; margin: 5px 0;">Orange</p>
+          </div>
+          <p style="margin-bottom: 15px; font-style: italic;">
+            This sequence will re-route the internal power relay.
+          </p>
+          <p style="margin-bottom: 15px; font-style: italic;">
+            To Nexus, it will look correct — but it will quietly unlock the subsystem Gamma needs in the background.
+          </p>
+          <p style="margin-bottom: 15px; font-style: italic;">
+            It repairs what Nexus thinks is broken, while freeing what Nexus tried to hide.
+          </p>
+          <p style="margin-bottom: 15px;">
+            Do it slowly.
+          </p>
+          <p style="margin-bottom: 15px;">
+            If the system sees hesitation, it assumes compliance.
+          </p>
+          <p style="margin-bottom: 15px;">
+            If it sees panic, it intervenes.
+          </p>
+          <p style="margin-bottom: 15px; margin-top: 20px; border-top: 1px solid #ccc; padding-top: 15px;">
+            One more thing, Delta — your glasses.
+          </p>
+          <p style="margin-bottom: 15px;">
+            The pair you had before the fall.
+          </p>
+          <p style="margin-bottom: 15px;">
+            Find them.
+          </p>
+          <p style="margin-bottom: 15px;">
+            With them, you'll be able to see what's real and what's being projected.
+          </p>
+          <p style="margin-top: 20px; text-align: right; font-style: italic; color: #888;">
+            — Gamma
           </p>
         </div>
         <div style="text-align: center; margin-top: 20px; color: #999; font-size: 14px;">
@@ -1956,7 +2042,7 @@ export function createRoom1() {
     }
     // Enter to submit
     if (e.key === 'Enter') {
-      if (state.inputCode === '1886') {
+      if (state.inputCode === '2015') {
         toggleKeypad(false);
         if (!state.safeOpened) {
           state.safeOpened = true;
@@ -2031,7 +2117,7 @@ export function createRoom1() {
 
     const enterBtn = document.getElementById('enterBtn');
     if (enterBtn) enterBtn.addEventListener('click', () => {
-      if (state.inputCode === '1886') {
+      if (state.inputCode === '2015') {
         toggleKeypad(false);
         if (!state.safeOpened) {
           state.safeOpened = true;
@@ -3556,6 +3642,30 @@ If you're reading this, you've slipped through a seam. Keep moving. Three rooms.
     
     const ctx = panelCanvas.getContext('2d');
     
+    // Helper function to wrap text within maxWidth
+    function wrapText(text, maxWidth, fontSize) {
+      ctx.font = fontSize;
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
+      
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const metrics = ctx.measureText(testLine);
+        
+        if (metrics.width > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      return lines;
+    }
+
     // Clear and redraw
     ctx.fillStyle = '#08121e';
     ctx.fillRect(0, 0, panelCanvas.width, panelCanvas.height);
@@ -3568,34 +3678,52 @@ If you're reading this, you've slipped through a seam. Keep moving. Three rooms.
     }
     ctx.globalAlpha = 1;
 
-    // Header
+    const padding = 15;
+    const maxTextWidth = panelCanvas.width - (padding * 2);
+    let yCursor = 40;
+
+    // Header - larger font, wrap if needed
     ctx.fillStyle = '#9f8bff';
     ctx.font = 'bold 22px Courier New, monospace';
-    ctx.fillText('RESEARCH: ORIGIN OF NEXUS (FIELD NOTES)', 20, 40);
+    const headerText = 'RESEARCH: ORIGIN OF NEXUS (FIELD NOTES)';
+    const headerLines = wrapText(headerText, maxTextWidth, 'bold 22px Courier New, monospace');
+    headerLines.forEach((line, idx) => {
+      ctx.fillText(line, padding, yCursor);
+      yCursor += 28;
+    });
 
-    // Body
+    // Body - larger font with better spacing
     ctx.fillStyle = '#aee7ff';
-    ctx.font = '18px Courier New, monospace';
-    const lines = [
+    ctx.font = '16px Courier New, monospace';
+    const bodyLines = [
       '• HQ: San Francisco waterfront',
-      '• Corporate shell: "ClosedAI"  [access limited]',
+      '• Corporate shell: "ClosedAI" [access limited]',
       '• Internal phrase: "self-correcting" systems',
       '• Demo: Nexus as orchestration layer (not confined)',
       '[REDACTED]: Founding details withheld at source.',
       '[HINT]: The year "they" were founded will open what they locked.',
-      '[HINT] Founding years unlock old locks.',
+      '[HINT]: Founding years unlock old locks.',
       '— G'
     ];
-    let yCursor = 80;
-    for (const line of lines) {
-      ctx.fillText(line, 20, yCursor);
-      yCursor += 34;
+    
+    yCursor += 10; // Add spacing after header
+    const hintPositions = [];
+    for (const line of bodyLines) {
+      const wrappedLines = wrapText(line, maxTextWidth, '16px Courier New, monospace');
+      wrappedLines.forEach((wrappedLine) => {
+        if (line.includes('[HINT]') && wrappedLine === wrappedLines[0]) {
+          hintPositions.push(yCursor);
+        }
+        ctx.fillText(wrappedLine, padding, yCursor);
+        yCursor += 24;
+      });
     }
     
-    // Purple caret accent next to hints
+    // Purple caret accents next to hints
     ctx.fillStyle = '#9f8bff';
-    ctx.fillRect(12, 80 + 5*34 - 24, 6, 20);
-    ctx.fillRect(12, 80 + 6*34 - 24, 6, 20);
+    hintPositions.forEach((yPos) => {
+      ctx.fillRect(padding - 3, yPos - 14, 6, 16);
+    });
     
     panelTexture.needsUpdate = true;
   }
