@@ -416,6 +416,14 @@ function buildMenu() {
       <div class="menu-section">
         <h3>Settings</h3>
         <div class="settings-row">
+          <label>Performance Quality:</label>
+          <select id="performance-quality-select">
+            <option value="high">High Quality (With Shadows)</option>
+            <option value="medium">Medium Quality</option>
+            <option value="potato">Potato Mode</option>
+          </select>
+        </div>
+        <div class="settings-row">
           <label>Mouse Sensitivity:</label>
           <input type="range" id="sensitivity-slider" min="0.3" max="2.0" step="0.1" />
           <span class="value-display" id="sensitivity-value">1.0</span>
@@ -424,6 +432,23 @@ function buildMenu() {
           <label>Master Volume:</label>
           <input type="range" id="master-volume-slider" min="0" max="1" step="0.01" />
           <span class="value-display" id="master-volume-value">100%</span>
+        </div>
+        <div class="menu-section shadow-section" id="shadow-section">
+          <h4>Shadow Settings (High Quality Only)</h4>
+          <div class="settings-row">
+            <label>Shadow Quality:</label>
+            <select id="shadow-quality-select">
+              <option value="low">Low (512px)</option>
+              <option value="medium">Medium (1024px)</option>
+              <option value="high">High (2048px)</option>
+              <option value="ultra">Ultra (4096px)</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label>Shadow Intensity:</label>
+            <input type="range" id="shadow-intensity-slider" min="0.1" max="3.0" step="0.1" value="1.2" />
+            <span class="value-display" id="shadow-intensity-value">1.2</span>
+          </div>
         </div>
       </div>
       
@@ -545,6 +570,60 @@ function bindEvents() {
       }
     });
   }
+
+  // Performance quality selector
+  const performanceQualitySelect = document.getElementById('performance-quality-select');
+  if (performanceQualitySelect) {
+    performanceQualitySelect.addEventListener('change', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      document.body.style.cursor = 'default !important';
+      document.documentElement.style.cursor = 'default !important';
+      const quality = e.target.value;
+      if (window.performanceSettings) {
+        window.performanceSettings.setQuality(quality, true);
+        // Apply to renderer immediately
+        if (window.renderer) {
+          window.performanceSettings.applyToRenderer(window.renderer);
+        }
+        updateShadowSectionVisibility(quality);
+      }
+    });
+  }
+
+  // Shadow quality selector
+  const shadowQualitySelect = document.getElementById('shadow-quality-select');
+  if (shadowQualitySelect) {
+    shadowQualitySelect.addEventListener('change', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      document.body.style.cursor = 'default !important';
+      document.documentElement.style.cursor = 'default !important';
+      const quality = e.target.value;
+      if (window.shadowSystem) {
+        window.shadowSystem.setShadowQuality(quality);
+      }
+    });
+  }
+
+  // Shadow intensity slider
+  const shadowIntensitySlider = document.getElementById('shadow-intensity-slider');
+  const shadowIntensityValue = document.getElementById('shadow-intensity-value');
+  if (shadowIntensitySlider && shadowIntensityValue) {
+    shadowIntensitySlider.addEventListener('input', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      document.body.style.cursor = 'default !important';
+      document.documentElement.style.cursor = 'default !important';
+      const intensity = parseFloat(e.target.value);
+      shadowIntensityValue.textContent = intensity.toFixed(1);
+      
+      // Update main light intensity
+      if (window.shadowSystem && window.shadowSystem.mainLight) {
+        window.shadowSystem.mainLight.intensity = intensity;
+      }
+    });
+  }
   
   // Subscribe to binding changes
   Input.onBindingsChanged(() => {
@@ -588,6 +667,11 @@ function refreshSettings() {
   const sensitivityValue = document.getElementById('sensitivity-value');
   const masterVolumeSlider = document.getElementById('master-volume-slider');
   const masterVolumeValue = document.getElementById('master-volume-value');
+  const performanceQualitySelect = document.getElementById('performance-quality-select');
+  const shadowQualitySelect = document.getElementById('shadow-quality-select');
+  const shadowIntensitySlider = document.getElementById('shadow-intensity-slider');
+  const shadowIntensityValue = document.getElementById('shadow-intensity-value');
+  
   if (sensitivitySlider && sensitivityValue) {
     sensitivitySlider.value = settings.sensitivity;
     sensitivityValue.textContent = settings.sensitivity.toFixed(1);
@@ -597,6 +681,37 @@ function refreshSettings() {
       ? window.AudioBus.getMasterVolume() : 1.0;
     masterVolumeSlider.value = mv;
     masterVolumeValue.textContent = `${Math.round(mv * 100)}%`;
+  }
+  
+  // Performance settings
+  if (performanceQualitySelect && window.performanceSettings) {
+    const currentQuality = window.performanceSettings.getQuality();
+    performanceQualitySelect.value = currentQuality;
+    updateShadowSectionVisibility(currentQuality);
+  }
+  
+  // Shadow settings
+  if (shadowQualitySelect) {
+    shadowQualitySelect.value = 'medium'; // Default shadow quality
+  }
+  if (shadowIntensitySlider && shadowIntensityValue) {
+    const intensity = window.shadowSystem?.mainLight?.intensity || 1.2;
+    shadowIntensitySlider.value = intensity;
+    shadowIntensityValue.textContent = intensity.toFixed(1);
+  }
+}
+
+// Update shadow section visibility based on performance quality
+function updateShadowSectionVisibility(quality) {
+  const shadowSection = document.getElementById('shadow-section');
+  if (shadowSection) {
+    if (quality === 'high') {
+      shadowSection.style.display = 'block';
+      shadowSection.style.opacity = '1';
+    } else {
+      shadowSection.style.display = 'none';
+      shadowSection.style.opacity = '0.5';
+    }
   }
 }
 

@@ -10,10 +10,10 @@ export class SecurityMonitor {
     this.isActive = false;
     this.currentRoom = 1; // Start with Room 1
     this.frameCount = 0;
-    this.updateInterval = 4; // Update every 4th frame (~15fps)
+    this.updateInterval = 8; // Update every 8th frame (~7.5fps) for better performance
     
     // Render target for monitor screen
-    this.renderTarget = new THREE.WebGLRenderTarget(512, 384);
+    this.renderTarget = new THREE.WebGLRenderTarget(256, 192); // Reduced resolution for massive performance gain
     this.renderTarget.samples = 0; // Disable MSAA for performance
     
     // Security cameras for each room
@@ -38,22 +38,22 @@ export class SecurityMonitor {
     // Create fixed security cameras for each room - positioned INSIDE each room
     this.securityCameras = {
       1: { // East Sector - Room at (29, 0, 0)
-        camera: new THREE.PerspectiveCamera(70, 512/384, 0.1, 1000),
+        camera: new THREE.PerspectiveCamera(70, 256/192, 0.1, 100), // Reduced far plane for performance
         position: new THREE.Vector3(25, 3, 0), // Inside Room 1, lower and offset
         lookAt: new THREE.Vector3(35, 1, 0)    // Look toward the back of the room
       },
       2: { // South Sector - Room at (0, 0, 23.5)
-        camera: new THREE.PerspectiveCamera(70, 512/384, 0.1, 1000),
+        camera: new THREE.PerspectiveCamera(70, 256/192, 0.1, 100), // Reduced far plane for performance
         position: new THREE.Vector3(0, 3, 20), // Inside Room 2, lower and offset
         lookAt: new THREE.Vector3(0, 1, 27)    // Look toward the back of the room
       },
       3: { // West Sector - Room at (-30, 0, 0) (classified - will show static)
-        camera: new THREE.PerspectiveCamera(70, 512/384, 0.1, 1000),
+        camera: new THREE.PerspectiveCamera(70, 256/192, 0.1, 100), // Reduced far plane for performance
         position: new THREE.Vector3(-25, 3, 0), // Inside Room 3, lower and offset
         lookAt: new THREE.Vector3(-35, 1, 0)    // Look toward the back of the room
       },
       4: { // North Sector - Room at (0, 0, -26.5)
-        camera: new THREE.PerspectiveCamera(65, 512/384, 0.1, 1000),
+        camera: new THREE.PerspectiveCamera(65, 256/192, 0.1, 100), // Reduced far plane for performance
         position: new THREE.Vector3(0, 3.8, -18.5), // Near the hallway entrance looking into the room
         lookAt: new THREE.Vector3(0, 1.5, -26.5)  // Focus toward the back of the room
       }
@@ -71,8 +71,8 @@ export class SecurityMonitor {
   createMonitorScreen() {
     // Create a canvas for the monitor screen
     this.screenCanvas = document.createElement('canvas');
-    this.screenCanvas.width = 512;
-    this.screenCanvas.height = 384;
+    this.screenCanvas.width = 256;
+    this.screenCanvas.height = 192;
     
     // Create a texture for the monitor screen
     this.screenTexture = new THREE.CanvasTexture(this.screenCanvas);
@@ -121,8 +121,8 @@ export class SecurityMonitor {
   createStaticTexture() {
     // Create static noise texture for classified room
     this.staticCanvas = document.createElement('canvas');
-    this.staticCanvas.width = 512;
-    this.staticCanvas.height = 384;
+    this.staticCanvas.width = 256;
+    this.staticCanvas.height = 192;
     
     this.staticTexture = new THREE.CanvasTexture(this.staticCanvas);
     this.updateStaticTexture(); // Generate initial static
@@ -254,7 +254,7 @@ export class SecurityMonitor {
     const cam = camData.camera;
     cam.position.copy(camData.position);
     cam.lookAt(camData.lookAt);
-    cam.aspect = 512 / 384;
+    cam.aspect = 256 / 192;
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld(true);
     
@@ -283,7 +283,7 @@ export class SecurityMonitor {
   updateStaticTexture() {
     const ctx = this.staticCanvas.getContext('2d');
     
-    const imageData = ctx.createImageData(512, 384);
+    const imageData = ctx.createImageData(256, 192);
     const data = imageData.data;
     
     for (let i = 0; i < data.length; i += 4) {

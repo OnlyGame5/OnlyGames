@@ -1193,52 +1193,11 @@ export function ensureDroppedItemsInScene() {
       console.log('Re-attached dropped items group to scene');
     }
     
-    // Force dropped items to be visible (especially in Room 1)
-    if (droppedItems.length > 0) {
-      droppedItems.forEach((item) => {
-        if (item.mesh) {
-          // Force the main mesh to be visible
-          item.mesh.visible = true;
-          
-          // Force all child meshes to be visible
-          if (item.mesh.traverse) {
-            item.mesh.traverse((child) => {
-              if (child.isMesh) {
-                child.visible = true;
-                if (child.material) {
-                  child.material.visible = true;
-                  // Ensure emissive intensity is maintained
-                  if (child.material.emissiveIntensity !== undefined) {
-                    child.material.emissiveIntensity = Math.max(0.3, child.material.emissiveIntensity);
-                  }
-                }
-              }
-            });
-          }
-        }
-      });
-    }
-    
     // Debug: Log dropped items status (only once per second to avoid spam)
     if (droppedItems.length > 0 && Math.random() < 0.01) { // 1% chance per frame
       console.log(`Dropped items status: ${droppedItems.length} items in group, ${droppedItemsGroup.children.length} children in scene`);
       console.log('Scene children count:', window.scene.children.length);
       console.log('Dropped items group in scene:', window.scene.children.includes(droppedItemsGroup));
-      droppedItems.forEach((item, index) => {
-        console.log(`Dropped item ${index}: ${item.item.name} at position:`, item.mesh.position);
-        console.log(`Item visible: ${item.mesh.visible}, parent: ${item.mesh.parent ? item.mesh.parent.name : 'none'}`);
-        console.log(`Item world position:`, item.mesh.getWorldPosition(new THREE.Vector3()));
-        
-        // Check if the item is affected by Room 1's lighting
-        if (item.mesh.traverse) {
-          item.mesh.traverse((child) => {
-            if (child.isMesh && child.material) {
-              console.log(`Child material emissive:`, child.material.emissive);
-              console.log(`Child material emissiveIntensity:`, child.material.emissiveIntensity);
-            }
-          });
-        }
-      });
     }
   }
 }
@@ -1378,6 +1337,18 @@ function createDroppedItemMesh(item, player) {
       // Prefer the GLB model if available
       if (globalModelRegistry['key_card']) {
         const cardModel = globalModelRegistry['key_card'].clone();
+        
+        // Scale the card to match inventory size (same as when held)
+        try {
+          const box = new THREE.Box3().setFromObject(cardModel);
+          const size = new THREE.Vector3();
+          box.getSize(size);
+          const currentMax = Math.max(size.x, size.y, size.z) || 1;
+          const targetMax = 0.18;
+          const s = targetMax / currentMax;
+          cardModel.scale.multiplyScalar(s);
+        } catch {}
+        
         cardModel.position.copy(dropPosition);
         // Lay it flat on the floor
         cardModel.rotation.x = -Math.PI / 2;
