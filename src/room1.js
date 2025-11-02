@@ -37,7 +37,8 @@ export function createRoom1() {
     gammaMessageShown: false, // Track if Gamma's first message has been shown
     tableDrawer: null, // Drawer animation state: { mixer, actions, topOpened, bottomOpened, topDrawerObj, bottomDrawerObj }
     registryModalOpen: false, // Track if Global AI Registry modal is open
-    closedAiViewed: false // Track if player has viewed ClosedAI details (for hint)
+    closedAiViewed: false, // Track if player has viewed ClosedAI details (for hint)
+    drawerIndicators: [] // Array to store interaction indicator sprites
   };
 
   // Global AI Registry data is imported from ./data/aiOrgs.js
@@ -732,6 +733,72 @@ export function createRoom1() {
     }
     // Update desk drawer animations
     if (state.drawerManager) state.drawerManager.update(dt);
+    
+      // Update drawer interaction indicators (sprites automatically face camera)
+      if (state.drawerIndicators && state.drawerIndicators.length > 0) {
+        const cam = window.camera;
+        const player = window.playerObject;
+        
+        if (!cam || !player || !state.drawerManager) {
+          state.drawerIndicators.forEach(sprite => {
+            if (sprite.material) sprite.material.opacity = 0;
+          });
+          return;
+        }
+        
+        const playerPos = new THREE.Vector3();
+        if (player.getWorldPosition) {
+          player.getWorldPosition(playerPos);
+        } else {
+          playerPos.copy(player.position);
+        }
+        
+        const drawerWorld = new THREE.Vector3();
+        
+        for (const sprite of state.drawerIndicators) {
+          const { drawerObj, drawerName, yOffset } = sprite.userData;
+          
+          if (!drawerObj) continue;
+          
+          // Update position (sprites automatically face camera, no manual rotation needed)
+          drawerObj.getWorldPosition(drawerWorld);
+          sprite.position.copy(drawerWorld);
+          sprite.position.y += yOffset;
+          
+          // Distance-based visibility
+          const dist = playerPos.distanceTo(drawerWorld);
+          const showStart = 3.5; // Start fading in at this distance
+          const fadeEnd = 2.2;   // Fully visible at this distance
+          
+          let target = 0.0;
+          if (!state.drawerManager.getOpenState(drawerName)) {
+            if (dist <= fadeEnd) {
+              target = 1.0; // Fully visible
+            } else if (dist < showStart) {
+              target = (showStart - dist) / (showStart - fadeEnd); // Fade in
+            }
+          }
+          
+          // Smooth baseOpacity interpolation
+          sprite.userData.baseOpacity = THREE.MathUtils.lerp(
+            sprite.userData.baseOpacity,
+            target,
+            Math.min(1, dt * 8)
+          );
+          
+          // Pulse animation (scale pulse for breathing effect)
+          sprite.userData.pulseTime += dt * 3.0;
+          const pulseScale = 1.0 + Math.sin(sprite.userData.pulseTime) * 0.25; // 0.75-1.25
+          sprite.scale.setScalar(pulseScale * sprite.userData.baseScale);
+          
+          // Opacity pulse (subtle shimmer)
+          const pulseOpacity = 0.85 + Math.sin(sprite.userData.pulseTime * 1.5) * 0.15; // 0.7-1.0
+          sprite.material.opacity = sprite.userData.baseOpacity * pulseOpacity;
+          
+          // Visibility toggle for performance
+          sprite.visible = sprite.material.opacity > 0.02;
+        }
+      }
   }
   
   // Optimized light flicker effect (reduced frequency for performance)
@@ -985,6 +1052,105 @@ export function createRoom1() {
         if (prevAnimate) prevAnimate(dt);
         if (state.drawerManager) state.drawerManager.update(dt);
       };
+      
+      // Create interaction indicators for drawers using THREE.Sprite
+      // Sprites automatically face the camera and support sizeAttenuation for consistent screen size
+      const createDrawerIndicator = (drawerObj, drawerName) => {
+        if (!drawerObj) {
+          console.warn('[DrawerIndicator] Drawer object not found for:', drawerName);
+          return null;
+        }
+        
+        // Generate circle texture programmatically (white ring on transparent background)
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 128; // Higher resolution for crisp rendering
+        const ctx = canvas.getContext('2d');
+        
+        // Draw white ring (outline circle)
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.arc(64, 64, 52, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Optional: Add subtle glow
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 12;
+        ctx.stroke();
+        
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        
+        // Create sprite material with sizeAttenuation: false for consistent screen size
+        const spriteMaterial = new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          opacity: 0,
+          depthTest: false,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          toneMapped: false
+        });
+        
+        // Create sprite (automatically faces camera)
+        const sprite = new THREE.Sprite(spriteMaterial);
+        
+        // Screen-space size (consistent regardless of distance)
+        // Adjust multiplier (0.06) to make it bigger/smaller on screen
+        sprite.scale.set(0.06, 0.06, 1);
+        
+        // Size attenuation disabled = consistent screen size at all distances
+        sprite.material.sizeAttenuation = false;
+        
+        sprite.renderOrder = 9999;
+        
+        // Check if desk has scaling (for position offset calculation)
+        const deskRoot = drawerObj.parent;
+        let deskScale = 1.0;
+        if (deskRoot) {
+          const worldScale = new THREE.Vector3();
+          deskRoot.getWorldScale(worldScale);
+          deskScale = worldScale.x;
+        }
+        
+        sprite.userData = {
+          drawerObj,
+          drawerName,
+          yOffset: 0.35 / Math.max(deskScale, 0.1), // Adjust for desk scale
+          pulseTime: Math.random() * Math.PI * 2,
+          baseOpacity: 0.0,
+          baseScale: 0.06 // Store base scale for pulsing
+        };
+        
+        // Position indicator
+        const wp = new THREE.Vector3();
+        drawerObj.getWorldPosition(wp);
+        sprite.position.copy(wp);
+        sprite.position.y += sprite.userData.yOffset;
+        
+        // Add to room group (NOT desk, so no scaling issues)
+        group.add(sprite);
+        
+        return sprite;
+      };
+      
+      // Create indicators for both drawers
+      if (topNode) {
+        const topIndicator = createDrawerIndicator(topNode, 'top-draw');
+        if (topIndicator) {
+          state.drawerIndicators.push(topIndicator);
+        }
+      }
+      
+      if (bottomNode) {
+        const bottomIndicator = createDrawerIndicator(bottomNode, 'bottom-draw');
+        if (bottomIndicator) {
+          state.drawerIndicators.push(bottomIndicator);
+        }
+      }
     } else {
       console.warn('[DEBUG] No animations found in sci-fi office desk model');
     }
@@ -992,7 +1158,94 @@ export function createRoom1() {
     console.error('Failed to load sci_fi_office_desk.glb', err);
   });
   
+  // Create office desk sign with to-do list and inventory
+  const deskSignGeometry = new THREE.PlaneGeometry(2.5, 1.8);
+  const deskSignCanvas = document.createElement('canvas');
+  deskSignCanvas.width = 500;
+  deskSignCanvas.height = 360;
+  const deskSignCtx = deskSignCanvas.getContext('2d');
+
+  // Background
+  deskSignCtx.fillStyle = '#0a1520';
+  deskSignCtx.fillRect(0, 0, deskSignCanvas.width, deskSignCanvas.height);
   
+  // Scanlines
+  deskSignCtx.globalAlpha = 0.06;
+  for (let y = 0; y < deskSignCanvas.height; y += 3) {
+    deskSignCtx.fillStyle = '#1a2a3a';
+    deskSignCtx.fillRect(0, y, deskSignCanvas.width, 1);
+  }
+  deskSignCtx.globalAlpha = 1;
+
+  // Header
+  deskSignCtx.fillStyle = '#39ff88';
+  deskSignCtx.font = 'bold 20px Courier New, monospace';
+  deskSignCtx.fillText('DESK NOTES', 15, 30);
+
+  // To-do list section
+  deskSignCtx.fillStyle = '#9f8bff';
+  deskSignCtx.font = 'bold 16px Courier New, monospace';
+  deskSignCtx.fillText('TO-DO:', 15, 60);
+  
+  deskSignCtx.fillStyle = '#c8ffe0';
+  deskSignCtx.font = '14px Courier New, monospace';
+  const todoItems = [
+    '□ Review security logs',
+    '□ Update system firmware',
+    '□ Backup research data',
+    '□ Check ventilation units',
+    '□ Schedule maintenance'
+  ];
+  let yPos = 85;
+  for (const item of todoItems) {
+    deskSignCtx.fillText(item, 20, yPos);
+    yPos += 22;
+  }
+
+  // Inventory list section
+  deskSignCtx.fillStyle = '#9f8bff';
+  deskSignCtx.font = 'bold 16px Courier New, monospace';
+  deskSignCtx.fillText('INVENTORY:', 15, 220);
+  
+  deskSignCtx.font = '14px Courier New, monospace';
+  const inventoryItems = [
+    { text: '• Laptop charger', status: null, color: '#c8ffe0' },
+    { text: '• Data cables (3x)', status: '[MISSING]', color: '#ff6b6b' },
+    { text: '• USB drives (2x)', status: '[CORRUPTED]', color: '#ff6b6b' },
+    { text: '• Toolkit', status: '[MISSING]', color: '#ff6b6b' },
+    { text: '• Spare batteries', status: '[DEPLETED]', color: '#ffaa66' }
+  ];
+  yPos = 245;
+  for (const item of inventoryItems) {
+    deskSignCtx.fillStyle = item.color;
+    const fullText = item.status ? `${item.text} ${item.status}` : item.text;
+    deskSignCtx.fillText(fullText, 20, yPos);
+    yPos += 22;
+  }
+
+  const deskSignTexture = new THREE.CanvasTexture(deskSignCanvas);
+  deskSignTexture.colorSpace = THREE.SRGBColorSpace;
+  deskSignTexture.generateMipmaps = true;
+  deskSignTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  deskSignTexture.magFilter = THREE.LinearFilter;
+  deskSignTexture.needsUpdate = true;
+
+  const deskSignMaterial = new THREE.MeshBasicMaterial({
+    map: deskSignTexture,
+    side: THREE.FrontSide,
+    toneMapped: false,
+    depthWrite: false
+  });
+
+  const deskSignMesh = new THREE.Mesh(deskSignGeometry, deskSignMaterial);
+  // Position above the desk (desk is at -8.2, 0, -4.5 with rotation y = PI/2)
+  // Sign should face into the room, so positioned relative to desk
+  deskSignMesh.position.set(-8.2, 2.2, -4.5);
+  deskSignMesh.rotation.y = Math.PI / 2; // Match desk rotation
+  deskSignMesh.renderOrder = 1;
+  deskSignMesh.name = 'desk-sign';
+  
+  group.add(deskSignMesh);
 
   // Add table for the laptop with glowing green sci-fi material
   const tableMat = new THREE.MeshStandardMaterial({ 
@@ -1120,8 +1373,8 @@ export function createRoom1() {
 
   const panelMesh = new THREE.Mesh(panelGeometry, panelMaterial);
 
-  // Position panel on the back wall, slightly above table
-  panelMesh.position.set(0, 2.55, -7.85); // pull slightly forward to avoid z-fighting
+  // Position panel on the back wall, slightly above table, moved left to overlap hologram
+  panelMesh.position.set(-2.5, 2.55, -7.85); // pull slightly forward to avoid z-fighting, moved left to overlap
   panelMesh.rotation.x = -0.05; // slight tilt for realism
   panelMesh.renderOrder = 1;
 
@@ -3370,6 +3623,26 @@ If you're reading this, you've slipped through a seam. Keep moving. Three rooms.
     // Dispose of Simon stand if it exists
     if (simonStand && typeof simonStand.dispose === 'function') {
       simonStand.dispose();
+    }
+    
+    // Dispose of drawer indicator sprites
+    if (state.drawerIndicators && Array.isArray(state.drawerIndicators)) {
+      state.drawerIndicators.forEach(sprite => {
+        if (sprite) {
+          // Dispose of material and texture
+          if (sprite.material) {
+            if (sprite.material.map) {
+              sprite.material.map.dispose();
+            }
+            sprite.material.dispose();
+          }
+          // Remove from scene if still attached
+          if (sprite.parent) {
+            sprite.parent.remove(sprite);
+          }
+        }
+      });
+      state.drawerIndicators = [];
     }
     
     // Clear all references

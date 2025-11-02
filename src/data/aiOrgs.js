@@ -19,12 +19,22 @@ export const aiOrgs = [
   { 
     id: "closedai", 
     name: "ClosedAI", 
+    city: "Nuuk", 
+    country: "Greenland", 
+    lat: 64.1814, 
+    lon: -51.6941, 
+    founded: 2015, 
+    summary: "Black-box orchestration systems; heavy on NDAs." 
+  },
+  { 
+    id: "silicon-core", 
+    name: "Silicon Core Systems", 
     city: "San Francisco", 
     country: "USA", 
     lat: 37.7749, 
     lon: -122.4194, 
-    founded: 2015, 
-    summary: "Black-box orchestration systems; heavy on NDAs." 
+    founded: 2017, 
+    summary: "Enterprise AI infrastructure; cloud-native architectures." 
   },
   { 
     id: "deepthink", 
@@ -39,10 +49,10 @@ export const aiOrgs = [
   { 
     id: "anthropic-ish", 
     name: "Anthropic-ish", 
-    city: "San Francisco", 
-    country: "USA", 
-    lat: 37.7925, 
-    lon: -122.3930, 
+    city: "Central Australia", 
+    country: "Australia", 
+    lat: -25.5, 
+    lon: 133.0, 
     founded: 2021, 
     summary: "Alignment-forward; red-teaming as a lifestyle." 
   },
@@ -66,6 +76,16 @@ export const aiOrgs = [
   },
 
   // New (one per continent where possible)
+  { 
+    id: "meta-mind", 
+    name: "Meta-Mind", 
+    city: "Harare", 
+    country: "Zimbabwe", 
+    lat: -17.8292, 
+    lon: 31.0522, 
+    founded: 2013, 
+    summary: "Scaled systems with social shadows." 
+  },
   { 
     id: "witsai", 
     name: "WitsAI", 
