@@ -29,6 +29,13 @@ export function createRoom1() {
   const state = {
     safeOpened: false,
     safeObject: null,
+    safeMixer: null, // Animation mixer for safe door
+    safeDoorAction: null, // Animation action for safe door
+    safeDoorObj: null, // Reference to door object if manual animation needed
+    safeDoorAnimating: false, // Flag for manual door animation
+    safeDoorAnimProgress: 0, // Progress of manual door animation (0-1)
+    paperNote: null, // Reference to paper note object inside safe
+    paperNotePickedUp: false, // Track if paper note has been picked up
     keypadOpen: false,
     inputCode: '',
     laptopPowered: false,  // Track if laptop has power
@@ -338,50 +345,6 @@ export function createRoom1() {
   }
   addBurntSchematics();
 
-  // Add broken consoles
-  function addBrokenConsoles() {
-    // Console 1 (broken)
-    const console1 = new THREE.Mesh(
-      new THREE.BoxGeometry(1.5, 0.8, 0.6),
-      new THREE.MeshStandardMaterial({
-        color: 0x2a2a2a,
-        roughness: 0.9,
-        metalness: 0.1
-      })
-    );
-    console1.position.set(-6, 0.4, 6);
-    console1.castShadow = true;
-    console1.receiveShadow = true;
-    group.add(console1);
-    
-    // Broken screen
-    const brokenScreen = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.2, 0.6),
-      new THREE.MeshStandardMaterial({
-        color: 0x001100,
-        emissive: 0x001100,
-        emissiveIntensity: 0.1
-      })
-    );
-    brokenScreen.position.set(-6, 0.8, 6.31);
-    group.add(brokenScreen);
-    
-    // Console 2 (more broken)
-    const console2 = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 0.6, 0.5),
-      new THREE.MeshStandardMaterial({
-        color: 0x1a1a1a,
-        roughness: 0.9,
-        metalness: 0.05
-      })
-    );
-    console2.position.set(6, 0.3, -6);
-    console2.rotation.y = Math.PI / 4; // Angled
-    console2.castShadow = true;
-    console2.receiveShadow = true;
-    group.add(console2);
-  }
-  addBrokenConsoles();
 
   // Add paper clutter to Room 1 (optimized - reduced count and delayed loading)
   function addPaperClutter() {
@@ -518,13 +481,6 @@ export function createRoom1() {
   wirePanelMarker.name = 'wirePanelMarker';
   group.add(wirePanelMarker);
   
-  console.log('Wire Panel initialized:', {
-    exists: !!wirePanel,
-    groupExists: !!wirePanel.group,
-    position: wirePanel.group.position.clone(),
-    name: wirePanel.group.name,
-    markerAdded: true
-  });
 
   // Simon Stand System - positioned on right wall, below wire panel
   const simonStand = createSimonStand([8.2, 0, 0]); // Right wall, aligned with green grid line
@@ -541,12 +497,6 @@ export function createRoom1() {
   simonStandMarker.visible = false; // Hide marker initially
   group.add(simonStandMarker);
   
-  console.log('Simon Stand initialized:', {
-    exists: !!simonStand,
-    position: simonStand.position.clone(),
-    name: simonStand.name,
-    markerAdded: true
-  });
   
   // Bookshelf Door - positioned on left wall, away from light switch
   const bookshelfDoor = createBookshelfDoor();
@@ -608,7 +558,6 @@ export function createRoom1() {
     
     // Check if the clicked object is the wire panel trigger
     if (intersection.object.userData.type === 'wire-panel-trigger') {
-      console.log('Wire panel trigger clicked - opening popup');
       wirePanel.openPanel();
       return true;
     }
@@ -701,10 +650,231 @@ export function createRoom1() {
   let nearLightSwitch = false;
   let flickerTime = 0;
   
+  // Animate safe door opening
+  function animateSafeDoor() {
+    if (state.safeDoorAction) {
+      // Use built-in animation from model
+      state.safeDoorAction.reset();
+      state.safeDoorAction.play();
+      console.log('[DEBUG] Safe door animation started (using model animation)');
+    } else if (state.safeDoorObj) {
+      // Manual animation - rotate door open
+      console.log('[DEBUG] Starting manual safe door animation');
+      
+      // Initialize manual animation state
+      state.safeDoorAnimating = true;
+      state.safeDoorAnimProgress = 0;
+      
+      // Store initial rotation for door
+      if (!state.safeDoorObj.userData.initialRotation) {
+        state.safeDoorObj.userData.initialRotation = state.safeDoorObj.rotation.clone();
+      }
+      
+      // Store animation parameters
+      state.safeDoorObj.userData.openAngle = Math.PI * 0.75; // 135 degrees
+      state.safeDoorObj.userData.animDuration = 1.5; // 1.5 seconds
+    } else {
+      console.warn('[DEBUG] No safe door animation method available');
+    }
+  }
+
+  // Load paper note inside the safe after it opens
+  function loadPaperNoteInSafe() {
+    if (state.paperNote || state.paperNotePickedUp) {
+      console.log('[DEBUG] Paper note already loaded or picked up');
+      return;
+    }
+
+    if (!state.safeObject) {
+      console.error('[DEBUG] Cannot load paper note - safe object not found!');
+      return;
+    }
+
+    console.log('[DEBUG] Loading paper note inside safe...');
+    console.log('[DEBUG] Safe object state:', {
+      exists: !!state.safeObject,
+      position: state.safeObject.position.clone(),
+      scale: state.safeObject.scale.clone(),
+      rotation: state.safeObject.rotation.clone(),
+      visible: state.safeObject.visible,
+      parent: state.safeObject.parent?.name
+    });
+
+    gltfLoader.load('/models/paper_note.glb', (gltf) => {
+      console.log('[DEBUG] Paper note GLB loaded successfully');
+      const noteModel = gltf.scene;
+      
+      // Set up the note model - filter out unwanted dark objects (like black boxes)
+      let meshCount = 0;
+      const objectsToRemove = [];
+      
+      noteModel.traverse((child) => {
+        if (child.isMesh) {
+          let shouldRemove = false;
+          
+          // Check if this is likely an unwanted black box
+          if (child.material) {
+            const material = child.material;
+            if (material.color) {
+              const color = material.color;
+              const brightness = (color.r + color.g + color.b) / 3;
+              // If object is very dark (likely a black box or container), mark for removal
+              if (brightness < 0.15) {
+                console.log('[DEBUG] Detected dark object (likely unwanted):', {
+                  name: child.name,
+                  brightness: brightness.toFixed(3),
+                  color: { r: color.r.toFixed(2), g: color.g.toFixed(2), b: color.b.toFixed(2) }
+                });
+                shouldRemove = true;
+              }
+            }
+          }
+          
+          if (shouldRemove) {
+            objectsToRemove.push(child);
+            console.log('[DEBUG] Marked for removal:', child.name);
+            return; // Skip processing this object
+          }
+          
+          meshCount++;
+          child.castShadow = true;
+          child.receiveShadow = true;
+          // Make note more visible - ensure proper rendering
+          if (child.material) {
+            child.material = child.material.clone();
+            // Make note much brighter and more visible
+            child.material.emissive = new THREE.Color(0xffffff); // White emissive for maximum visibility
+            child.material.emissiveIntensity = 0.8; // Very high intensity
+            child.material.transparent = false;
+            child.material.opacity = 1.0;
+            // If it's a standard material, increase color brightness
+            if (child.material.color) {
+              child.material.color.multiplyScalar(1.5); // Brighten the base color
+            }
+            console.log('[DEBUG] Note mesh material configured:', {
+              name: child.name,
+              emissive: child.material.emissive,
+              emissiveIntensity: child.material.emissiveIntensity,
+              color: child.material.color
+            });
+          }
+          child.frustumCulled = false; // Ensure it's always rendered
+          child.visible = true;
+          child.renderOrder = 999; // Render on top
+          console.log('[DEBUG] Note mesh configured:', {
+            name: child.name,
+            visible: child.visible,
+            frustumCulled: child.frustumCulled,
+            renderOrder: child.renderOrder
+          });
+        }
+      });
+      
+      // Remove unwanted dark objects
+      objectsToRemove.forEach(obj => {
+        if (obj.parent) {
+          obj.parent.remove(obj);
+          console.log('[DEBUG] Removed unwanted dark object:', obj.name);
+        }
+      });
+      
+      if (objectsToRemove.length > 0) {
+        console.log('[DEBUG] Removed', objectsToRemove.length, 'unwanted dark object(s) from note model');
+      }
+      
+      console.log('[DEBUG] Found', meshCount, 'meshes in paper note model');
+      
+      // Position note inside safe relative to safe's local space
+      // Add as child of safe so it moves/rotates with the safe
+      noteModel.position.set(
+        0,      // Center horizontally
+        0.15,   // Above safe base (in safe's local Y space)
+        -0.2    // Slightly forward from back (in safe's local Z space)
+      );
+      
+      // Rotate to face viewer when safe is open
+      noteModel.rotation.y = Math.PI / 4; // More rotation to face viewer
+      noteModel.rotation.x = -0.3; // Tilt forward significantly to face viewer
+      
+      // Make note larger and more visible
+      noteModel.scale.set(0.8, 0.8, 0.8); // Larger scale for better visibility
+      
+      noteModel.visible = true;
+      noteModel.name = 'paper-note-safe';
+      
+      // Add interaction metadata
+      noteModel.userData.pickupId = 'room1-note';
+      noteModel.userData.displayName = 'Paper Note';
+      noteModel.userData.itemMeta = {
+        description: 'A note recovered from the safe. It looks important.',
+        type: 'note'
+      };
+      noteModel.userData.isPickable = true;
+      
+      // Add as child of safe so it's properly positioned relative to safe
+      state.safeObject.add(noteModel);
+      state.paperNote = noteModel;
+      
+      // Update world matrix to ensure proper positioning
+      noteModel.updateMatrixWorld(true);
+      
+      // Calculate world positions for debugging
+      const noteWorldPos = new THREE.Vector3();
+      noteModel.getWorldPosition(noteWorldPos);
+      const safeWorldPos = new THREE.Vector3();
+      state.safeObject.getWorldPosition(safeWorldPos);
+      
+      console.log('[DEBUG] ========== PAPER NOTE LOADED ==========');
+      console.log('[DEBUG] Safe info:', {
+        localPosition: state.safeObject.position.clone(),
+        worldPosition: safeWorldPos.clone(),
+        scale: state.safeObject.scale.clone()
+      });
+      console.log('[DEBUG] Note info:', {
+        localPosition: noteModel.position.clone(),
+        worldPosition: noteWorldPos.clone(),
+        scale: noteModel.scale.clone(),
+        rotation: noteModel.rotation.clone(),
+        visible: noteModel.visible,
+        parent: noteModel.parent?.name,
+        meshCount: meshCount,
+        heightAboveSafeBase: noteModel.position.y
+      });
+      console.log('[DEBUG] =======================================');
+    }, undefined, (err) => {
+      console.error('[DEBUG] Failed to load paper_note.glb:', err);
+    });
+  }
+
   function updateRoom1(dt) {
     // Update hologram animation mixer for continuous playback
     if (state.hologramMixer) {
       state.hologramMixer.update(dt);
+    }
+    
+    // Update safe door animation mixer
+    if (state.safeMixer) {
+      state.safeMixer.update(dt);
+    }
+    
+    // Update manual safe door animation
+    if (state.safeDoorAnimating && state.safeDoorObj) {
+      state.safeDoorAnimProgress += dt / state.safeDoorObj.userData.animDuration;
+      const progress = Math.min(state.safeDoorAnimProgress, 1);
+      
+      // Smooth easing function (ease out cubic)
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      
+      // Apply rotation to door
+      const startRotation = state.safeDoorObj.userData.initialRotation.y;
+      const openAngle = state.safeDoorObj.userData.openAngle;
+      state.safeDoorObj.rotation.y = startRotation + (openAngle * easeProgress);
+      
+      // Check if animation is complete
+      if (progress >= 1) {
+        state.safeDoorAnimating = false;
+        console.log('[DEBUG] Safe door animation complete');
+      }
     }
     
     // Update light switch proximity check
@@ -1150,6 +1320,39 @@ export function createRoom1() {
         if (bottomIndicator) {
           state.drawerIndicators.push(bottomIndicator);
         }
+        
+        // Load laptop charger model and place it in the bottom drawer
+        gltfLoader.load('/models/laptop_charger.glb', (chargerGltf) => {
+          const chargerModel = chargerGltf.scene;
+          
+          // Enable shadows for charger model
+          chargerModel.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+          
+          // Scale the charger 10x larger than original size
+          chargerModel.scale.set(5.0, 5.0, 5.0);
+          
+          // Position charger inside the bottom drawer
+          // Position relative to drawer's local space (adjust these values to position it correctly)
+          chargerModel.position.set(0, 0.1, 0.15); // Adjust Y and Z to place it inside the drawer
+          // Rotate to horizontal orientation: wall plug on left, connector on right
+          chargerModel.rotation.y = Math.PI / 2; // Horizontal orientation (90 degrees around Y axis)
+          chargerModel.rotation.x = 0; // Ensure it's flat (no tilt)
+          
+          // Add charger as child of bottom drawer so it moves with the drawer animation
+          bottomNode.add(chargerModel);
+          
+          // Store reference in state for potential interaction
+          state.chargerModel = chargerModel;
+          
+          console.log('[DEBUG] Laptop charger model loaded and placed in bottom drawer');
+        }, undefined, (err) => {
+          console.error('Failed to load laptop_charger.glb', err);
+        });
       }
     } else {
       console.warn('[DEBUG] No animations found in sci-fi office desk model');
@@ -1297,17 +1500,65 @@ export function createRoom1() {
     });
     // Scale the safe 10% smaller than before
     safeModel.scale.set(0.45, 0.45, 0.45); // 10% smaller (0.5 * 0.9)
-    // Place it in the closest room corner (back-right), raised higher to sit properly on floor
-    safeModel.position.set(7.0, 0.55, -8.5); // Moved to corner, Y raised higher to prevent floor clipping
+    // Place it forward and higher - moved forward (less negative Z) and higher (increased Y)
+    safeModel.position.set(7.0, 1.2, -6.8); // Moved further forward (from -7.3 to -6.8)
     group.add(safeModel);
 
     // Store reference for interaction
     state.safeObject = safeModel;
     
-    // Check if animated safe has animations that need handling
+    // Set up safe door animation
     if (gltf.animations && gltf.animations.length > 0) {
       console.log('[DEBUG] Animated safe model has', gltf.animations.length, 'animation(s):', gltf.animations.map(a => a.name));
-      // Note: Animation handling can be added later if needed
+      
+      // Create animation mixer for safe
+      state.safeMixer = new THREE.AnimationMixer(safeModel);
+      
+      // Find door opening animation (look for "open", "door", or use first animation)
+      const openClip = gltf.animations.find(a => 
+        /open/i.test(a.name) || /door/i.test(a.name)
+      ) || gltf.animations[0];
+      
+      if (openClip) {
+        state.safeDoorAction = state.safeMixer.clipAction(openClip);
+        state.safeDoorAction.setLoop(THREE.LoopOnce);
+        state.safeDoorAction.clampWhenFinished = true; // Keep door open at end
+        console.log('[DEBUG] Safe door animation set up:', openClip.name);
+      }
+    } else {
+      // No animations in model - find door mesh and set up manual rotation
+      console.log('[DEBUG] No animations found, searching for door mesh...');
+      const doorCandidates = [];
+      
+      safeModel.traverse((child) => {
+        // Look for door mesh (common names: door, Door, Cube4, Cube5, Cube6, or objects with specific structure)
+        const name = child.name.toLowerCase();
+        if ((child.isMesh || child.isGroup)) {
+          // Priority order: door name > cube4/5/6 > any cube-like name
+          let priority = 0;
+          if (name.includes('door')) priority = 3;
+          else if (name.includes('cube4') || name.includes('cube5') || name.includes('cube6')) priority = 2;
+          else if (name.includes('cube')) priority = 1;
+          
+          if (priority > 0) {
+            doorCandidates.push({ obj: child, priority: priority, name: child.name });
+            console.log('[DEBUG] Found potential door candidate:', child.name, 'priority:', priority);
+          }
+        }
+      });
+      
+      // Sort by priority and pick the best candidate
+      doorCandidates.sort((a, b) => b.priority - a.priority);
+      
+      if (doorCandidates.length > 0) {
+        state.safeDoorObj = doorCandidates[0].obj;
+        // Store initial rotation and position for door
+        state.safeDoorObj.userData.initialRotation = state.safeDoorObj.rotation.clone();
+        state.safeDoorObj.userData.initialPosition = state.safeDoorObj.position.clone();
+        console.log('[DEBUG] Door object selected for manual animation:', doorCandidates[0].name);
+      } else {
+        console.warn('[DEBUG] No door object found in safe model');
+      }
     }
   }, undefined, (err) => {
     console.error('Failed to load animated_safe.glb', err);
@@ -1822,7 +2073,104 @@ export function createRoom1() {
       console.log('[DEBUG] Desk proximity check:', { deskFound: !!desk, hasDrawerManager: !!state.drawerManager, distanceToDesk: distToDesk, threshold: 2.5 });
       
     if (distToDesk < 3.0) {
-        // Raycast precise target first
+        const topDrawerObj = desk.getObjectByName('top-draw');
+        const bottomDrawerObj = desk.getObjectByName('bottom-draw');
+        const topOpened = state.drawerManager.getOpenState('top-draw');
+        const bottomOpened = state.drawerManager.getOpenState('bottom-draw');
+        
+        console.log('[DEBUG] Within desk range, checking drawers:', {
+          topDrawerObjExists: !!topDrawerObj,
+          bottomDrawerObjExists: !!bottomDrawerObj,
+          topOpened,
+          bottomOpened,
+          bottomDrawerObjName: bottomDrawerObj ? bottomDrawerObj.name : 'null'
+        });
+        
+        // Check bottom drawer FIRST (has charger, higher priority)
+        if (bottomDrawerObj) {
+          const bottomWorld = new THREE.Vector3();
+          bottomDrawerObj.getWorldPosition(bottomWorld);
+          const distToBottom = playerObject.position.distanceTo(bottomWorld);
+          
+          console.log('[DEBUG] Bottom drawer check:', {
+            drawerFound: !!bottomDrawerObj,
+            drawerName: bottomDrawerObj.name,
+            drawerWorldPos: bottomWorld.clone(),
+            playerPos: playerObject.position.clone(),
+            distanceToBottom: distToBottom,
+            threshold: 2.0,
+            alreadyOpened: bottomOpened
+          });
+          
+          if (distToBottom < 2.0) {
+            if (!bottomOpened) {
+              // Drawer is closed: open it
+              console.log('[DEBUG] Opening bottom drawer...');
+              if (state.drawerManager.tryToggle(bottomDrawerObj)) {
+                if (window.AI) window.AI.showInteractionFeedback('Bottom drawer opened.');
+                console.log('[DEBUG] Bottom drawer toggled via DrawerManager');
+                return true;
+              }
+            } else {
+              // Drawer is open - check if charger can be picked up
+              console.log('[DEBUG] Bottom drawer open, checking charger state:', {
+                chargerModelExists: !!state.chargerModel,
+                chargerFound: state.chargerFound,
+                chargerModelVisible: state.chargerModel ? state.chargerModel.visible : false,
+                chargerModelParent: state.chargerModel ? (state.chargerModel.parent ? state.chargerModel.parent.name : 'no parent') : 'no model'
+              });
+              
+              if (state.chargerModel && !state.chargerFound) {
+                // Charger exists and hasn't been picked up: pick it up
+                console.log('[DEBUG] Attempting to pick up charger...');
+                const chargerItem = {
+                  name: 'laptop-charger',
+                  description: 'A laptop charger found inside the bottom drawer.',
+                  type: 'charger'
+                };
+                
+                if (addToInventory(chargerItem)) {
+                  // Remove charger from scene
+                  if (state.chargerModel.parent) {
+                    state.chargerModel.parent.remove(state.chargerModel);
+                  }
+                  state.chargerFound = true;
+                  
+                  // Show feedback
+                  if (window.AI && window.AI.showInteractionFeedback) {
+                    window.AI.showInteractionFeedback('You found a laptop charger.');
+                  }
+                  setTimeout(() => { 
+                    if (window.AI?.say) {
+                      window.AI.say('Just some old wiring, dear. Nothing that concerns us here.', { tone: 'maternal' });
+                    }
+                  }, 1000);
+                  
+                  console.log('[DEBUG] Charger found and added to inventory');
+                  return true;
+                } else {
+                  if (window.AI && window.AI.showInteractionFeedback) {
+                    window.AI.showInteractionFeedback('My inventory is full.');
+                  }
+                  return true;
+                }
+              } else {
+                // Charger doesn't exist or is already found: close drawer
+                console.log('[DEBUG] Closing bottom drawer - charger state:', {
+                  hasModel: !!state.chargerModel,
+                  isFound: state.chargerFound
+                });
+                if (state.drawerManager.tryToggle(bottomDrawerObj)) {
+                  if (window.AI) window.AI.showInteractionFeedback('Bottom drawer closed.');
+                  console.log('[DEBUG] Bottom drawer toggled via DrawerManager');
+                  return true;
+                }
+              }
+            }
+          }
+        }
+        
+        // Raycast precise target for top drawer (only if bottom drawer didn't handle it)
         const cam = window.camera;
         let targetedObject = null;
         if (cam) {
@@ -1835,20 +2183,8 @@ export function createRoom1() {
           const toggled = state.drawerManager.tryToggle(targetedObject);
           if (toggled) return true;
         }
-
-        const topDrawerObj = desk.getObjectByName('top-draw');
-        const bottomDrawerObj = desk.getObjectByName('bottom-draw');
-        const topOpened = state.drawerManager.getOpenState('top-draw');
-        const bottomOpened = state.drawerManager.getOpenState('bottom-draw');
         
-        console.log('[DEBUG] Within desk range, checking drawers:', {
-          topDrawerObjExists: !!topDrawerObj,
-          bottomDrawerObjExists: !!bottomDrawerObj,
-          topOpened,
-          bottomOpened
-        });
-        
-        // Check top drawer interaction
+        // Check top drawer interaction (only if bottom drawer didn't handle it)
         if (topDrawerObj && !topOpened) {
           const topWorld = new THREE.Vector3();
           topDrawerObj.getWorldPosition(topWorld);
@@ -1874,76 +2210,6 @@ export function createRoom1() {
             }
             return false;
           }
-        } else if (!topDrawerObj && !topOpened) {
-          // No named top drawer mesh; skip
-        }
-        
-        // Check bottom drawer interaction
-        if (bottomDrawerObj && !bottomOpened) {
-          const bottomWorld = new THREE.Vector3();
-          bottomDrawerObj.getWorldPosition(bottomWorld);
-          const distToBottom = playerObject.position.distanceTo(bottomWorld);
-          
-          console.log('[DEBUG] Bottom drawer check:', {
-            drawerFound: !!bottomDrawerObj,
-            drawerName: bottomDrawerObj ? bottomDrawerObj.name : 'NULL',
-            drawerWorldPos: bottomWorld.clone(),
-            playerPos: playerObject.position.clone(),
-            distanceToBottom: distToBottom,
-            threshold: 2.0,
-            alreadyOpened: bottomOpened,
-            willTrigger: distToBottom < 2.0
-          });
-          
-          if (distToBottom < 2.0) {
-            console.log('[DEBUG] Opening bottom drawer...');
-            if (state.drawerManager.tryToggle(bottomDrawerObj)) {
-              if (window.AI) window.AI.showInteractionFeedback('Bottom drawer opened.');
-              console.log('[DEBUG] Bottom drawer toggled via DrawerManager');
-              return true;
-            }
-            return false;
-          }
-        } else if (!bottomDrawerObj && !bottomOpened) {
-          // No named bottom drawer mesh; skip
-        }
-        
-        // Charger pickup ONLY if bottom drawer is open
-        if (state.drawerManager.getOpenState('bottom-draw') && !state.chargerFound) {
-          const p = new THREE.Vector3();
-          const src = bottomDrawerObj || desk;
-          src.getWorldPosition(p);
-          const d = playerObject.position.distanceTo(p);
-          console.log('[DEBUG] Charger pickup check:', { d, threshold: 2.0 });
-          if (d < 2.0) {
-            state.chargerFound = true;
-            const chargerItem = { name: 'laptop-charger', description: 'A laptop charger found inside the bottom drawer.', type: 'charger' };
-            addToInventory(chargerItem);
-            window.AI?.showInteractionFeedback?.('You found a laptop charger.');
-            setTimeout(() => { window.AI?.say?.('Just some old wiring, dear. Nothing that concerns us here.', { tone: 'maternal' }); }, 1000);
-            console.log('[DEBUG] Charger found and added to inventory');
-            return true;
-          } else {
-            window.AI?.showInteractionFeedback?.('Move closer to the bottom drawer to pick up the charger.');
-            return true;
-          }
-        }
-        
-        // If drawers are already open but charger already found
-        if (bottomOpened && state.chargerFound) {
-          const pickupWorld = bottomDrawerObj ? (() => {
-            const w = new THREE.Vector3();
-            bottomDrawerObj.getWorldPosition(w);
-            return w;
-          })() : deskWorld.clone();
-          const distToPickup = playerObject.position.distanceTo(pickupWorld);
-          
-          if (distToPickup < 2.0) {
-            if (window.AI) {
-              window.AI.showInteractionFeedback("The bottom drawer is empty.");
-            }
-            return true;
-          }
         }
       }
     }
@@ -1964,6 +2230,46 @@ export function createRoom1() {
         console.log('Hologram interaction handled');
         openRegistryModal();
         return true;
+      }
+    }
+    
+    // Charger interaction is now handled directly in the bottom drawer interaction logic above
+    
+    // Check for paper note interaction first (if safe is open and note exists)
+    if (state.safeOpened && state.paperNote && !state.paperNotePickedUp) {
+      // Check proximity to safe area (when open, allow pickup if near the safe)
+      const safeWorldPos = new THREE.Vector3();
+      state.safeObject.getWorldPosition(safeWorldPos);
+      const distanceToSafe = playerObject.position.distanceTo(safeWorldPos);
+      
+      console.log('[DEBUG] Paper note pickup check - distance to safe:', distanceToSafe, 'threshold: 2.5');
+      
+      // If player is near the safe (when open), allow picking up the note
+      if (distanceToSafe < 2.5) {
+        const noteItem = {
+          name: 'room1-note',
+          description: 'A note recovered from the safe. It looks important.',
+          type: 'note'
+        };
+        
+        if (addToInventory(noteItem)) {
+          // Remove note from scene
+          if (state.paperNote.parent) {
+            state.paperNote.parent.remove(state.paperNote);
+          }
+          state.paperNotePickedUp = true;
+          
+          // Show feedback
+          if (window.AI && window.AI.showInteractionFeedback) {
+            window.AI.showInteractionFeedback('You found a note');
+          }
+          return true;
+        } else {
+          if (window.AI && window.AI.showInteractionFeedback) {
+            window.AI.showInteractionFeedback('My inventory is full.');
+          }
+          return true;
+        }
       }
     }
     
@@ -2019,7 +2325,6 @@ export function createRoom1() {
       return false;
     }
 
-    console.log('Safe interaction handled');
     // Toggle keypad on/off
     toggleKeypad(!state.keypadOpen);
     return true;
@@ -2047,12 +2352,20 @@ export function createRoom1() {
         if (!state.safeOpened) {
           state.safeOpened = true;
           gameStore.set('safeOpened', true); // Set game store for line color change
-          const noteItem = {
-            name: 'room1-note',
-            description: 'A note recovered from the safe. It looks important.',
-            type: 'note'
-          };
-          addToInventory(noteItem);
+          
+          // Animate safe door opening
+          animateSafeDoor();
+          
+          // Show feedback about note inside
+          if (window.AI && window.AI.showInteractionFeedback) {
+            window.AI.showInteractionFeedback('A note can be found inside.');
+          }
+          
+          // Load paper note inside safe after opening (with small delay to let door open)
+          setTimeout(() => {
+            loadPaperNoteInSafe();
+          }, 500);
+          
           gameStore.setPageTaken(true);
           if (window.AI) window.AI.onSafeOpen();
         }
@@ -2122,12 +2435,15 @@ export function createRoom1() {
         if (!state.safeOpened) {
           state.safeOpened = true;
           gameStore.set('safeOpened', true); // Set game store for line color change
-          const noteItem = {
-            name: 'room1-note',
-            description: 'A note recovered from the safe. It looks important.',
-            type: 'note'
-          };
-          addToInventory(noteItem);
+          
+          // Animate safe door opening
+          animateSafeDoor();
+          
+          // Load paper note inside safe after opening (with small delay to let door open)
+          setTimeout(() => {
+            loadPaperNoteInSafe();
+          }, 500);
+          
           gameStore.setPageTaken(true);
           if (window.AI) window.AI.onSafeOpen();
         }

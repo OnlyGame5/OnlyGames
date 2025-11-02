@@ -105,8 +105,7 @@ export const roomWallDefinitions = {
       // Sci-fi table (position: 0, 0, -7.5) -> World: (29, 0.5, -7.5)
       { position: new THREE.Vector3(29, 0.5, -7.5), size: new THREE.Vector3(2.0, 1.0, 1.5), type: 'table' },
       
-      // Safe (position: 1.8, 0.1, -7.8) -> World: (30.8, 0.3, -7.8)
-      { position: new THREE.Vector3(30.8, 0.3, -7.8), size: new THREE.Vector3(0.8, 0.6, 0.6), type: 'safe' },
+      // Safe collision removed - no longer needed
       
       // Wire panel (position: 0, 0.8, 8.2) -> World: (29, 0.8, 8.2) - Made thicker
       { position: new THREE.Vector3(29, 0.8, 8.2), size: new THREE.Vector3(1.5, 1.5, 1.0), type: 'wirePanel' },
@@ -116,12 +115,6 @@ export const roomWallDefinitions = {
       
       // Bookshelf door/Cabinet (position: -8.5, 0, -4.5) -> World: (20.5, 1.0, -4.5)
       { position: new THREE.Vector3(20.5, 1.0, -4.5), size: new THREE.Vector3(0.3, 2.0, 1.5), type: 'cabinet' },
-      
-      // Console 1 (position: -6, 0.4, 6) -> World: (23, 0.4, 6)
-      { position: new THREE.Vector3(23, 0.4, 6), size: new THREE.Vector3(1.0, 0.8, 0.6), type: 'console' },
-      
-      // Console 2 (position: 6, 0.3, -6) -> World: (35, 0.3, -6)
-      { position: new THREE.Vector3(35, 0.3, -6), size: new THREE.Vector3(1.0, 0.8, 0.6), type: 'console' },
       
       // Light fixture (position: 0, 4.0, 0) -> World: (29, 4.0, 0)
       { position: new THREE.Vector3(29, 4.0, 0), size: new THREE.Vector3(2.0, 0.5, 2.0), type: 'lightBox' },

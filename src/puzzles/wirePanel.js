@@ -137,7 +137,7 @@ export function createWirePanel(opts = {}) {
       margin-bottom: 40px;
     `;
 
-    // Define colors array - show directly without shuffling
+    // Define colors array - logical order (for validation)
     const colors = [
       { id: 'R', color: '#ff3b30', name: 'Red', label: 'R' },
       { id: 'G', color: '#34c759', name: 'Green', label: 'G' },
@@ -147,8 +147,8 @@ export function createWirePanel(opts = {}) {
       { id: 'O', color: '#ff9500', name: 'Orange', label: 'O' }
     ];
     
-    // Use colors in order (no shuffling for simplification)
-    const shuffledColors = [...colors];
+    // Shuffle visual order to hide the answer, but keep logical order for validation
+    const shuffledColors = [...colors].sort(() => Math.random() - 0.5);
 
     // Note: createShufflingAnimation function moved to global scope
 
