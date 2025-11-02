@@ -3003,14 +3003,12 @@ export function createRoom1() {
     if (!room1DialogueState.hasWelcomed) {
       room1DialogueState.hasWelcomed = true;
       console.log('triggerRoom1Welcome called - showing Room 1 entry dialogue');
-      if (window.AI) {
-        // Check if dialogue is currently playing
-        if (window.AI.isSpeaking()) {
-          console.log('Dialogue already playing, queuing Room 1 welcome');
-        }
-        
-        // Queue Room 1 welcome (will wait for current dialogue to finish)
-        sayKey('ACT_I.ROOM1.ENTRY');
+      // Use sayKey directly - it will queue if needed
+      const success = sayKey('ACT_I.ROOM1.ENTRY');
+      if (!success && window.AI) {
+        // Fallback: try using old method if sayKey fails
+        console.warn('sayKey failed, trying fallback');
+        window.AI.onRoom1Entry();
       }
     }
   }
@@ -3099,8 +3097,8 @@ export function createRoom1() {
         });
       }
       
+      // Trigger welcome message when player enters Room 1 bounds
       if (insideRoom1) {
-        // Trigger welcome message
         triggerRoom1Welcome();
         
         // Trigger desk/safe prompt after safe is opened
@@ -3112,17 +3110,11 @@ export function createRoom1() {
         if (hasInInventory('room1-note')) {
           triggerPaperPrompt();
         }
-      } else {
-        // TEMPORARY DEBUG: Force trigger dialogue when player is at z < -20 (approaching Room 1)
-        if (!room1DialogueState.hasWelcomed && playerPos.z < -20) {
-          console.log('FORCE TRIGGERING Room 1 dialogue - player approaching Room 1');
-          triggerRoom1Welcome();
-        }
       }
       
-      // SUPER AGGRESSIVE FIX: If player is anywhere near Room 1, force it
-      if (!room1DialogueState.hasWelcomed && playerPos.z < -5) {
-        console.log('SUPER AGGRESSIVE FIX: Player past Room 0, forcing Room 1 dialogue');
+      // Also trigger when approaching Room 1 (before fully inside)
+      if (!room1DialogueState.hasWelcomed && playerPos.z < -10) {
+        console.log('Player approaching Room 1, triggering entry dialogue');
         triggerRoom1Welcome();
       }
     }

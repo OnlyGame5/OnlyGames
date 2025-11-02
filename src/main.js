@@ -2103,12 +2103,9 @@ function animate(currentTime) {
       console.log('HALLWAY REVAMP: Player moved away from Room 0, clearing hallway dialogue');
       hallwayDialogueShown = false;
       
-      // Only trigger Room 1 dialogue if no dialogue is currently playing
-      if (window.AI && !window.AI.isSpeaking()) {
+      // Trigger Room 1 dialogue (will queue automatically if needed)
+      if (window.AI) {
         console.log('BACKUP: Triggering Room 1 entry dialogue');
-        window.AI.onRoom1Entry();
-      } else if (window.AI) {
-        console.log('Dialogue currently playing, queuing Room 1 entry');
         window.AI.onRoom1Entry();
       }
     }

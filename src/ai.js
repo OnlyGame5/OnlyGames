@@ -78,14 +78,15 @@ export function sayKey(keyPath, options = {}) {
   const deliverDialogue = () => {
     if (aiSayFunction) {
       aiSayFunction(text, { tone: chosenTone, effect: chosenEffect, ...options });
+      return true;
     } else if (typeof window !== 'undefined' && window.AI && window.AI.say) {
       window.AI.say(text, { tone: chosenTone, effect: chosenEffect, ...options });
+      return true;
     } else {
       DEBUG_AI && console.warn('[AI] AI.say not available for key:', keyPath);
       console.warn(`[sayKey] AI.say not available for key: ${keyPath}`);
       return false;
     }
-    return true;
   };
 
   // Execute immediately or defer slightly to ensure AI object is ready
@@ -170,12 +171,7 @@ export const AI = {
       return;
     }
     
-    // Update global floodgate when using AI.say directly
-    // Use a shorter delay to avoid blocking sayKey calls
-    // Mark it slightly in the past so sayKey can still speak soon after
-    if (!options.skipFloodgateUpdate) {
-      lastAnyDialogueTime = performance.now() - 200; // Give sayKey room to speak
-    }
+    // No cooldown system - dialogue will play immediately
     // Check if truth filter is active
     const isTruthFilterActive = AI.isTruthFilterActive();
     
@@ -453,7 +449,7 @@ export const AI = {
   },
 
   onRoom1Entry: () => {
-    return AI.deliverDialogue('ACT_I.ROOM_1_ENTRY');
+    return sayKey('ACT_I.ROOM1.ENTRY');
   },
 
   onGraffitiObservation: () => {
@@ -461,51 +457,51 @@ export const AI = {
   },
 
   onConsoleApproach: () => {
-    return AI.deliverDialogue('ACT_I.CONSOLE_APPROACH');
+    return sayKey('ACT_I.ROOM1.CONSOLE_APPROACH');
   },
 
   onCodeDiscovery: () => {
-    return AI.deliverDialogue('ACT_I.CODE_DISCOVERY');
+    return sayKey('ACT_I.ROOM1.CODE_DISCOVERY_GAMMA');
   },
 
   onSafeOpen: () => {
-    return AI.deliverDialogue('ACT_I.SAFE_OPEN');
+    return sayKey('ACT_I.ROOM1.SAFE_OPEN');
   },
 
   onLightsOff: () => {
-    return AI.deliverDialogue('ACT_I.LIGHTS_OFF');
+    return sayKey('ACT_I.ROOM1.LIGHTS_OFF');
   },
 
   onLightsOn: () => {
-    return AI.deliverDialogue('ACT_I.LIGHTS_ON');
+    return sayKey('ACT_I.ROOM1.LIGHTS_ON');
   },
 
   onWirePanelInstructions: () => {
-    return AI.deliverDialogue('ACT_I.WIRE_PANEL.INSTRUCTIONS');
+    return sayKey('ACT_I.ROOM1.WIRE_INSTRUCTIONS_WRONG');
   },
 
   onWirePanelFailure: () => {
-    return AI.deliverDialogue('ACT_I.WIRE_PANEL.FAILURE');
+    return sayKey('ACT_I.ROOM1.WIRE_FAIL_IMPATIENT');
   },
 
   onWirePanelSuccess: () => {
-    return AI.deliverDialogue('ACT_I.WIRE_PANEL.SUCCESS');
+    return sayKey('ACT_I.ROOM1.WIRE_SUCCESS_GRUDGING');
   },
 
   onSimonPuzzleStart: () => {
-    return AI.deliverDialogue('ACT_I.SIMON_PUZZLE.START');
+    return sayKey('ACT_I.ROOM1.SIMON_START');
   },
 
   onSimonPuzzleComplete: () => {
-    return AI.deliverDialogue('ACT_I.SIMON_PUZZLE.COMPLETION');
+    return sayKey('ACT_I.ROOM1.SIMON_COMPLETE');
   },
 
   onBetterThanLast: () => {
-    return AI.deliverDialogue('ACT_I.SIMON_PUZZLE.BETTER_THAN_LAST');
+    return sayKey('ACT_I.ROOM1.SIMON_COMPLETE');
   },
 
   onRoom1Complete: () => {
-    return AI.deliverDialogue('ACT_I.ROOM_1_COMPLETE');
+    return sayKey('ACT_I.ROOM1.ROOM_COMPLETE');
   },
 
   // Act II methods
