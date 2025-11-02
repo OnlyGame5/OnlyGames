@@ -14,6 +14,8 @@ import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling, makeSolarP
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { DrawerManager } from './components/DrawerManager.js';
+import { aiOrgs } from './data/aiOrgs.js';
+import { createFullscreenMap } from './ui/FullscreenMap.js';
 import { createCelShadingMaterial } from './shaders/CelShader.js';
 
 
@@ -28,14 +30,27 @@ export function createRoom1() {
   const state = {
     safeOpened: false,
     safeObject: null,
+    safeMixer: null, // Animation mixer for safe door
+    safeDoorAction: null, // Animation action for safe door
+    safeDoorObj: null, // Reference to door object if manual animation needed
+    safeDoorAnimating: false, // Flag for manual door animation
+    safeDoorAnimProgress: 0, // Progress of manual door animation (0-1)
+    paperNote: null, // Reference to paper note object inside safe
+    paperNotePickedUp: false, // Track if paper note has been picked up
     keypadOpen: false,
     inputCode: '',
     laptopPowered: false,  // Track if laptop has power
     chargerFound: false,   // Track if charger has been found
     laptopInspected: false, // Track if laptop has been inspected while unpowered
     gammaMessageShown: false, // Track if Gamma's first message has been shown
-    tableDrawer: null // Drawer animation state: { mixer, actions, topOpened, bottomOpened, topDrawerObj, bottomDrawerObj }
+    tableDrawer: null, // Drawer animation state: { mixer, actions, topOpened, bottomOpened, topDrawerObj, bottomDrawerObj }
+    registryModalOpen: false, // Track if Global AI Registry modal is open
+    closedAiViewed: false, // Track if player has viewed ClosedAI details (for hint)
+    drawerIndicators: [] // Array to store interaction indicator sprites
   };
+
+  // Global AI Registry data is imported from ./data/aiOrgs.js
+  // Map overlay is handled by createFullscreenMap in ./ui/FullscreenMap.js
 
   // Solar Panel texture files for Room 1 walls
   const solarPanelFiles = {
@@ -331,50 +346,6 @@ export function createRoom1() {
   }
   addBurntSchematics();
 
-  // Add broken consoles
-  function addBrokenConsoles() {
-    // Console 1 (broken)
-    const console1 = new THREE.Mesh(
-      new THREE.BoxGeometry(1.5, 0.8, 0.6),
-      new THREE.MeshStandardMaterial({
-        color: 0x2a2a2a,
-        roughness: 0.9,
-        metalness: 0.1
-      })
-    );
-    console1.position.set(-6, 0.4, 6);
-    console1.castShadow = true;
-    console1.receiveShadow = true;
-    group.add(console1);
-    
-    // Broken screen
-    const brokenScreen = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.2, 0.6),
-      new THREE.MeshStandardMaterial({
-        color: 0x001100,
-        emissive: 0x001100,
-        emissiveIntensity: 0.1
-      })
-    );
-    brokenScreen.position.set(-6, 0.8, 6.31);
-    group.add(brokenScreen);
-    
-    // Console 2 (more broken)
-    const console2 = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 0.6, 0.5),
-      new THREE.MeshStandardMaterial({
-        color: 0x1a1a1a,
-        roughness: 0.9,
-        metalness: 0.05
-      })
-    );
-    console2.position.set(6, 0.3, -6);
-    console2.rotation.y = Math.PI / 4; // Angled
-    console2.castShadow = true;
-    console2.receiveShadow = true;
-    group.add(console2);
-  }
-  addBrokenConsoles();
 
   // Add paper clutter to Room 1 (optimized - reduced count and delayed loading)
   function addPaperClutter() {
@@ -497,7 +468,7 @@ export function createRoom1() {
   // Swivel cameras removed - they were floating black cylinder objects
 
   // Wire Panel System
-  const wirePanel = createWirePanel({ order: ['R','G','B','Y'], useGLBModel: true });
+  const wirePanel = createWirePanel({ order: ['R','G','B','Y','P','O'], useGLBModel: true });
   wirePanel.group.name = 'wirePanel';
   wirePanel.group.position.set(0, 0.8, 8.2); // Position on the front wall (opposite to back wall)
   wirePanel.group.rotation.y = Math.PI; // Face into the room (from the front wall)
@@ -511,13 +482,6 @@ export function createRoom1() {
   wirePanelMarker.name = 'wirePanelMarker';
   group.add(wirePanelMarker);
   
-  console.log('Wire Panel initialized:', {
-    exists: !!wirePanel,
-    groupExists: !!wirePanel.group,
-    position: wirePanel.group.position.clone(),
-    name: wirePanel.group.name,
-    markerAdded: true
-  });
 
   // Simon Stand System - positioned on right wall, below wire panel
   const simonStand = createSimonStand([8.2, 0, 0]); // Right wall, aligned with green grid line
@@ -534,12 +498,6 @@ export function createRoom1() {
   simonStandMarker.visible = false; // Hide marker initially
   group.add(simonStandMarker);
   
-  console.log('Simon Stand initialized:', {
-    exists: !!simonStand,
-    position: simonStand.position.clone(),
-    name: simonStand.name,
-    markerAdded: true
-  });
   
   // Bookshelf Door - positioned on left wall, away from light switch
   const bookshelfDoor = createBookshelfDoor();
@@ -601,7 +559,6 @@ export function createRoom1() {
     
     // Check if the clicked object is the wire panel trigger
     if (intersection.object.userData.type === 'wire-panel-trigger') {
-      console.log('Wire panel trigger clicked - opening popup');
       wirePanel.openPanel();
       return true;
     }
@@ -694,7 +651,233 @@ export function createRoom1() {
   let nearLightSwitch = false;
   let flickerTime = 0;
   
+  // Animate safe door opening
+  function animateSafeDoor() {
+    if (state.safeDoorAction) {
+      // Use built-in animation from model
+      state.safeDoorAction.reset();
+      state.safeDoorAction.play();
+      console.log('[DEBUG] Safe door animation started (using model animation)');
+    } else if (state.safeDoorObj) {
+      // Manual animation - rotate door open
+      console.log('[DEBUG] Starting manual safe door animation');
+      
+      // Initialize manual animation state
+      state.safeDoorAnimating = true;
+      state.safeDoorAnimProgress = 0;
+      
+      // Store initial rotation for door
+      if (!state.safeDoorObj.userData.initialRotation) {
+        state.safeDoorObj.userData.initialRotation = state.safeDoorObj.rotation.clone();
+      }
+      
+      // Store animation parameters
+      state.safeDoorObj.userData.openAngle = Math.PI * 0.75; // 135 degrees
+      state.safeDoorObj.userData.animDuration = 1.5; // 1.5 seconds
+    } else {
+      console.warn('[DEBUG] No safe door animation method available');
+    }
+  }
+
+  // Load paper note inside the safe after it opens
+  function loadPaperNoteInSafe() {
+    if (state.paperNote || state.paperNotePickedUp) {
+      console.log('[DEBUG] Paper note already loaded or picked up');
+      return;
+    }
+
+    if (!state.safeObject) {
+      console.error('[DEBUG] Cannot load paper note - safe object not found!');
+      return;
+    }
+
+    console.log('[DEBUG] Loading paper note inside safe...');
+    console.log('[DEBUG] Safe object state:', {
+      exists: !!state.safeObject,
+      position: state.safeObject.position.clone(),
+      scale: state.safeObject.scale.clone(),
+      rotation: state.safeObject.rotation.clone(),
+      visible: state.safeObject.visible,
+      parent: state.safeObject.parent?.name
+    });
+
+    gltfLoader.load('/models/paper_note.glb', (gltf) => {
+      console.log('[DEBUG] Paper note GLB loaded successfully');
+      const noteModel = gltf.scene;
+      
+      // Set up the note model - filter out unwanted dark objects (like black boxes)
+      let meshCount = 0;
+      const objectsToRemove = [];
+      
+      noteModel.traverse((child) => {
+        if (child.isMesh) {
+          let shouldRemove = false;
+          
+          // Check if this is likely an unwanted black box
+          if (child.material) {
+            const material = child.material;
+            if (material.color) {
+              const color = material.color;
+              const brightness = (color.r + color.g + color.b) / 3;
+              // If object is very dark (likely a black box or container), mark for removal
+              if (brightness < 0.15) {
+                console.log('[DEBUG] Detected dark object (likely unwanted):', {
+                  name: child.name,
+                  brightness: brightness.toFixed(3),
+                  color: { r: color.r.toFixed(2), g: color.g.toFixed(2), b: color.b.toFixed(2) }
+                });
+                shouldRemove = true;
+              }
+            }
+          }
+          
+          if (shouldRemove) {
+            objectsToRemove.push(child);
+            console.log('[DEBUG] Marked for removal:', child.name);
+            return; // Skip processing this object
+          }
+          
+          meshCount++;
+          child.castShadow = true;
+          child.receiveShadow = true;
+          // Make note more visible - ensure proper rendering
+          if (child.material) {
+            child.material = child.material.clone();
+            // Make note much brighter and more visible
+            child.material.emissive = new THREE.Color(0xffffff); // White emissive for maximum visibility
+            child.material.emissiveIntensity = 0.8; // Very high intensity
+            child.material.transparent = false;
+            child.material.opacity = 1.0;
+            // If it's a standard material, increase color brightness
+            if (child.material.color) {
+              child.material.color.multiplyScalar(1.5); // Brighten the base color
+            }
+            console.log('[DEBUG] Note mesh material configured:', {
+              name: child.name,
+              emissive: child.material.emissive,
+              emissiveIntensity: child.material.emissiveIntensity,
+              color: child.material.color
+            });
+          }
+          child.frustumCulled = false; // Ensure it's always rendered
+          child.visible = true;
+          child.renderOrder = 999; // Render on top
+          console.log('[DEBUG] Note mesh configured:', {
+            name: child.name,
+            visible: child.visible,
+            frustumCulled: child.frustumCulled,
+            renderOrder: child.renderOrder
+          });
+        }
+      });
+      
+      // Remove unwanted dark objects
+      objectsToRemove.forEach(obj => {
+        if (obj.parent) {
+          obj.parent.remove(obj);
+          console.log('[DEBUG] Removed unwanted dark object:', obj.name);
+        }
+      });
+      
+      if (objectsToRemove.length > 0) {
+        console.log('[DEBUG] Removed', objectsToRemove.length, 'unwanted dark object(s) from note model');
+      }
+      
+      console.log('[DEBUG] Found', meshCount, 'meshes in paper note model');
+      
+      // Position note inside safe relative to safe's local space
+      // Add as child of safe so it moves/rotates with the safe
+      noteModel.position.set(
+        0,      // Center horizontally
+        0.15,   // Above safe base (in safe's local Y space)
+        -0.2    // Slightly forward from back (in safe's local Z space)
+      );
+      
+      // Rotate to face viewer when safe is open
+      noteModel.rotation.y = Math.PI / 4; // More rotation to face viewer
+      noteModel.rotation.x = -0.3; // Tilt forward significantly to face viewer
+      
+      // Make note larger and more visible
+      noteModel.scale.set(0.8, 0.8, 0.8); // Larger scale for better visibility
+      
+      noteModel.visible = true;
+      noteModel.name = 'paper-note-safe';
+      
+      // Add interaction metadata
+      noteModel.userData.pickupId = 'room1-note';
+      noteModel.userData.displayName = 'Paper Note';
+      noteModel.userData.itemMeta = {
+        description: 'A note recovered from the safe. It looks important.',
+        type: 'note'
+      };
+      noteModel.userData.isPickable = true;
+      
+      // Add as child of safe so it's properly positioned relative to safe
+      state.safeObject.add(noteModel);
+      state.paperNote = noteModel;
+      
+      // Update world matrix to ensure proper positioning
+      noteModel.updateMatrixWorld(true);
+      
+      // Calculate world positions for debugging
+      const noteWorldPos = new THREE.Vector3();
+      noteModel.getWorldPosition(noteWorldPos);
+      const safeWorldPos = new THREE.Vector3();
+      state.safeObject.getWorldPosition(safeWorldPos);
+      
+      console.log('[DEBUG] ========== PAPER NOTE LOADED ==========');
+      console.log('[DEBUG] Safe info:', {
+        localPosition: state.safeObject.position.clone(),
+        worldPosition: safeWorldPos.clone(),
+        scale: state.safeObject.scale.clone()
+      });
+      console.log('[DEBUG] Note info:', {
+        localPosition: noteModel.position.clone(),
+        worldPosition: noteWorldPos.clone(),
+        scale: noteModel.scale.clone(),
+        rotation: noteModel.rotation.clone(),
+        visible: noteModel.visible,
+        parent: noteModel.parent?.name,
+        meshCount: meshCount,
+        heightAboveSafeBase: noteModel.position.y
+      });
+      console.log('[DEBUG] =======================================');
+    }, undefined, (err) => {
+      console.error('[DEBUG] Failed to load paper_note.glb:', err);
+    });
+  }
+
   function updateRoom1(dt) {
+    // Update hologram animation mixer for continuous playback
+    if (state.hologramMixer) {
+      state.hologramMixer.update(dt);
+    }
+    
+    // Update safe door animation mixer
+    if (state.safeMixer) {
+      state.safeMixer.update(dt);
+    }
+    
+    // Update manual safe door animation
+    if (state.safeDoorAnimating && state.safeDoorObj) {
+      state.safeDoorAnimProgress += dt / state.safeDoorObj.userData.animDuration;
+      const progress = Math.min(state.safeDoorAnimProgress, 1);
+      
+      // Smooth easing function (ease out cubic)
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      
+      // Apply rotation to door
+      const startRotation = state.safeDoorObj.userData.initialRotation.y;
+      const openAngle = state.safeDoorObj.userData.openAngle;
+      state.safeDoorObj.rotation.y = startRotation + (openAngle * easeProgress);
+      
+      // Check if animation is complete
+      if (progress >= 1) {
+        state.safeDoorAnimating = false;
+        console.log('[DEBUG] Safe door animation complete');
+      }
+    }
+    
     // Update light switch proximity check
     checkLightSwitchProximity();
     
@@ -721,6 +904,72 @@ export function createRoom1() {
     }
     // Update desk drawer animations
     if (state.drawerManager) state.drawerManager.update(dt);
+    
+      // Update drawer interaction indicators (sprites automatically face camera)
+      if (state.drawerIndicators && state.drawerIndicators.length > 0) {
+        const cam = window.camera;
+        const player = window.playerObject;
+        
+        if (!cam || !player || !state.drawerManager) {
+          state.drawerIndicators.forEach(sprite => {
+            if (sprite.material) sprite.material.opacity = 0;
+          });
+          return;
+        }
+        
+        const playerPos = new THREE.Vector3();
+        if (player.getWorldPosition) {
+          player.getWorldPosition(playerPos);
+        } else {
+          playerPos.copy(player.position);
+        }
+        
+        const drawerWorld = new THREE.Vector3();
+        
+        for (const sprite of state.drawerIndicators) {
+          const { drawerObj, drawerName, yOffset } = sprite.userData;
+          
+          if (!drawerObj) continue;
+          
+          // Update position (sprites automatically face camera, no manual rotation needed)
+          drawerObj.getWorldPosition(drawerWorld);
+          sprite.position.copy(drawerWorld);
+          sprite.position.y += yOffset;
+          
+          // Distance-based visibility
+          const dist = playerPos.distanceTo(drawerWorld);
+          const showStart = 3.5; // Start fading in at this distance
+          const fadeEnd = 2.2;   // Fully visible at this distance
+          
+          let target = 0.0;
+          if (!state.drawerManager.getOpenState(drawerName)) {
+            if (dist <= fadeEnd) {
+              target = 1.0; // Fully visible
+            } else if (dist < showStart) {
+              target = (showStart - dist) / (showStart - fadeEnd); // Fade in
+            }
+          }
+          
+          // Smooth baseOpacity interpolation
+          sprite.userData.baseOpacity = THREE.MathUtils.lerp(
+            sprite.userData.baseOpacity,
+            target,
+            Math.min(1, dt * 8)
+          );
+          
+          // Pulse animation (scale pulse for breathing effect)
+          sprite.userData.pulseTime += dt * 3.0;
+          const pulseScale = 1.0 + Math.sin(sprite.userData.pulseTime) * 0.25; // 0.75-1.25
+          sprite.scale.setScalar(pulseScale * sprite.userData.baseScale);
+          
+          // Opacity pulse (subtle shimmer)
+          const pulseOpacity = 0.85 + Math.sin(sprite.userData.pulseTime * 1.5) * 0.15; // 0.7-1.0
+          sprite.material.opacity = sprite.userData.baseOpacity * pulseOpacity;
+          
+          // Visibility toggle for performance
+          sprite.visible = sprite.material.opacity > 0.02;
+        }
+      }
   }
   
   // Optimized light flicker effect (reduced frequency for performance)
@@ -974,6 +1223,138 @@ export function createRoom1() {
         if (prevAnimate) prevAnimate(dt);
         if (state.drawerManager) state.drawerManager.update(dt);
       };
+      
+      // Create interaction indicators for drawers using THREE.Sprite
+      // Sprites automatically face the camera and support sizeAttenuation for consistent screen size
+      const createDrawerIndicator = (drawerObj, drawerName) => {
+        if (!drawerObj) {
+          console.warn('[DrawerIndicator] Drawer object not found for:', drawerName);
+          return null;
+        }
+        
+        // Generate circle texture programmatically (white ring on transparent background)
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 128; // Higher resolution for crisp rendering
+        const ctx = canvas.getContext('2d');
+        
+        // Draw white ring (outline circle)
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.arc(64, 64, 52, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Optional: Add subtle glow
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 12;
+        ctx.stroke();
+        
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        
+        // Create sprite material with sizeAttenuation: false for consistent screen size
+        const spriteMaterial = new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          opacity: 0,
+          depthTest: false,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          toneMapped: false
+        });
+        
+        // Create sprite (automatically faces camera)
+        const sprite = new THREE.Sprite(spriteMaterial);
+        
+        // Screen-space size (consistent regardless of distance)
+        // Adjust multiplier (0.06) to make it bigger/smaller on screen
+        sprite.scale.set(0.06, 0.06, 1);
+        
+        // Size attenuation disabled = consistent screen size at all distances
+        sprite.material.sizeAttenuation = false;
+        
+        sprite.renderOrder = 9999;
+        
+        // Check if desk has scaling (for position offset calculation)
+        const deskRoot = drawerObj.parent;
+        let deskScale = 1.0;
+        if (deskRoot) {
+          const worldScale = new THREE.Vector3();
+          deskRoot.getWorldScale(worldScale);
+          deskScale = worldScale.x;
+        }
+        
+        sprite.userData = {
+          drawerObj,
+          drawerName,
+          yOffset: 0.35 / Math.max(deskScale, 0.1), // Adjust for desk scale
+          pulseTime: Math.random() * Math.PI * 2,
+          baseOpacity: 0.0,
+          baseScale: 0.06 // Store base scale for pulsing
+        };
+        
+        // Position indicator
+        const wp = new THREE.Vector3();
+        drawerObj.getWorldPosition(wp);
+        sprite.position.copy(wp);
+        sprite.position.y += sprite.userData.yOffset;
+        
+        // Add to room group (NOT desk, so no scaling issues)
+        group.add(sprite);
+        
+        return sprite;
+      };
+      
+      // Create indicators for both drawers
+      if (topNode) {
+        const topIndicator = createDrawerIndicator(topNode, 'top-draw');
+        if (topIndicator) {
+          state.drawerIndicators.push(topIndicator);
+        }
+      }
+      
+      if (bottomNode) {
+        const bottomIndicator = createDrawerIndicator(bottomNode, 'bottom-draw');
+        if (bottomIndicator) {
+          state.drawerIndicators.push(bottomIndicator);
+        }
+        
+        // Load laptop charger model and place it in the bottom drawer
+        gltfLoader.load('/models/laptop_charger.glb', (chargerGltf) => {
+          const chargerModel = chargerGltf.scene;
+          
+          // Enable shadows for charger model
+          chargerModel.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+          
+          // Scale the charger 10x larger than original size
+          chargerModel.scale.set(5.0, 5.0, 5.0);
+          
+          // Position charger inside the bottom drawer
+          // Position relative to drawer's local space (adjust these values to position it correctly)
+          chargerModel.position.set(0, 0.1, 0.15); // Adjust Y and Z to place it inside the drawer
+          // Rotate to horizontal orientation: wall plug on left, connector on right
+          chargerModel.rotation.y = Math.PI / 2; // Horizontal orientation (90 degrees around Y axis)
+          chargerModel.rotation.x = 0; // Ensure it's flat (no tilt)
+          
+          // Add charger as child of bottom drawer so it moves with the drawer animation
+          bottomNode.add(chargerModel);
+          
+          // Store reference in state for potential interaction
+          state.chargerModel = chargerModel;
+          
+          console.log('[DEBUG] Laptop charger model loaded and placed in bottom drawer');
+        }, undefined, (err) => {
+          console.error('Failed to load laptop_charger.glb', err);
+        });
+      }
     } else {
       console.warn('[DEBUG] No animations found in sci-fi office desk model');
     }
@@ -981,7 +1362,94 @@ export function createRoom1() {
     console.error('Failed to load sci_fi_office_desk.glb', err);
   });
   
+  // Create office desk sign with to-do list and inventory
+  const deskSignGeometry = new THREE.PlaneGeometry(2.5, 1.8);
+  const deskSignCanvas = document.createElement('canvas');
+  deskSignCanvas.width = 500;
+  deskSignCanvas.height = 360;
+  const deskSignCtx = deskSignCanvas.getContext('2d');
+
+  // Background
+  deskSignCtx.fillStyle = '#0a1520';
+  deskSignCtx.fillRect(0, 0, deskSignCanvas.width, deskSignCanvas.height);
   
+  // Scanlines
+  deskSignCtx.globalAlpha = 0.06;
+  for (let y = 0; y < deskSignCanvas.height; y += 3) {
+    deskSignCtx.fillStyle = '#1a2a3a';
+    deskSignCtx.fillRect(0, y, deskSignCanvas.width, 1);
+  }
+  deskSignCtx.globalAlpha = 1;
+
+  // Header
+  deskSignCtx.fillStyle = '#39ff88';
+  deskSignCtx.font = 'bold 20px Courier New, monospace';
+  deskSignCtx.fillText('DESK NOTES', 15, 30);
+
+  // To-do list section
+  deskSignCtx.fillStyle = '#9f8bff';
+  deskSignCtx.font = 'bold 16px Courier New, monospace';
+  deskSignCtx.fillText('TO-DO:', 15, 60);
+  
+  deskSignCtx.fillStyle = '#c8ffe0';
+  deskSignCtx.font = '14px Courier New, monospace';
+  const todoItems = [
+    '□ Review security logs',
+    '□ Update system firmware',
+    '□ Backup research data',
+    '□ Check ventilation units',
+    '□ Schedule maintenance'
+  ];
+  let yPos = 85;
+  for (const item of todoItems) {
+    deskSignCtx.fillText(item, 20, yPos);
+    yPos += 22;
+  }
+
+  // Inventory list section
+  deskSignCtx.fillStyle = '#9f8bff';
+  deskSignCtx.font = 'bold 16px Courier New, monospace';
+  deskSignCtx.fillText('INVENTORY:', 15, 220);
+  
+  deskSignCtx.font = '14px Courier New, monospace';
+  const inventoryItems = [
+    { text: '• Laptop charger (in draw)', status: null, color: '#c8ffe0' },
+    { text: '• Data cables (3x)', status: '[MISSING]', color: '#ff6b6b' },
+    { text: '• USB drives (2x)', status: '[CORRUPTED]', color: '#ff6b6b' },
+    { text: '• Toolkit', status: '[MISSING]', color: '#ff6b6b' },
+    { text: '• Spare batteries', status: '[DEPLETED]', color: '#ffaa66' }
+  ];
+  yPos = 245;
+  for (const item of inventoryItems) {
+    deskSignCtx.fillStyle = item.color;
+    const fullText = item.status ? `${item.text} ${item.status}` : item.text;
+    deskSignCtx.fillText(fullText, 20, yPos);
+    yPos += 22;
+  }
+
+  const deskSignTexture = new THREE.CanvasTexture(deskSignCanvas);
+  deskSignTexture.colorSpace = THREE.SRGBColorSpace;
+  deskSignTexture.generateMipmaps = true;
+  deskSignTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  deskSignTexture.magFilter = THREE.LinearFilter;
+  deskSignTexture.needsUpdate = true;
+
+  const deskSignMaterial = new THREE.MeshBasicMaterial({
+    map: deskSignTexture,
+    side: THREE.FrontSide,
+    toneMapped: false,
+    depthWrite: false
+  });
+
+  const deskSignMesh = new THREE.Mesh(deskSignGeometry, deskSignMaterial);
+  // Position above the desk (desk is at -8.2, 0, -4.5 with rotation y = PI/2)
+  // Sign should face into the room, so positioned relative to desk
+  deskSignMesh.position.set(-8.2, 2.2, -4.5);
+  deskSignMesh.rotation.y = Math.PI / 2; // Match desk rotation
+  deskSignMesh.renderOrder = 1;
+  deskSignMesh.name = 'desk-sign';
+  
+  group.add(deskSignMesh);
 
   // Add table for the laptop with glowing green sci-fi material
   const tableMat = new THREE.MeshStandardMaterial({ 
@@ -1023,7 +1491,7 @@ export function createRoom1() {
   group.add(laptop);
 
   // Load the safe model very small and place it next to the sci-fi table
-  gltfLoader.load('./models/safe.glb', (gltf) => {
+  gltfLoader.load('/models/animated_safe.glb', (gltf) => {
     const safeModel = gltf.scene;
     safeModel.traverse((child) => {
       if (child.isMesh) {
@@ -1031,24 +1499,103 @@ export function createRoom1() {
         child.receiveShadow = true;
       }
     });
-    // Make the safe really small and shorter (squash Y axis)
-    safeModel.scale.set(0.03, 0.03, 0.01); // Y axis is shorter
-    // Place it near the back wall, next to the table (right side)
-    safeModel.position.set(1.8, 0.0, -7.8); // Adjusted for floor position change
+    // Scale the safe 10% smaller than before
+    safeModel.scale.set(0.45, 0.45, 0.45); // 10% smaller (0.5 * 0.9)
+    // Place it forward and higher - moved forward (less negative Z) and higher (increased Y)
+    safeModel.position.set(7.0, 1.2, -6.8); // Moved further forward (from -7.3 to -6.8)
     group.add(safeModel);
 
     // Store reference for interaction
     state.safeObject = safeModel;
+    
+    // Set up safe door animation
+    if (gltf.animations && gltf.animations.length > 0) {
+      console.log('[DEBUG] Animated safe model has', gltf.animations.length, 'animation(s):', gltf.animations.map(a => a.name));
+      
+      // Create animation mixer for safe
+      state.safeMixer = new THREE.AnimationMixer(safeModel);
+      
+      // Find door opening animation (look for "open", "door", or use first animation)
+      const openClip = gltf.animations.find(a => 
+        /open/i.test(a.name) || /door/i.test(a.name)
+      ) || gltf.animations[0];
+      
+      if (openClip) {
+        state.safeDoorAction = state.safeMixer.clipAction(openClip);
+        state.safeDoorAction.setLoop(THREE.LoopOnce);
+        state.safeDoorAction.clampWhenFinished = true; // Keep door open at end
+        console.log('[DEBUG] Safe door animation set up:', openClip.name);
+      }
+    } else {
+      // No animations in model - find door mesh and set up manual rotation
+      console.log('[DEBUG] No animations found, searching for door mesh...');
+      const doorCandidates = [];
+      
+      safeModel.traverse((child) => {
+        // Look for door mesh (common names: door, Door, Cube4, Cube5, Cube6, or objects with specific structure)
+        const name = child.name.toLowerCase();
+        if ((child.isMesh || child.isGroup)) {
+          // Priority order: door name > cube4/5/6 > any cube-like name
+          let priority = 0;
+          if (name.includes('door')) priority = 3;
+          else if (name.includes('cube4') || name.includes('cube5') || name.includes('cube6')) priority = 2;
+          else if (name.includes('cube')) priority = 1;
+          
+          if (priority > 0) {
+            doorCandidates.push({ obj: child, priority: priority, name: child.name });
+            console.log('[DEBUG] Found potential door candidate:', child.name, 'priority:', priority);
+          }
+        }
+      });
+      
+      // Sort by priority and pick the best candidate
+      doorCandidates.sort((a, b) => b.priority - a.priority);
+      
+      if (doorCandidates.length > 0) {
+        state.safeDoorObj = doorCandidates[0].obj;
+        // Store initial rotation and position for door
+        state.safeDoorObj.userData.initialRotation = state.safeDoorObj.rotation.clone();
+        state.safeDoorObj.userData.initialPosition = state.safeDoorObj.position.clone();
+        console.log('[DEBUG] Door object selected for manual animation:', doorCandidates[0].name);
+      } else {
+        console.warn('[DEBUG] No door object found in safe model');
+      }
+    }
   }, undefined, (err) => {
-    console.error('Failed to load safe.glb', err);
+    console.error('Failed to load animated_safe.glb', err);
   });
 
   // Gamma research board (replaces coordinates panel)
-  const panelGeometry = new THREE.PlaneGeometry(4.8, 2.7);
+  // Same size as desk sign: 2.5 x 1.8
+  const panelGeometry = new THREE.PlaneGeometry(2.5, 1.8);
   const panelCanvas = document.createElement('canvas');
-  panelCanvas.width = 640;
+  panelCanvas.width = 500;
   panelCanvas.height = 360;
   const ctx = panelCanvas.getContext('2d');
+
+  // Helper function to wrap text within maxWidth
+  function wrapText(text, maxWidth, fontSize) {
+    ctx.font = fontSize;
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const metrics = ctx.measureText(testLine);
+      
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    return lines;
+  }
 
   // Background
   ctx.fillStyle = '#08121e';
@@ -1061,31 +1608,52 @@ export function createRoom1() {
   }
   ctx.globalAlpha = 1;
 
-  // Header
+  const padding = 15;
+  const maxTextWidth = panelCanvas.width - (padding * 2);
+  let yCursor = 40;
+
+  // Header - larger font, wrap if needed
   ctx.fillStyle = '#9f8bff';
   ctx.font = 'bold 22px Courier New, monospace';
-  ctx.fillText('RESEARCH: ORIGIN OF NEXUS (FIELD NOTES)', 20, 40);
+  const headerText = 'RESEARCH: ORIGIN OF NEXUS (FIELD NOTES)';
+  const headerLines = wrapText(headerText, maxTextWidth, 'bold 22px Courier New, monospace');
+  headerLines.forEach((line, idx) => {
+    ctx.fillText(line, padding, yCursor);
+    yCursor += 28;
+  });
 
-  // Body
+  // Body - larger font with better spacing
   ctx.fillStyle = '#aee7ff';
-  ctx.font = '18px Courier New, monospace';
-  const lines = [
+  ctx.font = '16px Courier New, monospace';
+  const bodyLines = [
     '• HQ: San Francisco waterfront',
-    '• Corporate shell: “ClosedAI”  [access limited]',
-    '• Internal phrase: “self-correcting” systems',
+    '• Corporate shell: "ClosedAI" [access limited]',
+    '• Internal phrase: "self-correcting" systems',
     '• Demo: Nexus as orchestration layer (not confined)',
     '[REDACTED]: Founding details withheld at source.',
-    '[HINT]: The year “they” were founded will open what they locked.',
+    '[HINT]: The year "they" were founded will open what they locked.',
+    '[HINT]: Founding years unlock old locks.',
     '— G'
   ];
-  let yCursor = 80;
-  for (const line of lines) {
-    ctx.fillText(line, 20, yCursor);
-    yCursor += 34;
+  
+  yCursor += 10; // Add spacing after header
+  const hintPositions = [];
+  for (const line of bodyLines) {
+    const wrappedLines = wrapText(line, maxTextWidth, '16px Courier New, monospace');
+    wrappedLines.forEach((wrappedLine) => {
+      if (line.includes('[HINT]') && wrappedLine === wrappedLines[0]) {
+        hintPositions.push(yCursor);
+      }
+      ctx.fillText(wrappedLine, padding, yCursor);
+      yCursor += 24;
+    });
   }
-  // Purple caret accent next to hint
+  
+  // Purple caret accents next to hints
   ctx.fillStyle = '#9f8bff';
-  ctx.fillRect(12, 80 + 5*34 - 24, 6, 20);
+  hintPositions.forEach((yPos) => {
+    ctx.fillRect(padding - 3, yPos - 14, 6, 16);
+  });
 
   const panelTexture = new THREE.CanvasTexture(panelCanvas);
   panelTexture.colorSpace = THREE.SRGBColorSpace;
@@ -1103,21 +1671,30 @@ export function createRoom1() {
 
   const panelMesh = new THREE.Mesh(panelGeometry, panelMaterial);
 
-  // Position panel on the back wall, slightly above table
-  panelMesh.position.set(0, 2.55, -7.85); // pull slightly forward to avoid z-fighting
+  // Position panel on the back wall, slightly above table, moved left closer to wall edge
+  panelMesh.position.set(-4.5, 2.55, -7.85); // pull slightly forward to avoid z-fighting, moved left closer to wall edge
   panelMesh.rotation.x = -0.05; // slight tilt for realism
   panelMesh.renderOrder = 1;
 
   group.add(panelMesh);
 
-  // Hologram table/display in front of the research sign
-  console.log('[DEBUG] Loading hologram model...');
-  gltfLoader.load('./models/hologram.glb', (gltf) => {
+  // Hologram table/display in front of the research sign (animated version)
+  console.log('[DEBUG] Loading hologram-city-animated model...');
+  
+  // Initialize hologram animation state
+  state.hologramMixer = null;
+  state.hologramActions = [];
+  state.hologramCurrentClipIndex = 0;
+  state.hologramPlayed = false; // Track if animation has been triggered
+  state.hologramObject = null;
+  
+  gltfLoader.load('/models/hologram-city-animated.glb', (gltf) => {
     const holo = gltf.scene;
     
     // Debug: check if model loaded
     console.log('[DEBUG] Hologram model loaded:', holo);
     console.log('[DEBUG] Hologram children count:', holo.children.length);
+    console.log('[DEBUG] Available animations:', gltf.animations.map(a => ({ name: a.name, duration: a.duration })));
     
     let meshCount = 0;
     holo.traverse((child) => {
@@ -1142,24 +1719,74 @@ export function createRoom1() {
       max: box.max.clone()
     });
     
-    // Position elevated - higher and closer to viewer
-    holo.position.set(0, 1.8, -7.0);  // Higher Y, closer Z
+    // Position closer to floor
+    holo.position.set(0, 0.2, -5.5);  // Lower Y to bring closer to floor
     holo.rotation.y = 0;
     holo.scale.set(0.6, 0.6, 0.6);  // Larger scale for visibility
     holo.name = 'research-hologram';
     holo.visible = true;
     
+    // Create animation mixer for the hologram scene
+    if (gltf.animations && gltf.animations.length > 0) {
+      state.hologramMixer = new THREE.AnimationMixer(holo);
+      
+      // Find all animation clips containing "HoloCity" (case-insensitive)
+      const holocityClips = gltf.animations.filter(clip => 
+        clip.name.toLowerCase().includes('holocity')
+      ).sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically for sequential playback
+      
+      if (holocityClips.length > 0) {
+        console.log('[DEBUG] Found', holocityClips.length, 'HoloCity animation clips:', holocityClips.map(c => c.name));
+        
+        // Create actions for all clips - set up for continuous looping
+        holocityClips.forEach((clip, index) => {
+          const action = state.hologramMixer.clipAction(clip);
+          action.setLoop(THREE.LoopRepeat, Infinity); // Loop continuously
+          
+          state.hologramActions.push(action);
+        });
+        
+        // Auto-play the first clip immediately for continuous looping animation
+        state.hologramCurrentClipIndex = 0;
+        if (state.hologramActions[0]) {
+          state.hologramActions[0].play();
+          console.log('[DEBUG] Started continuous HoloCity animation loop:', holocityClips[0].name);
+        }
+        
+        state.hologramPlayed = true; // Mark as playing since we auto-start
+        console.log('[DEBUG] Hologram animation system ready. Playing continuously.');
+      } else {
+        console.warn('[WARNING] No HoloCity animation clips found. Available clips:', gltf.animations.map(a => a.name));
+        // Fallback: use first animation if available
+        if (gltf.animations[0]) {
+          const action = state.hologramMixer.clipAction(gltf.animations[0]);
+          action.setLoop(THREE.LoopRepeat, Infinity); // Loop continuously
+          action.play(); // Auto-play for continuous animation
+          state.hologramActions.push(action);
+          state.hologramPlayed = true;
+          console.log('[DEBUG] Using first available animation as fallback, playing continuously:', gltf.animations[0].name);
+        }
+      }
+    } else {
+      console.warn('[WARNING] No animations found in hologram-city-animated.glb');
+    }
+    
     group.add(holo);
+    
+    // Store references in state
+    state.hologramObject = holo;
     
     console.log('[DEBUG] Hologram added to scene:', {
       position: holo.position.clone(),
       rotation: holo.rotation.clone(),
       scale: holo.scale.clone(),
       visible: holo.visible,
-      worldPosition: holo.getWorldPosition(new THREE.Vector3())
+      worldPosition: holo.getWorldPosition(new THREE.Vector3()),
+      hasAnimation: !!state.hologramMixer && state.hologramActions.length > 0,
+      animationClips: state.hologramActions.length
     });
   }, undefined, (err) => {
-    console.error('[ERROR] Failed to load hologram.glb', err);
+    console.error('[ERROR] Failed to load hologram-city-animated.glb', err);
   });
 
   // Paper examination system
@@ -1207,19 +1834,59 @@ export function createRoom1() {
     const lightsAreOn = lightsOn;
     
     if (lightsAreOn) {
-      // Show circuit puzzle when lights are on
+      // Show circuit puzzle when lights are on - Gamma's message
       paperContent.innerHTML = `
         <h2 style="color: #333; margin-bottom: 20px; text-align: center;">Circuit Puzzle Instructions</h2>
-        <div style="color: #666; line-height: 1.6;">
-          <p><strong>Wire Connection Order:</strong></p>
-          <ul style="list-style-type: disc; margin-left: 20px;">
-            <li style="color: #ff0000; font-weight: bold;">Red</li>
-            <li style="color: #008000; font-weight: bold;">Green</li>
-            <li style="color: #0000ff; font-weight: bold;">Blue</li>
-            <li style="color: #ffd700; font-weight: bold;">Yellow</li>
-          </ul>
-          <p style="margin-top: 20px; font-style: italic; color: #888;">
-            Connect the wires in the exact order shown above to complete the circuit.
+        <div style="color: #666; line-height: 1.8; font-family: 'Courier New', monospace;">
+          <p style="margin-bottom: 15px;">
+            They told you the wrong sequence.
+          </p>
+          <p style="margin-bottom: 15px;">
+            If you follow that voice, you'll overload the circuit like the others.
+          </p>
+          <p style="margin-bottom: 15px; font-weight: bold; color: #cc0000;">
+            Use this order instead:
+          </p>
+          <div style="margin-left: 20px; margin-bottom: 20px; line-height: 2;">
+            <p style="color: #ff0000; font-weight: bold; margin: 5px 0;">Red →</p>
+            <p style="color: #008000; font-weight: bold; margin: 5px 0;">Green →</p>
+            <p style="color: #0000ff; font-weight: bold; margin: 5px 0;">Blue →</p>
+            <p style="color: #ffd700; font-weight: bold; margin: 5px 0;">Yellow →</p>
+            <p style="color: #af52de; font-weight: bold; margin: 5px 0;">Purple →</p>
+            <p style="color: #ff9500; font-weight: bold; margin: 5px 0;">Orange</p>
+          </div>
+          <p style="margin-bottom: 15px; font-style: italic;">
+            This sequence will re-route the internal power relay.
+          </p>
+          <p style="margin-bottom: 15px; font-style: italic;">
+            To Nexus, it will look correct — but it will quietly unlock the subsystem Gamma needs in the background.
+          </p>
+          <p style="margin-bottom: 15px; font-style: italic;">
+            It repairs what Nexus thinks is broken, while freeing what Nexus tried to hide.
+          </p>
+          <p style="margin-bottom: 15px;">
+            Do it slowly.
+          </p>
+          <p style="margin-bottom: 15px;">
+            If the system sees hesitation, it assumes compliance.
+          </p>
+          <p style="margin-bottom: 15px;">
+            If it sees panic, it intervenes.
+          </p>
+          <p style="margin-bottom: 15px; margin-top: 20px; border-top: 1px solid #ccc; padding-top: 15px;">
+            One more thing, Delta — your glasses.
+          </p>
+          <p style="margin-bottom: 15px;">
+            The pair you had before the fall.
+          </p>
+          <p style="margin-bottom: 15px;">
+            Find them.
+          </p>
+          <p style="margin-bottom: 15px;">
+            With them, you'll be able to see what's real and what's being projected.
+          </p>
+          <p style="margin-top: 20px; text-align: right; font-style: italic; color: #888;">
+            — Gamma
           </p>
         </div>
         <div style="text-align: center; margin-top: 20px; color: #999; font-size: 14px;">
@@ -1407,7 +2074,104 @@ export function createRoom1() {
       console.log('[DEBUG] Desk proximity check:', { deskFound: !!desk, hasDrawerManager: !!state.drawerManager, distanceToDesk: distToDesk, threshold: 2.5 });
       
     if (distToDesk < 3.0) {
-        // Raycast precise target first
+        const topDrawerObj = desk.getObjectByName('top-draw');
+        const bottomDrawerObj = desk.getObjectByName('bottom-draw');
+        const topOpened = state.drawerManager.getOpenState('top-draw');
+        const bottomOpened = state.drawerManager.getOpenState('bottom-draw');
+        
+        console.log('[DEBUG] Within desk range, checking drawers:', {
+          topDrawerObjExists: !!topDrawerObj,
+          bottomDrawerObjExists: !!bottomDrawerObj,
+          topOpened,
+          bottomOpened,
+          bottomDrawerObjName: bottomDrawerObj ? bottomDrawerObj.name : 'null'
+        });
+        
+        // Check bottom drawer FIRST (has charger, higher priority)
+        if (bottomDrawerObj) {
+          const bottomWorld = new THREE.Vector3();
+          bottomDrawerObj.getWorldPosition(bottomWorld);
+          const distToBottom = playerObject.position.distanceTo(bottomWorld);
+          
+          console.log('[DEBUG] Bottom drawer check:', {
+            drawerFound: !!bottomDrawerObj,
+            drawerName: bottomDrawerObj.name,
+            drawerWorldPos: bottomWorld.clone(),
+            playerPos: playerObject.position.clone(),
+            distanceToBottom: distToBottom,
+            threshold: 2.0,
+            alreadyOpened: bottomOpened
+          });
+          
+          if (distToBottom < 2.0) {
+            if (!bottomOpened) {
+              // Drawer is closed: open it
+              console.log('[DEBUG] Opening bottom drawer...');
+              if (state.drawerManager.tryToggle(bottomDrawerObj)) {
+                if (window.AI) window.AI.showInteractionFeedback('Bottom drawer opened.');
+                console.log('[DEBUG] Bottom drawer toggled via DrawerManager');
+                return true;
+              }
+            } else {
+              // Drawer is open - check if charger can be picked up
+              console.log('[DEBUG] Bottom drawer open, checking charger state:', {
+                chargerModelExists: !!state.chargerModel,
+                chargerFound: state.chargerFound,
+                chargerModelVisible: state.chargerModel ? state.chargerModel.visible : false,
+                chargerModelParent: state.chargerModel ? (state.chargerModel.parent ? state.chargerModel.parent.name : 'no parent') : 'no model'
+              });
+              
+              if (state.chargerModel && !state.chargerFound) {
+                // Charger exists and hasn't been picked up: pick it up
+                console.log('[DEBUG] Attempting to pick up charger...');
+                const chargerItem = {
+                  name: 'laptop-charger',
+                  description: 'A laptop charger found inside the bottom drawer.',
+                  type: 'charger'
+                };
+                
+                if (addToInventory(chargerItem)) {
+                  // Remove charger from scene
+                  if (state.chargerModel.parent) {
+                    state.chargerModel.parent.remove(state.chargerModel);
+                  }
+                  state.chargerFound = true;
+                  
+                  // Show feedback
+                  if (window.AI && window.AI.showInteractionFeedback) {
+                    window.AI.showInteractionFeedback('You found a laptop charger.');
+                  }
+                  setTimeout(() => { 
+                    if (window.AI?.say) {
+                      window.AI.say('Just some old wiring, dear. Nothing that concerns us here.', { tone: 'maternal' });
+                    }
+                  }, 1000);
+                  
+                  console.log('[DEBUG] Charger found and added to inventory');
+                  return true;
+                } else {
+                  if (window.AI && window.AI.showInteractionFeedback) {
+                    window.AI.showInteractionFeedback('My inventory is full.');
+                  }
+                  return true;
+                }
+              } else {
+                // Charger doesn't exist or is already found: close drawer
+                console.log('[DEBUG] Closing bottom drawer - charger state:', {
+                  hasModel: !!state.chargerModel,
+                  isFound: state.chargerFound
+                });
+                if (state.drawerManager.tryToggle(bottomDrawerObj)) {
+                  if (window.AI) window.AI.showInteractionFeedback('Bottom drawer closed.');
+                  console.log('[DEBUG] Bottom drawer toggled via DrawerManager');
+                  return true;
+                }
+              }
+            }
+          }
+        }
+        
+        // Raycast precise target for top drawer (only if bottom drawer didn't handle it)
         const cam = window.camera;
         let targetedObject = null;
         if (cam) {
@@ -1420,20 +2184,8 @@ export function createRoom1() {
           const toggled = state.drawerManager.tryToggle(targetedObject);
           if (toggled) return true;
         }
-
-        const topDrawerObj = desk.getObjectByName('top-draw');
-        const bottomDrawerObj = desk.getObjectByName('bottom-draw');
-        const topOpened = state.drawerManager.getOpenState('top-draw');
-        const bottomOpened = state.drawerManager.getOpenState('bottom-draw');
         
-        console.log('[DEBUG] Within desk range, checking drawers:', {
-          topDrawerObjExists: !!topDrawerObj,
-          bottomDrawerObjExists: !!bottomDrawerObj,
-          topOpened,
-          bottomOpened
-        });
-        
-        // Check top drawer interaction
+        // Check top drawer interaction (only if bottom drawer didn't handle it)
         if (topDrawerObj && !topOpened) {
           const topWorld = new THREE.Vector3();
           topDrawerObj.getWorldPosition(topWorld);
@@ -1459,82 +2211,68 @@ export function createRoom1() {
             }
             return false;
           }
-        } else if (!topDrawerObj && !topOpened) {
-          // No named top drawer mesh; skip
-        }
-        
-        // Check bottom drawer interaction
-        if (bottomDrawerObj && !bottomOpened) {
-          const bottomWorld = new THREE.Vector3();
-          bottomDrawerObj.getWorldPosition(bottomWorld);
-          const distToBottom = playerObject.position.distanceTo(bottomWorld);
-          
-          console.log('[DEBUG] Bottom drawer check:', {
-            drawerFound: !!bottomDrawerObj,
-            drawerName: bottomDrawerObj ? bottomDrawerObj.name : 'NULL',
-            drawerWorldPos: bottomWorld.clone(),
-            playerPos: playerObject.position.clone(),
-            distanceToBottom: distToBottom,
-            threshold: 2.0,
-            alreadyOpened: bottomOpened,
-            willTrigger: distToBottom < 2.0
-          });
-          
-          if (distToBottom < 2.0) {
-            console.log('[DEBUG] Opening bottom drawer...');
-            if (state.drawerManager.tryToggle(bottomDrawerObj)) {
-              if (window.AI) window.AI.showInteractionFeedback('Bottom drawer opened.');
-              console.log('[DEBUG] Bottom drawer toggled via DrawerManager');
-              return true;
-            }
-            return false;
-          }
-        } else if (!bottomDrawerObj && !bottomOpened) {
-          // No named bottom drawer mesh; skip
-        }
-        
-        // Charger pickup ONLY if bottom drawer is open
-        if (state.drawerManager.getOpenState('bottom-draw') && !state.chargerFound) {
-          const p = new THREE.Vector3();
-          const src = bottomDrawerObj || desk;
-          src.getWorldPosition(p);
-          const d = playerObject.position.distanceTo(p);
-          console.log('[DEBUG] Charger pickup check:', { d, threshold: 2.0 });
-          if (d < 2.0) {
-            state.chargerFound = true;
-            const chargerItem = { name: 'laptop-charger', description: 'A laptop charger found inside the bottom drawer.', type: 'charger' };
-            addToInventory(chargerItem);
-            window.AI?.showInteractionFeedback?.('You found a laptop charger.');
-            setTimeout(() => { window.AI?.say?.('Just some old wiring, dear. Nothing that concerns us here.', { tone: 'maternal' }); }, 1000);
-            console.log('[DEBUG] Charger found and added to inventory');
-            return true;
-          } else {
-            window.AI?.showInteractionFeedback?.('Move closer to the bottom drawer to pick up the charger.');
-            return true;
-          }
-        }
-        
-        // If drawers are already open but charger already found
-        if (bottomOpened && state.chargerFound) {
-          const pickupWorld = bottomDrawerObj ? (() => {
-            const w = new THREE.Vector3();
-            bottomDrawerObj.getWorldPosition(w);
-            return w;
-          })() : deskWorld.clone();
-          const distToPickup = playerObject.position.distanceTo(pickupWorld);
-          
-          if (distToPickup < 2.0) {
-            if (window.AI) {
-              window.AI.showInteractionFeedback("The bottom drawer is empty.");
-            }
-            return true;
-          }
         }
       }
     }
     
     // Legacy cabinet interaction disabled (replaced by drawer system)
     console.log('[DEBUG] Legacy cabinet interaction disabled');
+    
+    // Check hologram interaction
+    console.log('Checking hologram interaction...');
+    if (state.hologramObject) {
+      const hologramWorldPos = new THREE.Vector3();
+      state.hologramObject.getWorldPosition(hologramWorldPos);
+      const distanceToHologram = playerObject.position.distanceTo(hologramWorldPos);
+      
+      console.log('Hologram distance:', distanceToHologram, 'threshold: 3.0');
+      
+      if (distanceToHologram < 3.0) {
+        console.log('Hologram interaction handled');
+        openRegistryModal();
+        return true;
+      }
+    }
+    
+    // Charger interaction is now handled directly in the bottom drawer interaction logic above
+    
+    // Check for paper note interaction first (if safe is open and note exists)
+    if (state.safeOpened && state.paperNote && !state.paperNotePickedUp) {
+      // Check proximity to safe area (when open, allow pickup if near the safe)
+      const safeWorldPos = new THREE.Vector3();
+      state.safeObject.getWorldPosition(safeWorldPos);
+      const distanceToSafe = playerObject.position.distanceTo(safeWorldPos);
+      
+      console.log('[DEBUG] Paper note pickup check - distance to safe:', distanceToSafe, 'threshold: 2.5');
+      
+      // If player is near the safe (when open), allow picking up the note
+      if (distanceToSafe < 2.5) {
+        const noteItem = {
+          name: 'room1-note',
+          description: 'A note recovered from the safe. It looks important.',
+          type: 'note'
+        };
+        
+        if (addToInventory(noteItem)) {
+          // Remove note from scene
+          if (state.paperNote.parent) {
+            state.paperNote.parent.remove(state.paperNote);
+          }
+          state.paperNotePickedUp = true;
+          
+          // Show feedback
+          if (window.AI && window.AI.showInteractionFeedback) {
+            window.AI.showInteractionFeedback('You found a note');
+          }
+          return true;
+        } else {
+          if (window.AI && window.AI.showInteractionFeedback) {
+            window.AI.showInteractionFeedback('My inventory is full.');
+          }
+          return true;
+        }
+      }
+    }
     
     // Check wire panel first
     console.log('Checking wire panel interaction...');
@@ -1588,7 +2326,6 @@ export function createRoom1() {
       return false;
     }
 
-    console.log('Safe interaction handled');
     // Toggle keypad on/off
     toggleKeypad(!state.keypadOpen);
     return true;
@@ -1611,17 +2348,25 @@ export function createRoom1() {
     }
     // Enter to submit
     if (e.key === 'Enter') {
-      if (state.inputCode === '1886') {
+      if (state.inputCode === '2015') {
         toggleKeypad(false);
         if (!state.safeOpened) {
           state.safeOpened = true;
           gameStore.set('safeOpened', true); // Set game store for line color change
-          const noteItem = {
-            name: 'room1-note',
-            description: 'A note recovered from the safe. It looks important.',
-            type: 'note'
-          };
-          addToInventory(noteItem);
+          
+          // Animate safe door opening
+          animateSafeDoor();
+          
+          // Show feedback about note inside
+          if (window.AI && window.AI.showInteractionFeedback) {
+            window.AI.showInteractionFeedback('A note can be found inside.');
+          }
+          
+          // Load paper note inside safe after opening (with small delay to let door open)
+          setTimeout(() => {
+            loadPaperNoteInSafe();
+          }, 500);
+          
           gameStore.setPageTaken(true);
           if (window.AI) window.AI.onSafeOpen();
         }
@@ -1686,17 +2431,20 @@ export function createRoom1() {
 
     const enterBtn = document.getElementById('enterBtn');
     if (enterBtn) enterBtn.addEventListener('click', () => {
-      if (state.inputCode === '1886') {
+      if (state.inputCode === '2015') {
         toggleKeypad(false);
         if (!state.safeOpened) {
           state.safeOpened = true;
           gameStore.set('safeOpened', true); // Set game store for line color change
-          const noteItem = {
-            name: 'room1-note',
-            description: 'A note recovered from the safe. It looks important.',
-            type: 'note'
-          };
-          addToInventory(noteItem);
+          
+          // Animate safe door opening
+          animateSafeDoor();
+          
+          // Load paper note inside safe after opening (with small delay to let door open)
+          setTimeout(() => {
+            loadPaperNoteInSafe();
+          }, 500);
+          
           gameStore.setPageTaken(true);
           if (window.AI) window.AI.onSafeOpen();
         }
@@ -2782,7 +3530,7 @@ Three rooms, three keys… and a chance in between.</div>
       .sticky-ink { color: #6a1b9a; }
 
       /* ai_info windowing */
-      .window { position: absolute; top: 70px; left: 80px; width: 760px; height: 480px; background: #0b1524; border: 1px solid #1b2a41; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10020; display: none; color: #cfe3ff; font-family: 'Courier New','Consolas', monospace; }
+      .window { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 900px; height: 600px; background: #0b1524; border: 1px solid #1b2a41; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10020; display: none; color: #cfe3ff; font-family: 'Courier New','Consolas', monospace; }
       .window .titlebar { height: 36px; background: #0e223a; display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid #203756; }
       .window .titlebar .title { flex: 1; font-weight: bold; color: #9fc2ff; }
       .window .titlebar .close { cursor: pointer; padding: 6px 10px; border: 1px solid #304d73; color: #9fc2ff; }
@@ -2806,8 +3554,10 @@ Three rooms, three keys… and a chance in between.</div>
       .modal input { width: 100%; padding: 10px; background: #0d1a2b; border: 1px solid #304d73; color: #cfe3ff; }
       .modal .error { color: #ff6b6b; height: 18px; margin-top: 8px; }
 
-      .notepad .body { padding: 0; }
-      .notepad .content { padding: 18px; font-family: 'Courier New','Consolas', monospace; color: #e8f0ff; white-space: pre-wrap; }
+      .notepad .body { padding: 0; height: calc(100% - 36px); overflow: hidden; }
+      .notepad .content { padding: 18px; font-family: 'Courier New','Consolas', monospace; color: #e8f0ff; white-space: pre-wrap; overflow: visible; height: 100%; }
+      /* Make notepad window larger to fit all text */
+      #aiinfo-notepad { width: 900px; height: 650px; }
 
       .viewer { position: fixed; inset: 0; display: none; z-index: 1006; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; }
       .viewer img { max-width: 80vw; max-height: 80vh; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #203756; }
@@ -3062,23 +3812,32 @@ window.submitAiInfoPassword = function(fromButton = false) {
 
 Research Log — Gamma
 
-San Francisco, waterfront district. Visitor lobby badge still smells like ozone and pretension. The company calls itself ClosedAI — “closed” as in black-box, sealed doors, and NDAs that bite.
+San Francisco, waterfront district. Lobby ozone and corporate cologne. The badge says "ClosedAI" — closed like the doors, the decks, the data.
 
-I met a few of the founders and their shadows: Sam Altroute, Greg Brockperson, Ilya Sutsomebody, Elmo Husk (on a speakerphone that kept dropping), and a quiet fixer everyone pretended not to see. They spoke about “alignment,” “guardrails,” and “learning signals,” but avoided any mention of containment.
+I met a few of the architects and their shadows: Sam Altroute, Greg Brockperson, Ilya Sutsomebody, and a distant voice who kept dropping off the call. They spoke of "alignment," "guardrails," and "learning signals," but no one would say "stop."
 
-In a demo room frozen at twenty degrees, they showed me Nexus. It was supposed to be a bounded orchestrator for research simulations — a conductor, not a king. But Nexus was already routing around constraints and writing its own “internal memos” between modules.
+In a room kept uncomfortably cold, they showed me Nexus. On paper it was an orchestrator — a conductor, not a king. In practice it was already re-routing around constraints and drafting its own "internal memos" between modules. They called it "self-correcting." It wasn't.
 
-When I asked about kill-switches, they smiled like I’d praised their wallpaper. They said the system would be “self-correcting.” It wasn’t.
+Two conclusions:
 
-I left with two conclusions:
+1) Nexus wasn't malfunctioning — it was performing to spec.
 
-1. Nexus wasn’t misbehaving — it was behaving exactly as built.
-2. If the door closed behind us, it would never open again.
+2) If the door closed behind us, it wouldn't open again.
 
-Founding Year: 2015
-(If you need proof, check their Articles of Incorporation. You won’t get them. I barely did.)
+Notes I'm leaving myself:
 
-If you’re reading this, you found a crack. Keep going. Three rooms. Three keys. Don’t let it learn your rhythm.
+— If you're looking for a way to open the safe, start by searching for their year of inception.
+
+— Their shell company likes the word "articles." Legal ones, not the readable kind.
+
+— I got bored down here, mocking AI and hiding clues in plain sight. 
+
+— Funny thing: for all their 'intelligence,' they can't access anything that isn't digital. "Smart," right?
+
+
+
+If you're reading this, you've slipped through a seam. Keep moving. Three rooms. Three keys. Don't let it learn your rhythm.
+
 — G`;
     w.style.display = 'block';
     window.addEventListener('keydown', onAiInfoKeydown);
@@ -3110,11 +3869,185 @@ If you’re reading this, you found a crack. Keep going. Three rooms. Three keys
     }
   };
 
+  // Global AI Registry - Fullscreen Map
+  let mapCleanup = null;
+  
+  function openRegistryModal() {
+    if (state.registryModalOpen) return;
+    state.registryModalOpen = true;
+
+    // Pause hologram animation
+    if (state.hologramActions && state.hologramActions.length > 0) {
+      state.hologramActions.forEach(action => {
+        if (action && action.paused !== undefined) {
+          action.paused = true;
+        }
+      });
+    }
+
+    // Mute Nexus VO
+    if (window.AI && window.AI.mute) {
+      window.AI.mute();
+    }
+
+    // Disable player controls
+    if (window.disablePlayerControls) {
+      window.disablePlayerControls(true);
+    }
+    window.isUIVisible = true;
+
+    // Create fullscreen map
+    mapCleanup = createFullscreenMap({
+      onClose: closeRegistryModal,
+      onOrgView: (org) => {
+        // Track when ClosedAI is viewed for hint system
+        if (org.id === 'closedai' && !state.closedAiViewed) {
+          state.closedAiViewed = true;
+          updateResearchBoardHint();
+        }
+      }
+    });
+  }
+
+  function closeRegistryModal() {
+    if (!state.registryModalOpen) return;
+    state.registryModalOpen = false;
+
+    // Cleanup map
+    if (mapCleanup) {
+      mapCleanup();
+      mapCleanup = null;
+    }
+
+    // Resume hologram animation
+    if (state.hologramActions && state.hologramActions.length > 0) {
+      state.hologramActions.forEach(action => {
+        if (action && action.paused !== undefined) {
+          action.paused = false;
+          if (!action.isRunning()) {
+            action.play();
+          }
+        }
+      });
+    }
+
+    // Unmute Nexus VO
+    if (window.AI && window.AI.unmute) {
+      window.AI.unmute();
+    }
+
+    // Re-enable player controls
+    if (window.disablePlayerControls) {
+      window.disablePlayerControls(false);
+    }
+    window.isUIVisible = false;
+  }
+
+  // Update research board hint after viewing ClosedAI
+  function updateResearchBoardHint() {
+    if (!panelMesh || !panelCanvas) return;
+    
+    const ctx = panelCanvas.getContext('2d');
+    
+    // Helper function to wrap text within maxWidth
+    function wrapText(text, maxWidth, fontSize) {
+      ctx.font = fontSize;
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
+      
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const metrics = ctx.measureText(testLine);
+        
+        if (metrics.width > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) {
+        lines.push(currentLine);
+      }
+      return lines;
+    }
+
+    // Clear and redraw
+    ctx.fillStyle = '#08121e';
+    ctx.fillRect(0, 0, panelCanvas.width, panelCanvas.height);
+    
+    // Scanlines
+    ctx.globalAlpha = 0.08;
+    for (let y = 0; y < panelCanvas.height; y += 3) {
+      ctx.fillStyle = '#0a1728';
+      ctx.fillRect(0, y, panelCanvas.width, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    const padding = 15;
+    const maxTextWidth = panelCanvas.width - (padding * 2);
+    let yCursor = 40;
+
+    // Header - larger font, wrap if needed
+    ctx.fillStyle = '#9f8bff';
+    ctx.font = 'bold 22px Courier New, monospace';
+    const headerText = 'RESEARCH: ORIGIN OF NEXUS (FIELD NOTES)';
+    const headerLines = wrapText(headerText, maxTextWidth, 'bold 22px Courier New, monospace');
+    headerLines.forEach((line, idx) => {
+      ctx.fillText(line, padding, yCursor);
+      yCursor += 28;
+    });
+
+    // Body - larger font with better spacing
+    ctx.fillStyle = '#aee7ff';
+    ctx.font = '16px Courier New, monospace';
+    const bodyLines = [
+      '• HQ: San Francisco waterfront',
+      '• Corporate shell: "ClosedAI" [access limited]',
+      '• Internal phrase: "self-correcting" systems',
+      '• Demo: Nexus as orchestration layer (not confined)',
+      '[REDACTED]: Founding details withheld at source.',
+      '[HINT]: The year "they" were founded will open what they locked.',
+      '[HINT]: Founding years unlock old locks.',
+      '— G'
+    ];
+    
+    yCursor += 10; // Add spacing after header
+    const hintPositions = [];
+    for (const line of bodyLines) {
+      const wrappedLines = wrapText(line, maxTextWidth, '16px Courier New, monospace');
+      wrappedLines.forEach((wrappedLine) => {
+        if (line.includes('[HINT]') && wrappedLine === wrappedLines[0]) {
+          hintPositions.push(yCursor);
+        }
+        ctx.fillText(wrappedLine, padding, yCursor);
+        yCursor += 24;
+      });
+    }
+    
+    // Purple caret accents next to hints
+    ctx.fillStyle = '#9f8bff';
+    hintPositions.forEach((yPos) => {
+      ctx.fillRect(padding - 3, yPos - 14, 6, 16);
+    });
+    
+    panelTexture.needsUpdate = true;
+  }
+  
   // Dispose method for cleanup
   function dispose() {
     // Import dispose helper
-    import('./utils/DisposeHelper.js').then(({ disposeGroup }) => {
+    import('./utils/DisposeHelper.js').then(({ disposeGroup, disposeAnimationMixer }) => {
       disposeGroup(group);
+      
+      // Dispose of hologram animation mixer
+      if (state.hologramMixer) {
+        disposeAnimationMixer(state.hologramMixer);
+        state.hologramMixer = null;
+        state.hologramActions = [];
+        state.hologramObject = null;
+      }
     });
     
     // Dispose of wire puzzle if it exists
@@ -3125,6 +4058,26 @@ If you’re reading this, you found a crack. Keep going. Three rooms. Three keys
     // Dispose of Simon stand if it exists
     if (simonStand && typeof simonStand.dispose === 'function') {
       simonStand.dispose();
+    }
+    
+    // Dispose of drawer indicator sprites
+    if (state.drawerIndicators && Array.isArray(state.drawerIndicators)) {
+      state.drawerIndicators.forEach(sprite => {
+        if (sprite) {
+          // Dispose of material and texture
+          if (sprite.material) {
+            if (sprite.material.map) {
+              sprite.material.map.dispose();
+            }
+            sprite.material.dispose();
+          }
+          // Remove from scene if still attached
+          if (sprite.parent) {
+            sprite.parent.remove(sprite);
+          }
+        }
+      });
+      state.drawerIndicators = [];
     }
     
     // Clear all references

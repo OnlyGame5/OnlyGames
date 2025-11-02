@@ -103,10 +103,22 @@ function updateInventoryUI() {
     // Update item display
     if (item) {
       slot.classList.add('filled');
-      iconElement.textContent = getItemIcon(item.name);
+      
+      // Check if item uses an image icon
+      const iconInfo = getItemIcon(item.name);
+      if (typeof iconInfo === 'object' && iconInfo.image) {
+        // Use image icon
+        iconElement.textContent = '';
+        iconElement.innerHTML = `<img src="${iconInfo.image}" alt="${item.name}" style="width: 32px; height: 32px; object-fit: contain;">`;
+      } else {
+        // Use text/emoji icon (iconInfo is a string)
+        iconElement.innerHTML = '';
+        iconElement.textContent = typeof iconInfo === 'string' ? iconInfo : (iconInfo.text || '📦');
+      }
       iconElement.title = item.description || item.name;
     } else {
       slot.classList.remove('filled');
+      iconElement.innerHTML = '';
       iconElement.textContent = '';
       iconElement.title = '';
     }
@@ -115,6 +127,8 @@ function updateInventoryUI() {
 
 function getItemIcon(itemName) {
   switch (itemName) {
+    case 'laptop-charger':
+      return { image: '/images/laptop-charger.png' };
     case 'stage0-key':
       return '🗝️';
     case 'room4-nexus-key':

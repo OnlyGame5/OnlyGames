@@ -1658,6 +1658,25 @@ window.addEventListener('keydown', (e) => {
       return;
     }
     
+    // Check if password modal or other UI is open
+    const passwordModal = document.getElementById('aiinfo-password-modal');
+    if (passwordModal && passwordModal.style.display === 'flex') {
+      // Password modal is open, don't handle E-key here
+      return;
+    }
+    
+    // Check for active input focus (password input or any other visible UI input)
+    const activeElement = document.activeElement;
+    if (activeElement && (
+      activeElement.id === 'aiinfo-password-input' ||
+      (activeElement.tagName === 'INPUT' && activeElement.offsetParent !== null) ||
+      (activeElement.tagName === 'TEXTAREA' && activeElement.offsetParent !== null) ||
+      window.isUIVisible
+    )) {
+      // User is typing in a visible input field or UI is visible, don't handle E-key
+      return;
+    }
+    
     // Check for dropped items first (highest priority)
     const activePlayer = leonardModel || player;
     if (handleDroppedItemInteraction(camera)) {
