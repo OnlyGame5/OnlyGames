@@ -322,9 +322,6 @@ export function createWirePanel(opts = {}) {
 
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
-    
-    // Add debug panel for development
-    addDebugPanel();
 
     // Prevent game from taking control when popup is open
     overlay.addEventListener('click', (e) => {
@@ -354,52 +351,45 @@ export function createWirePanel(opts = {}) {
     overlay.addEventListener('keydown', handleKeyboardInput);
 
     return overlay;
-  }
-
-  // Create drag wire visualization
-  function createDragWire(colorData) {
-    const dragWire = document.createElement('div');
-    dragWire.id = 'dragWire';
-    dragWire.style.cssText = `
-      position: fixed;
-      width: 60px;
-      height: 60px;
-      background: ${colorData.color};
-      border: 3px solid #00ff00;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      font-size: 16px;
-      text-shadow: 0 0 5px rgba(0,0,0,0.8);
-      box-shadow: 0 0 20px ${colorData.color};
-      z-index: 3000;
-      pointer-events: none;
-      opacity: 0.9;
-      transform: translate(-50%, -50%);
-    `;
-    dragWire.textContent = colorData.name;
-    document.body.appendChild(dragWire);
-    return dragWire;
-  }
-
-  // Remove drag wire visualization
-  function removeDragWire() {
-    const dragWire = document.getElementById('dragWire');
-    console.log('=== REMOVE DRAG WIRE DEBUG ===');
-    console.log('Attempting to remove drag wire:', dragWire);
-    
-    if (dragWire) {
-      console.log('Drag wire found, removing...');
-      dragWire.remove();
-      console.log('Drag wire removed successfully');
-    } else {
-      console.log('No drag wire found to remove');
     }
-  }
 
+    // Create drag wire visualization element
+    function createDragWire(colorData) {
+      const dragWire = document.createElement('div');
+      dragWire.id = 'dragWire';
+      dragWire.style.cssText = `
+        position: fixed;
+        width: 60px;
+        height: 60px;
+        background: ${colorData.color};
+        border: 3px solid #00ff00;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+        text-shadow: 0 0 5px rgba(0,0,0,0.8);
+        box-shadow: 0 0 20px ${colorData.color};
+        z-index: 3000;
+        pointer-events: none;
+        opacity: 0.9;
+        left: -9999px;
+        top: -9999px;
+      `;
+      dragWire.textContent = colorData.name || colorData.id;
+      document.body.appendChild(dragWire);
+      return dragWire;
+    }
+
+    // Remove drag wire element if present
+    function removeDragWire() {
+      const dragWire = document.getElementById('dragWire');
+      if (dragWire) {
+        dragWire.remove();
+      }
+    }
   // Handle mouse down on source socket (start drag)
   function handleSocketMouseDown(e, colorData, socketElement) {
     if (state.solved || state.timeoutActive || socketElement.classList.contains('used')) return;
@@ -593,68 +583,7 @@ export function createWirePanel(opts = {}) {
     }
   }
 
-  // Visual debugging function to show current state
-  function debugState() {
-    const debugInfo = {
-      isDragging: state.isDragging,
-      holding: state.holding,
-      dragElement: state.dragElement,
-      existingDragWire: document.getElementById('dragWire'),
-      dragWireInDOM: document.querySelector('#dragWire'),
-      allDragWires: document.querySelectorAll('#dragWire')
-    };
-    
-    console.log('=== CURRENT STATE DEBUG ===');
-    console.log(debugInfo);
-    
-    // Also log to a visible debug panel if it exists
-    const debugPanel = document.getElementById('debugPanel');
-    if (debugPanel) {
-      debugPanel.innerHTML = JSON.stringify(debugInfo, null, 2);
-    }
-    
-    return debugInfo;
-  }
-
-  // Add debug panel to the UI
-  function addDebugPanel() {
-    const debugPanel = document.createElement('div');
-    debugPanel.id = 'debugPanel';
-    debugPanel.style.cssText = `
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.8);
-      color: white;
-      padding: 10px;
-      font-family: monospace;
-      font-size: 12px;
-      z-index: 9999;
-      max-width: 300px;
-      max-height: 200px;
-      overflow: auto;
-      border: 1px solid #00ff00;
-    `;
-    debugPanel.textContent = 'Debug info will appear here';
-    document.body.appendChild(debugPanel);
-    
-    // Add debug button
-    const debugBtn = document.createElement('button');
-    debugBtn.textContent = 'DEBUG STATE';
-    debugBtn.style.cssText = `
-      position: fixed;
-      top: 10px;
-      left: 320px;
-      background: #00ff00;
-      color: black;
-      border: none;
-      padding: 5px 10px;
-      cursor: pointer;
-      z-index: 9999;
-    `;
-    debugBtn.addEventListener('click', debugState);
-    document.body.appendChild(debugBtn);
-  }
+  // Debug helpers removed for production: no debug UI or state dump button
 
   // Handle port mouse up (for rewiring)
   function handlePortMouseUp(e, portIndex, portElement) {
