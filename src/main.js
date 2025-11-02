@@ -483,8 +483,8 @@ window.addEventListener('performanceSettingsChanged', (e) => {
           color: 0xffffff,
           intensity: 1.2,
           position: new THREE.Vector3(10, 20, 10),
-          shadowMapSize: 2048,
-          shadowCameraSize: 30,
+          shadowMapSize: 1024,
+          shadowCameraSize: 25,
           shadowBias: -0.001
         });
       }
@@ -1247,8 +1247,8 @@ async function initGame() {
         color: 0xffffff,
         intensity: 1.2,
         position: new THREE.Vector3(10, 20, 10),
-        shadowMapSize: 2048,
-        shadowCameraSize: 30,
+        shadowMapSize: 1024,
+        shadowCameraSize: 25,
         shadowBias: -0.001
       });
       console.log('Shadows enabled (High performance mode)');
@@ -1262,6 +1262,11 @@ async function initGame() {
     
     // Update HUD with current bindings
     updateHUDInstructions();
+    
+    // Warm up shaders and materials to prevent startup lag
+    console.log('Warming up shaders and materials...');
+    renderer.compile(scene, camera); // Force shader compilation
+    console.log('Shader warmup complete');
     
     // Complete loading
     updateProgress(2); // Models and final setup
@@ -1337,8 +1342,8 @@ async function initGame() {
          color: 0xffffff,
          intensity: 1.2,
          position: new THREE.Vector3(10, 20, 10),
-         shadowMapSize: 2048,
-         shadowCameraSize: 30,
+         shadowMapSize: 1024,
+         shadowCameraSize: 25,
          shadowBias: -0.001
        });
        console.log('Shadows enabled (High performance mode - fallback)');
@@ -1863,9 +1868,6 @@ function unlockRoom1() {
 let lastTime = 0;
 function animate(currentTime) {
   requestAnimationFrame(animate);
-  
-  // Count frames for performance monitoring
-  frameCount++;
   
   const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
   lastTime = currentTime;

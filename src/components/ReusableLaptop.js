@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { addToInventory } from '../player.js';
+import { createCelShadingMaterial } from '../shaders/CelShader.js';
 
 let oldEnglishFontPromise = null;
 
@@ -1244,17 +1245,10 @@ function createLaptopWorkstation(parentGroup, screenTexture, screenContent) {
   laptopGroup.position.y = 0.8;
   parentGroup.add(laptopGroup);
 
-  // Laptop base (keyboard)
-  const baseMat = new THREE.MeshStandardMaterial({ 
-    color: 0x4a4a4a, // Much brighter
-    metalness: 0.7, // Good metalness for reflection
-    roughness: 0.1, // Very low roughness for more reflection
-    emissive: 0x555555, // Bright emissive glow
-    emissiveIntensity: 0.3
-  });
+  // Laptop base (keyboard) - WITH CEL SHADING
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(0.6, 0.05, 0.4), 
-    baseMat
+    createCelShadingMaterial(0x4a4a4a, 3) // Use cel shading for cartoon effect
   );
   laptopGroup.add(base);
 
@@ -1263,18 +1257,11 @@ function createLaptopWorkstation(parentGroup, screenTexture, screenContent) {
   hingeGroup.position.z = -0.2;
   laptopGroup.add(hingeGroup);
 
-  // Screen
-  const screenMat = new THREE.MeshStandardMaterial({ 
-    color: 0x3a3a3a, // Much brighter
-    metalness: 0.8, // High metalness for good reflection
-    roughness: 0.05, // Very low roughness for maximum reflection
-    emissive: 0x666666, // Very bright emissive glow
-    emissiveIntensity: 0.4
-  });
+  // Screen - WITH CEL SHADING
   const screenHeight = 0.4;
   const screen = new THREE.Mesh(
     new THREE.BoxGeometry(0.6, screenHeight, 0.05), 
-    screenMat
+    createCelShadingMaterial(0x3a3a3a, 3) // Use cel shading for cartoon effect
   );
   screen.position.y = screenHeight / 2;
   hingeGroup.add(screen);

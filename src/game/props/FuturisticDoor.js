@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createWarningLabelTexture, createScanBarTexture } from './fx/doorTextures.js';
+import { createCelShadingMaterial } from '../../shaders/CelShader.js';
 
 // Configuration constants
 const OPEN_SPEED = 1.2; // seconds to fully open/close
@@ -131,14 +132,10 @@ function createDoorPanels(group, width, height) {
   const panelThickness = 0.01; // Even thinner panels
   const panelWidth = width / 2 - 0.05;
   
-  // Left panel
+  // Left panel - WITH CEL SHADING
   const leftPanel = new THREE.Mesh(
     new THREE.BoxGeometry(panelWidth, height - 0.2, panelThickness),
-    new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a,
-      metalness: 0.8,
-      roughness: 0.3
-    })
+    createCelShadingMaterial(0x2a2a2a, 3) // Use cel shading for cartoon effect
   );
   leftPanel.position.set(-panelWidth / 2, 0, -0.01); // Move further back
   leftPanel.castShadow = true;
@@ -146,14 +143,10 @@ function createDoorPanels(group, width, height) {
   leftPanel.name = 'left-panel';
   group.add(leftPanel);
   
-  // Right panel
+  // Right panel - WITH CEL SHADING
   const rightPanel = new THREE.Mesh(
     new THREE.BoxGeometry(panelWidth, height - 0.2, panelThickness),
-    new THREE.MeshStandardMaterial({
-      color: 0x2a2a2a,
-      metalness: 0.8,
-      roughness: 0.3
-    })
+    createCelShadingMaterial(0x2a2a2a, 3) // Use cel shading for cartoon effect
   );
   rightPanel.position.set(panelWidth / 2, 0, -0.01); // Move further back
   rightPanel.castShadow = true;

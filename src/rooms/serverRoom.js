@@ -8,6 +8,7 @@ import { DataStormPuzzle } from './Room3/DataStormPuzzle.js';
 import { PurgeMinigame } from './Room3/PurgeMinigame.js';
 import { getPlayerInventory, addToInventory, removeFromInventory } from '../player.js';
 import { room3Audio } from '../audio/room3Audio.js';
+import { createCelShadingMaterial } from '../shaders/CelShader.js';
 
 // Server Room – The Core
 // Controller responsible for assembling the chamber, mounting puzzles, and handling per-frame updates.
@@ -1063,9 +1064,8 @@ export class ServerRoom {
     laptopGroup.rotation.y = Math.PI * 1.5; // Rotate 90 degrees counterclockwise (270 degrees)
     workstation.add(laptopGroup);
 
-    // --- LAPTOP BASE (KEYBOARD) ---
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.4 });
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), baseMat);
+    // --- LAPTOP BASE (KEYBOARD) - WITH CEL SHADING ---
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), createCelShadingMaterial(0x1a1a1a, 3));
     laptopGroup.add(base);
 
     // --- NEW HINGE MECHANISM ---
@@ -1074,10 +1074,9 @@ export class ServerRoom {
     hingeGroup.position.z = -0.2; // Position at the back edge of the base
     laptopGroup.add(hingeGroup);
     
-    // 2. Create the Screen with correct dimensions
-    const screenMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.9, roughness: 0.3 });
+    // 2. Create the Screen with correct dimensions - WITH CEL SHADING
     const screenHeight = 0.4;
-    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.6, screenHeight, 0.05), screenMat);
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.6, screenHeight, 0.05), createCelShadingMaterial(0x0a0a0a, 3));
     
     // 3. Position the screen *locally* inside the hinge.
     // Move it up by half its height so its bottom edge is at the hinge's pivot point.

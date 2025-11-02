@@ -219,7 +219,7 @@ Whose truth will you believe?`;
   function startCrawlTimer() {
     // Check if user prefers reduced motion
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const crawlDuration = prefersReducedMotion ? 120000 : 60000; // 2min for reduced motion, 1min normal
+    const crawlDuration = prefersReducedMotion ? 120000 : 20000; // 2min for reduced motion, 20s normal
     
     setTimeout(() => {
       crawlCompleted = true;

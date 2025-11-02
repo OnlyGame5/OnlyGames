@@ -9,12 +9,12 @@ export class ShadowSystem {
     this.renderer = renderer;
     this.scene = scene;
     this.shadowLights = [];
-    this.shadowMapSize = 2048; // Higher resolution for better quality
+    this.shadowMapSize = 1024; // Optimized for performance while maintaining quality
     this.shadowCascades = 3; // Number of shadow cascades for better coverage
     
     // Enable shadows on renderer
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft shadows
+    this.renderer.shadowMap.type = THREE.PCFShadowMap; // Balanced quality/performance
     this.renderer.shadowMap.autoUpdate = true;
     
     console.log('Shadow System initialized');
@@ -34,7 +34,7 @@ export class ShadowSystem {
       shadowCameraFar = 100,
       shadowCameraSize = 20,
       shadowBias = -0.0005,
-      shadowRadius = 4 // For soft shadows
+      shadowRadius = 2 // Optimized for performance
     } = options;
 
     const light = new THREE.DirectionalLight(color, intensity);
@@ -100,7 +100,7 @@ export class ShadowSystem {
     light.shadow.camera.near = shadowCameraNear;
     light.shadow.camera.far = shadowCameraFar;
     light.shadow.bias = shadowBias;
-    light.shadow.radius = 4;
+    light.shadow.radius = 2;
     
     // Add to scene
     this.scene.add(light);
@@ -261,10 +261,10 @@ export class ShadowSystem {
         mapSize = 1024;
         break;
       case 'high':
-        mapSize = 2048;
+        mapSize = 1024;
         break;
       case 'ultra':
-        mapSize = 4096;
+        mapSize = 2048;
         break;
       default:
         mapSize = 1024;

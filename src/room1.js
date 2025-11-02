@@ -14,6 +14,7 @@ import { makeTiles136cFloor, makeTiles136cWall, makeTiles136cCeiling, makeSolarP
 import { makeConcrete031MaterialFlexible } from './materials/room0Materials.js';
 import { createReusableHallway, HallwayPresets } from './components/ReusableHallway.js';
 import { DrawerManager } from './components/DrawerManager.js';
+import { createCelShadingMaterial } from './shaders/CelShader.js';
 
 
 export function createRoom1() {
@@ -2356,22 +2357,12 @@ export function createRoom1() {
     const laptopGroup = new THREE.Group();
     laptopGroup.name = 'room3-style-laptop';
     
-    // Laptop base
-    const baseMat = new THREE.MeshStandardMaterial({ 
-      color: 0x1a1a1a, 
-      metalness: 0.8, 
-      roughness: 0.4 
-    });
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), baseMat);
+    // Laptop base - WITH CEL SHADING
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), createCelShadingMaterial(0x1a1a1a, 3));
     laptopGroup.add(base);
     
-    // Screen
-    const screenMat = new THREE.MeshStandardMaterial({ 
-      color: 0x0a0a0a, 
-      metalness: 0.9, 
-      roughness: 0.3 
-    });
-    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.05), screenMat);
+    // Screen - WITH CEL SHADING
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.05), createCelShadingMaterial(0x0a0a0a, 3));
     screen.position.set(0, 0.2, -0.2);
     laptopGroup.add(screen);
     
