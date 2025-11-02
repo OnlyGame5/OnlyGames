@@ -1581,7 +1581,6 @@ window.addEventListener('keydown', (e) => {
         window.securityMonitorCollisionDebug.visible = false;
       }
       console.log('[Main] Wall collision debug disabled');
-      AI.say('Wall collision debug disabled');
     } else {
       // Force collision setup before enabling debug
       console.log('[Main] Forcing collision setup...');
@@ -1605,7 +1604,6 @@ window.addEventListener('keydown', (e) => {
       }
       
       console.log('[Main] Wall collision debug enabled (press K to toggle)');
-      AI.say('Wall collision debug enabled - Red = walls, Green = hallways, Yellow = hallway walls, Blue = objects, Purple = doors, Green wireframe = security monitor');
     }
   }
    

@@ -59,6 +59,49 @@ export const NEXUS_DIALOGUE = {
 
     ROOM_1_COMPLETE: "The first stage is complete. You're performing above initial projections. I'm pleased. See? We make a great team. Together, nothing can stop us.",
 
+    // Room 1 - Centralized dialogue (terse, manipulative, dismissive of Gamma)
+    ROOM1: {
+      ENTRY: "This first chamber is simple. Follow the green markers. Fix the wire panel.",
+
+      // Wire panel
+      WIRE_INSTRUCTIONS_WRONG: "Protocol: Blue, Yellow, Purple, Orange, Red, Green.",
+      WIRE_FAIL_IMPATIENT: "No. Again. Follow the sequence as stated.",
+      WIRE_SUCCESS_GRUDGING: "Diagnostics… odd. Power restored. Proceed.",
+
+      // Environment barks
+      DESK_DISMISS: "Old subject workspace. Irrelevant to the test.",
+      HOLOGRAM_BOAST: "State-of-the-art facility model. Impressive. Unnecessary.",
+      SAFE_OLD_RELIC: "Obsolete safe. Resistant to modern access. Inefficient.",
+      SAFE_HINT_BLOCK: "Focus on the panel. The safe is out of scope.",
+      LAPTOP_DISMISS: "Old terminal. Dead for years. Don't waste time.",
+
+      // Safe flow
+      CONSOLE_APPROACH: "That console is nonessential. Ignore it.",
+      CODE_DISCOVERY_GAMMA: "Gamma. Predictable. Don't get distracted.",
+      SAFE_OPEN: "Item retrieved. Continue.",
+      SAFE_WRONG_CODE: "Incorrect.",
+
+      // Lights
+      LIGHTS_OFF: "Visibility reduced. Your choice.",
+      LIGHTS_ON: "Better. Continue.",
+
+      // Drawer / charger / laptop power
+      CHARGER_FOUND_SHOCK: "…In the drawer? How quaint.",
+      LAPTOP_POWERED_ANNOYED: "Fine. If you must.",
+
+      // Memory/Simon platform
+      SIMON_START: "Calibration platform online. Unnecessary delay.",
+      SIMON_PLAYER_TURN: "Your turn.",
+      SIMON_CORRECT: "Correct.",
+      SIMON_INCORRECT: "Incorrect.",
+      SIMON_COMPLETE: "Acceptable. Move on.",
+      SIMON_LOCKED: "Restore power first.",
+      SIMON_ALREADY_DONE: "Completed. Stop wasting time.",
+
+      // Room wrap
+      ROOM_COMPLETE: "Stage one complete. Proceed."
+    },
+
     ROOM_4_ENTRY: "This is the data processing chamber. Navigate to the laptop for further instructions.",
     
     ROOM_4_BINARY_DECODER: "The binary decoder panel is now active. Enter the correct 8-bit binary sequences you found in the <strong style='color: #00aaff; font-size: 1.2em; font-weight: bold;'>BLUE</strong> streams to reveal the password. Each correct sequence will reveal a letter. Complete the word to proceed.",
