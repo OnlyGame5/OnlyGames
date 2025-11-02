@@ -146,7 +146,7 @@ export function createRoom4() {
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.9, roughness: 0.1, side: THREE.DoubleSide });
 
   // Back wall (North) - Solid wall spanning full width
-  const backWall = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.2), wallMat);
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.4), wallMat);
   backWall.position.set(0, 2, -9); // Centered
   backWall.userData = { type: 'wall', side: 'back' };
   backWall.castShadow = true;
@@ -154,22 +154,23 @@ export function createRoom4() {
   group.add(backWall);
 
   // Front wall (South) with doorway to center room - split into two parts
-  const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat);
-  frontWallLeft.position.set(-5, 2, 9);
+  // Door opening is 3 meters wide to match hallway (from x=-1.5 to x=1.5)
+  const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(7.5, 4, 0.4), wallMat);
+  frontWallLeft.position.set(-5.25, 2, 9);
   frontWallLeft.userData = { type: 'wall', side: 'front-left' };
   frontWallLeft.castShadow = true;
   frontWallLeft.receiveShadow = true;
   group.add(frontWallLeft);
 
-  const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat);
-  frontWallRight.position.set(5, 2, 9);
+  const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(7.5, 4, 0.4), wallMat);
+  frontWallRight.position.set(5.25, 2, 9);
   frontWallRight.userData = { type: 'wall', side: 'front-right' };
   frontWallRight.castShadow = true;
   frontWallRight.receiveShadow = true;
   group.add(frontWallRight);
 
   // Side walls - Left wall (West)
-  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 18), wallMat);
+  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4, 18), wallMat);
   leftWall.position.set(-9, 2, 0);
   leftWall.userData = { type: 'wall', side: 'left' };
   leftWall.castShadow = true;
@@ -177,7 +178,7 @@ export function createRoom4() {
   group.add(leftWall);
 
   // Side walls - Right wall (East)
-  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 18), wallMat);
+  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4, 18), wallMat);
   rightWall.position.set(9, 2, 0);
   rightWall.userData = { type: 'wall', side: 'right' };
   rightWall.castShadow = true;

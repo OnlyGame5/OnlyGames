@@ -140,53 +140,56 @@ export function createRoom0() {
   group.add(backWallRight);
 
   // Left wall - Split into two panels to create opening for Room 3 hallway
-  const leftWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 4.0), Math.PI/2);
+  // Extended to 6.6 meters to ensure proper corner coverage (covers z=0.7 to z=7.3)
+  const leftWallTop = createWallPanel(6.6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 4.3), Math.PI/2);
   leftWallTop.userData = { type: 'wall', side: 'left-top' };
   group.add(leftWallTop);
 
-  const leftWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, -4.0), Math.PI/2);
+  const leftWallBottom = createWallPanel(6.6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, -4.3), Math.PI/2);
   leftWallBottom.userData = { type: 'wall', side: 'left-bottom' };
   group.add(leftWallBottom);
 
   // Right wall - Split into two panels to create opening for Room 1 hallway
-  const rightWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 4.0), Math.PI/2);
+  // Extended to 6.6 meters to ensure proper corner coverage (covers z=0.7 to z=7.3)
+  const rightWallTop = createWallPanel(6.6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 4.3), Math.PI/2);
   rightWallTop.userData = { type: 'wall', side: 'right-top' };
   group.add(rightWallTop);
 
-  const rightWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, -4.0), Math.PI/2);
+  const rightWallBottom = createWallPanel(6.6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, -4.3), Math.PI/2);
   rightWallBottom.userData = { type: 'wall', side: 'right-bottom' };
   group.add(rightWallBottom);
   
   // Add invisible collision walls behind the detailed panels with openings
+  // Extended to match the 6.6-meter visible wall panels
   const leftCollisionWallTop = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6.6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  leftCollisionWallTop.position.set(-roomWidthHalf, wallHeight/2, 4.0);
+  leftCollisionWallTop.position.set(-roomWidthHalf, wallHeight/2, 4.3);
   leftCollisionWallTop.userData = { type: 'collision-wall', side: 'left-top' };
   group.add(leftCollisionWallTop);
 
   const leftCollisionWallBottom = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6.6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  leftCollisionWallBottom.position.set(-roomWidthHalf, wallHeight/2, -4.0);
+  leftCollisionWallBottom.position.set(-roomWidthHalf, wallHeight/2, -4.3);
   leftCollisionWallBottom.userData = { type: 'collision-wall', side: 'left-bottom' };
   group.add(leftCollisionWallBottom);
   
   const rightCollisionWallTop = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6.6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  rightCollisionWallTop.position.set(roomWidthHalf, wallHeight/2, 4.0);
+  rightCollisionWallTop.position.set(roomWidthHalf, wallHeight/2, 4.3);
   rightCollisionWallTop.userData = { type: 'collision-wall', side: 'right-top' };
   group.add(rightCollisionWallTop);
 
   const rightCollisionWallBottom = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6.6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  rightCollisionWallBottom.position.set(roomWidthHalf, wallHeight/2, -4.0);
+  rightCollisionWallBottom.position.set(roomWidthHalf, wallHeight/2, -4.3);
   rightCollisionWallBottom.userData = { type: 'collision-wall', side: 'right-bottom' };
   group.add(rightCollisionWallBottom);
 
