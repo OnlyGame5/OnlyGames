@@ -35,27 +35,27 @@ export function createRoom4() {
 
   // Tiles002 texture files for Room 4 floor (same as Room 1)
   const tiles002Files = {
-    color: "/textures/tiles002/Tiles002_1K-JPG_Color.jpg",
-    normal: "/textures/tiles002/Tiles002_1K-JPG_NormalGL.jpg",
-    rough: "/textures/tiles002/Tiles002_1K-JPG_Roughness.jpg",
-    displacement: "/textures/tiles002/Tiles002_1K-JPG_Displacement.jpg"
+  color: "./textures/tiles002/Tiles002_1K-JPG_Color.jpg",
+  normal: "./textures/tiles002/Tiles002_1K-JPG_NormalGL.jpg",
+  rough: "./textures/tiles002/Tiles002_1K-JPG_Roughness.jpg",
+  displacement: "./textures/tiles002/Tiles002_1K-JPG_Displacement.jpg"
   };
 
   // Tiles136C texture files for Room 4 (keeping for reference)
   const tiles136cFiles = {
-    color: "/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
-    normal: "/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
-    rough: "/textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg",
-    ao: "/textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg"
+  color: "./textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
+  normal: "./textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
+  rough: "./textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg",
+  ao: "./textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg"
   };
 
   // Concrete031 texture files for hallway
   const concrete031Files = {
-    color: "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
-    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
-    rough: "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
-    ao: "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
-    disp: "/textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
+  color: "./textures/concrete031/Concrete031_2K-JPG_Color.jpg",
+  normal: "./textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
+  rough: "./textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
+  ao: "./textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
+  disp: "./textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
   };
 
   // Tiles002 floor for Room 4 (same as Room 1, but with black color)
@@ -146,7 +146,7 @@ export function createRoom4() {
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.9, roughness: 0.1, side: THREE.DoubleSide });
 
   // Back wall (North) - Solid wall spanning full width
-  const backWall = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.2), wallMat);
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 0.4), wallMat);
   backWall.position.set(0, 2, -9); // Centered
   backWall.userData = { type: 'wall', side: 'back' };
   backWall.castShadow = true;
@@ -154,22 +154,23 @@ export function createRoom4() {
   group.add(backWall);
 
   // Front wall (South) with doorway to center room - split into two parts
-  const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat);
-  frontWallLeft.position.set(-5, 2, 9);
+  // Door opening is 3 meters wide to match hallway (from x=-1.5 to x=1.5)
+  const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(7.5, 4, 0.4), wallMat);
+  frontWallLeft.position.set(-5.25, 2, 9);
   frontWallLeft.userData = { type: 'wall', side: 'front-left' };
   frontWallLeft.castShadow = true;
   frontWallLeft.receiveShadow = true;
   group.add(frontWallLeft);
 
-  const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 0.2), wallMat);
-  frontWallRight.position.set(5, 2, 9);
+  const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(7.5, 4, 0.4), wallMat);
+  frontWallRight.position.set(5.25, 2, 9);
   frontWallRight.userData = { type: 'wall', side: 'front-right' };
   frontWallRight.castShadow = true;
   frontWallRight.receiveShadow = true;
   group.add(frontWallRight);
 
   // Side walls - Left wall (West)
-  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 18), wallMat);
+  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4, 18), wallMat);
   leftWall.position.set(-9, 2, 0);
   leftWall.userData = { type: 'wall', side: 'left' };
   leftWall.castShadow = true;
@@ -177,7 +178,7 @@ export function createRoom4() {
   group.add(leftWall);
 
   // Side walls - Right wall (East)
-  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, 18), wallMat);
+  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4, 18), wallMat);
   rightWall.position.set(9, 2, 0);
   rightWall.userData = { type: 'wall', side: 'right' };
   rightWall.castShadow = true;
@@ -226,6 +227,65 @@ export function createRoom4() {
   const floatingBinary = new FloatingBinary(false); // Initially false
   floatingBinary.mount(group);
 
+  // ================================
+  // HIDDEN WALL MESSAGES (TRUTH FILTER)
+  // ================================
+  // Array to track hidden message sprites
+  const hiddenWallMessages = [];
+  
+  // Create hidden message sprites that show with truth filter
+  const wallMessagesData = [
+    { text: "DON'T TRUST IT", x: -6, y: 2.5, z: 9 },      // South wall (back)
+    { text: "LOOK FOR RED", x: 6, y: 2.5, z: -9 }         // North wall (front)
+  ];
+
+  wallMessagesData.forEach(({ text, x, y, z }) => {
+    // Create a bright canvas texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Clear background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw bright glowing text
+    ctx.font = 'bold 56px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Multiple passes for intense glow
+    ctx.shadowColor = '#ff0000';  // Red glow
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = '#ff0000';  // Red color
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    
+    // Create texture
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    
+    // Create sprite (always faces camera)
+    const spriteMat = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.0, // Hidden by default, shown when truth filter enabled
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false
+    });
+    
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.position.set(x, y, z);
+    sprite.scale.set(2.0, 0.5, 1);  // Larger scale for wall messages
+    sprite.renderOrder = 1000;
+    sprite.name = `room4-hidden-message-${text.replace(/\s+/g, '-')}`;
+    
+    group.add(sprite);
+    hiddenWallMessages.push(sprite);
+  });
+
   // Add NEXUS interactive panel on the north wall
   console.log('Creating NEXUS panel...');
   const nexusPanel = new NexusPanel();
@@ -239,7 +299,7 @@ export function createRoom4() {
   const gltfLoader = new GLTFLoader();
   let decoderPanelModel = null;
   
-  gltfLoader.load('/models/room4_decoder_panel.glb', (gltf) => {
+  gltfLoader.load('./models/room4_decoder_panel.glb', (gltf) => {
     console.log('Decoder panel model loaded:', gltf);
     decoderPanelModel = gltf.scene;
     decoderPanelModel.name = 'room4-decoder-panel';
@@ -628,6 +688,34 @@ export function createRoom4() {
       if (floatingBinary) {
         floatingBinary.update(delta);
       }
+      
+      // Update hidden wall messages opacity based on truth filter AND player location
+      // Only show messages when player is inside Room 4
+      const player = window.leonardModel || window.player;
+      let isPlayerInRoom4 = false;
+      
+      if (player && player.position) {
+        // Convert player world position to Room 4 local position
+        const localPos = new THREE.Vector3();
+        localPos.copy(player.position).sub(group.position);
+        
+        // Room 4 is 18x18, so half-width/half-depth is 9
+        const halfSize = 9;
+        isPlayerInRoom4 = (
+          localPos.x >= -halfSize && localPos.x <= halfSize &&
+          localPos.z >= -halfSize && localPos.z <= halfSize
+        );
+      }
+      
+      hiddenWallMessages.forEach((sprite) => {
+        // Only show if truth filter is active AND player is in Room 4
+        const target = (hasTruthFilter && isPlayerInRoom4) ? 1.0 : 0.0;
+        const cur = sprite.material.opacity;
+        const t = Math.min(1, delta * 6);
+        sprite.material.opacity = cur + (target - cur) * t;
+        sprite.material.needsUpdate = true;
+        sprite.visible = sprite.material.opacity > 0.02;
+      });
       
       // Update nexus panel animation
       if (nexusPanel) {

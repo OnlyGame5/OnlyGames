@@ -117,12 +117,14 @@ Whose truth will you believe?`;
   startGate.addEventListener('mousedown', handleStartGateClick); // Backup mousedown event
   startGate.addEventListener('keydown', handleStartGateKeyPress);
   
-  // Use global music manager - don't create new audio instances
-  console.log('Loading screen - checking global music state...');
-  
-  // Ensure the global background music is started (will auto-start on first interaction if blocked)
+  // Ensure the menu music (l_theme) is active during loading
+  console.log('Loading screen - ensuring menu music is active...');
   if (window.GlobalMusicManager) {
-    window.GlobalMusicManager.ensureStarted();
+    if (typeof window.GlobalMusicManager.playMenuTrack === 'function') {
+      window.GlobalMusicManager.playMenuTrack();
+    } else {
+      window.GlobalMusicManager.ensureStarted();
+    }
   }
   
   // Prevent default form submission behavior
@@ -217,7 +219,7 @@ Whose truth will you believe?`;
   function startCrawlTimer() {
     // Check if user prefers reduced motion
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const crawlDuration = prefersReducedMotion ? 120000 : 60000; // 2min for reduced motion, 1min normal
+    const crawlDuration = prefersReducedMotion ? 120000 : 20000; // 2min for reduced motion, 20s normal
     
     setTimeout(() => {
       crawlCompleted = true;

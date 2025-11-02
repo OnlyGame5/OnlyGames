@@ -9,21 +9,29 @@ export const roomWallDefinitions = {
   room0: {
     name: 'Hub',
     walls: [
-      // Back wall (split with door opening) - moved forward slightly
-      { position: new THREE.Vector3(-6.5, 2, -7.2), size: new THREE.Vector3(7, 4, 0.5) },
-      { position: new THREE.Vector3(6.5, 2, -7.2), size: new THREE.Vector3(7, 4, 0.5) },
+      // Back wall (split with 3m door opening) - Updated to match visual walls
+      // Left section: covers x=-10 to x=-1.5 (8.5m wide)
+      { position: new THREE.Vector3(-5.75, 2, -7.5), size: new THREE.Vector3(8.5, 4, 0.5) },
+      // Right section: covers x=1.5 to x=10 (8.5m wide)
+      { position: new THREE.Vector3(5.75, 2, -7.5), size: new THREE.Vector3(8.5, 4, 0.5) },
       
-      // Left wall (split with Room 3 hallway) - moved forward slightly
-      { position: new THREE.Vector3(-9.7, 2, 5.0), size: new THREE.Vector3(0.5, 4, 4) },
-      { position: new THREE.Vector3(-9.7, 2, -5.0), size: new THREE.Vector3(0.5, 4, 4) },
+      // Left wall (split with 2m Room 3 hallway) - Extended to 6.6m to match visual walls
+      // Top section: covers z=1.0 to z=7.6
+      { position: new THREE.Vector3(-10, 2, 4.3), size: new THREE.Vector3(0.5, 4, 6.6) },
+      // Bottom section: covers z=-7.6 to z=-1.0
+      { position: new THREE.Vector3(-10, 2, -4.3), size: new THREE.Vector3(0.5, 4, 6.6) },
       
-      // Right wall (split with Room 1 hallway) - moved forward slightly
-      { position: new THREE.Vector3(9.7, 2, 5.0), size: new THREE.Vector3(0.5, 4, 4) },
-      { position: new THREE.Vector3(9.7, 2, -5.0), size: new THREE.Vector3(0.5, 4, 4) },
+      // Right wall (split with 2m Room 1 hallway) - Extended to 6.6m to match visual walls
+      // Top section: covers z=1.0 to z=7.6
+      { position: new THREE.Vector3(10, 2, 4.3), size: new THREE.Vector3(0.5, 4, 6.6) },
+      // Bottom section: covers z=-7.6 to z=-1.0
+      { position: new THREE.Vector3(10, 2, -4.3), size: new THREE.Vector3(0.5, 4, 6.6) },
       
-      // Front wall (split with entry) - moved forward slightly
-      { position: new THREE.Vector3(-5, 2, 7.2), size: new THREE.Vector3(5, 4, 0.5) },
-      { position: new THREE.Vector3(5, 2, 7.2), size: new THREE.Vector3(5, 4, 0.5) }
+      // Front wall (split with 2m entry) - Updated to match visual walls
+      // Left section: covers x=-10 to x=-1 (9m wide)
+      { position: new THREE.Vector3(-5.5, 2, 7.5), size: new THREE.Vector3(9, 4, 0.5) },
+      // Right section: covers x=1 to x=10 (9m wide)
+      { position: new THREE.Vector3(5.5, 2, 7.5), size: new THREE.Vector3(9, 4, 0.5) }
     ],
     objects: [
       // Awakening chair collision (position: 0, 1.5, 2)
@@ -38,17 +46,17 @@ export const roomWallDefinitions = {
       // Pillar 2 (position: 9.5, wallHeight/2, -6) -> World: (9.5, 2, -6)
       { position: new THREE.Vector3(9.5, 2, -6), size: new THREE.Vector3(0.8, 4, 0.8), type: 'pillar' },
       
-      // East Door (to Room 1) - Always unlocked - Thinner collision box
-      { position: new THREE.Vector3(9, 1.75, 0), size: new THREE.Vector3(0.2, 3.5, 3.0), type: 'door', id: 'east-door', dynamic: true },
+      // East Door (to Room 1) - Moved closer to hallway entrance (wall at x=10)
+      { position: new THREE.Vector3(9.8, 1.75, 0), size: new THREE.Vector3(0.2, 3.5, 2.0), type: 'door', id: 'east-door', dynamic: true },
       
-      // South Door (to Room 2) - Locked until Room 1 completed - Thinner collision box
-      { position: new THREE.Vector3(0, 1.75, 6.5), size: new THREE.Vector3(3.0, 3.5, 0.2), type: 'door', id: 'south-door', dynamic: true },
+      // South Door (to Room 2) - Moved closer to hallway entrance (wall at z=7.5)
+      { position: new THREE.Vector3(0, 1.75, 7.3), size: new THREE.Vector3(2.0, 3.5, 0.2), type: 'door', id: 'south-door', dynamic: true },
       
-      // West Door (to Room 3) - Locked until Room 2 completed - Thinner collision box
-      { position: new THREE.Vector3(-9, 1.75, 0), size: new THREE.Vector3(0.2, 3.5, 3.0), type: 'door', id: 'west-door', dynamic: true },
+      // West Door (to Room 3) - Moved closer to hallway entrance (wall at x=-10)
+      { position: new THREE.Vector3(-9.8, 1.75, 0), size: new THREE.Vector3(0.2, 3.5, 2.0), type: 'door', id: 'west-door', dynamic: true },
       
-      // Main Door (RESTRICTED SECTOR) - Locked until key is found - Thinner collision box
-      { position: new THREE.Vector3(0, 1.75, -7.35), size: new THREE.Vector3(3.0, 3.5, 0.2), type: 'door', id: 'stage0-door', dynamic: true },
+      // Main Door (RESTRICTED SECTOR) - Moved closer to hallway entrance (wall at z=-7.5)
+      { position: new THREE.Vector3(0, 1.75, -7.4), size: new THREE.Vector3(3.0, 3.5, 0.2), type: 'door', id: 'stage0-door', dynamic: true },
       
       // Security Monitor - Mounted on South Wall (offset left)
       { position: new THREE.Vector3(-4, 2.5, 7.2), size: new THREE.Vector3(2.0, 1.5, 0.5), type: 'monitor', id: 'security-monitor', dynamic: false }
@@ -91,9 +99,11 @@ export const roomWallDefinitions = {
       // Back wall
       { position: new THREE.Vector3(29, 2, -9), size: new THREE.Vector3(18, 4, 0.5) },
       
-      // Left wall (with hub connection)
-      { position: new THREE.Vector3(20, 2, 4.0), size: new THREE.Vector3(0.5, 4, 6) },
-      { position: new THREE.Vector3(20, 2, -4.0), size: new THREE.Vector3(0.5, 4, 6) },
+      // Left wall (with hub connection) - Positioned to align with hallway at x=20
+      // Top section: covers z=1.0 to z=9 (8m)
+      { position: new THREE.Vector3(20, 2, 5.0), size: new THREE.Vector3(0.5, 4, 8) },
+      // Bottom section: covers z=-9 to z=-1.0 (8m)
+      { position: new THREE.Vector3(20, 2, -5.0), size: new THREE.Vector3(0.5, 4, 8) },
       
       // Right wall
       { position: new THREE.Vector3(38, 2, 0), size: new THREE.Vector3(0.5, 4, 18) },
@@ -139,9 +149,11 @@ export const roomWallDefinitions = {
       // Right wall - Room 2 is at (0, 0, 23.5), so right wall is at x = 6, z = 23.5
       { position: new THREE.Vector3(6, 2, 23.5), size: new THREE.Vector3(0.5, 4, 12) },
       
-      // Front wall (with hub connection) - Room 2 is at (0, 0, 23.5), so front wall is at z = 23.5 - 6 = 17.5
-      { position: new THREE.Vector3(-3, 2, 17.5), size: new THREE.Vector3(6, 4, 0.5) },
-      { position: new THREE.Vector3(3, 2, 17.5), size: new THREE.Vector3(6, 4, 0.5) }
+      // Front wall (with hub connection) - Positioned to align with hallway at z=17.5
+      // Left section: covers x=-6 to x=-1.0 (5m)
+      { position: new THREE.Vector3(-3.5, 2, 17.5), size: new THREE.Vector3(5, 4, 0.5) },
+      // Right section: covers x=1.0 to x=6 (5m)
+      { position: new THREE.Vector3(3.5, 2, 17.5), size: new THREE.Vector3(5, 4, 0.5) }
     ],
     objects: [
       // Scale of Balance (position: 0, 0.2, 4.5) -> World: (0, 0.4, 28.0)
@@ -177,8 +189,8 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(3, 0.8, 25.5), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' }
     ],
     hallways: [
-      // Hub connection - Room 2 is at (0, 0, 23.5), so hallway is at z = 23.5 - 6 = 17.5
-      { position: new THREE.Vector3(0, 1, 17.5), size: new THREE.Vector3(2, 4, 10) }
+      // Hub connection - Positioned at z=12.5 (between Room 0 at z=7.5 and Room 2 entrance at z=17.5)
+      { position: new THREE.Vector3(0, 1, 12.5), size: new THREE.Vector3(2, 4, 10) }
     ]
   },
   
@@ -194,9 +206,11 @@ export const roomWallDefinitions = {
       // South wall
       { position: new THREE.Vector3(-30, 2, 10), size: new THREE.Vector3(20, 4, 0.5) },
       
-      // East wall (with 2-unit wide cutout for hallway connection)
-      { position: new THREE.Vector3(-20, 2, 5.5), size: new THREE.Vector3(0.5, 4, 9) }, // Top part
-      { position: new THREE.Vector3(-20, 2, -5.5), size: new THREE.Vector3(0.5, 4, 9) }, // Bottom part
+      // East wall (with 2m hallway connection) - Positioned to align with hallway at x=-20
+      // Top section: covers z=1.0 to z=10 (9m)
+      { position: new THREE.Vector3(-20, 2, 5.5), size: new THREE.Vector3(0.5, 4, 9) },
+      // Bottom section: covers z=-10 to z=-1.0 (9m)
+      { position: new THREE.Vector3(-20, 2, -5.5), size: new THREE.Vector3(0.5, 4, 9) },
       
       // West wall
       { position: new THREE.Vector3(-40, 2, 0), size: new THREE.Vector3(0.5, 4, 20) }
@@ -228,15 +242,16 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(9, 2, -26.5), size: new THREE.Vector3(0.5, 4, 18) },
       
       // Front wall (with hub connection) - Room 4 is at (0, 0, -26.5), so front wall is at z = -26.5 + 9 = -17.5
-      { position: new THREE.Vector3(-4.5, 2, -17.5), size: new THREE.Vector3(9, 4, 0.5) },
-      { position: new THREE.Vector3(4.5, 2, -17.5), size: new THREE.Vector3(9, 4, 0.5) }
+      // Updated to match 3-meter door opening (hallway width)
+      { position: new THREE.Vector3(-5.25, 2, -17.5), size: new THREE.Vector3(7.5, 4, 0.5) },
+      { position: new THREE.Vector3(5.25, 2, -17.5), size: new THREE.Vector3(7.5, 4, 0.5) }
     ],
     objects: [
       // (Laptop collision handled dynamically when the room is active)
     ],
     hallways: [
-      // Hub connection - Room 4 is at (0, 0, -26.5), so hallway is at z = -26.5 + 9 = -17.5
-      { position: new THREE.Vector3(0, 1, -17.5), size: new THREE.Vector3(3, 4, 10) }
+      // Hub connection - Positioned at z=-12.5 (between Room 0 at z=-7.5 and Room 4 entrance at z=-17.5)
+      { position: new THREE.Vector3(0, 1, -12.5), size: new THREE.Vector3(3, 4, 10) }
     ]
   }
 };

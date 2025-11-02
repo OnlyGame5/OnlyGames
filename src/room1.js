@@ -16,6 +16,7 @@ import { createReusableHallway, HallwayPresets } from './components/ReusableHall
 import { DrawerManager } from './components/DrawerManager.js';
 import { aiOrgs } from './data/aiOrgs.js';
 import { createFullscreenMap } from './ui/FullscreenMap.js';
+import { createCelShadingMaterial } from './shaders/CelShader.js';
 
 
 export function createRoom1() {
@@ -53,36 +54,36 @@ export function createRoom1() {
 
   // Solar Panel texture files for Room 1 walls
   const solarPanelFiles = {
-    color: "/textures/solar-panel/SolarPanel003_2K-JPG_Color.jpg",
-    normal: "/textures/solar-panel/SolarPanel003_2K-JPG_NormalGL.jpg",
-    rough: "/textures/solar-panel/SolarPanel003_2K-JPG_Roughness.jpg",
-    metalness: "/textures/solar-panel/SolarPanel003_2K-JPG_Metalness.jpg",
-    displacement: "/textures/solar-panel/SolarPanel003_2K-JPG_Displacement.jpg"
+  color: "./textures/solar-panel/SolarPanel003_2K-JPG_Color.jpg",
+  normal: "./textures/solar-panel/SolarPanel003_2K-JPG_NormalGL.jpg",
+  rough: "./textures/solar-panel/SolarPanel003_2K-JPG_Roughness.jpg",
+  metalness: "./textures/solar-panel/SolarPanel003_2K-JPG_Metalness.jpg",
+  displacement: "./textures/solar-panel/SolarPanel003_2K-JPG_Displacement.jpg"
   };
 
   // Tiles002 texture files for Room 1 floor
   const tiles002Files = {
-    color: "/textures/tiles002/Tiles002_1K-JPG_Color.jpg",
-    normal: "/textures/tiles002/Tiles002_1K-JPG_NormalGL.jpg",
-    rough: "/textures/tiles002/Tiles002_1K-JPG_Roughness.jpg",
-    displacement: "/textures/tiles002/Tiles002_1K-JPG_Displacement.jpg"
+  color: "./textures/tiles002/Tiles002_1K-JPG_Color.jpg",
+  normal: "./textures/tiles002/Tiles002_1K-JPG_NormalGL.jpg",
+  rough: "./textures/tiles002/Tiles002_1K-JPG_Roughness.jpg",
+  displacement: "./textures/tiles002/Tiles002_1K-JPG_Displacement.jpg"
   };
 
   // Tiles136C texture files for Room 1 (keeping for reference)
   const tiles136cFiles = {
-    color: "/textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
-    normal: "/textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
-    rough: "/textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg",
-    ao: "/textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg"
+  color: "./textures/tiles136C/Tiles136C_2K-JPG_Color.jpg",
+  normal: "./textures/tiles136C/Tiles136C_2K-JPG_NormalGL.jpg",
+  rough: "./textures/tiles136C/Tiles136C_2K-JPG_Roughness.jpg",
+  ao: "./textures/tiles136C/Tiles136C_2K-JPG_AmbientOcclusion.jpg"
   };
 
   // Concrete031 texture files for hallway
   const concrete031Files = {
-    color: "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
-    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
-    rough: "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
-    ao: "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
-    disp: "/textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
+  color: "./textures/concrete031/Concrete031_2K-JPG_Color.jpg",
+  normal: "./textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
+  rough: "./textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
+  ao: "./textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
+  disp: "./textures/concrete031/Concrete031_2K-JPG_Displacement.jpg"
   };
 
   // Tiles002 floor for Room 1
@@ -360,7 +361,7 @@ export function createRoom1() {
     ];
     
     // Load paper model once, then clone for performance
-    gltfLoader.load('/models/paper.glb', (gltf) => {
+  gltfLoader.load('./models/paper.glb', (gltf) => {
       const basePaperModel = gltf.scene;
       
       // Set up base model shadows
@@ -506,7 +507,7 @@ export function createRoom1() {
   group.add(bookshelfDoor);
 
   // Add an office chair in front of the sci-fi desk (Room 1)
-  gltfLoader.load('/models/office_chair.glb', (gltf) => {
+  gltfLoader.load('./models/office_chair.glb', (gltf) => {
     const chair = gltf.scene;
     chair.traverse((child) => {
       if (child.isMesh) {
@@ -1167,7 +1168,7 @@ export function createRoom1() {
   // Removed pedestal, panel, and keypad to keep only table and safe in this room
 
   // Load sci-fi office desk with animated drawers
-  gltfLoader.load('/models/sci_fi_office_desk.glb', (gltf) => {
+  gltfLoader.load('./models/sci_fi_office_desk.glb', (gltf) => {
     const sciFiTable = gltf.scene;
     sciFiTable.traverse((child) => {
       if (child.isMesh) {
@@ -3066,7 +3067,7 @@ export function createRoom1() {
     
     // Load the dead battery image
     const deadBatteryTexture = textureLoader.load(
-      '/images/dead-battery.jpg',
+  './images/dead-battery.jpg',
       (texture) => {
         console.log('Dead battery texture loaded successfully');
         texture.colorSpace = THREE.SRGBColorSpace;
@@ -3104,22 +3105,12 @@ export function createRoom1() {
     const laptopGroup = new THREE.Group();
     laptopGroup.name = 'room3-style-laptop';
     
-    // Laptop base
-    const baseMat = new THREE.MeshStandardMaterial({ 
-      color: 0x1a1a1a, 
-      metalness: 0.8, 
-      roughness: 0.4 
-    });
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), baseMat);
+    // Laptop base - WITH CEL SHADING
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), createCelShadingMaterial(0x1a1a1a, 3));
     laptopGroup.add(base);
     
-    // Screen
-    const screenMat = new THREE.MeshStandardMaterial({ 
-      color: 0x0a0a0a, 
-      metalness: 0.9, 
-      roughness: 0.3 
-    });
-    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.05), screenMat);
+    // Screen - WITH CEL SHADING
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.05), createCelShadingMaterial(0x0a0a0a, 3));
     screen.position.set(0, 0.2, -0.2);
     laptopGroup.add(screen);
     
@@ -3252,7 +3243,7 @@ export function createRoom1() {
       .dead-battery-display {
         width: 100%;
         height: 100%;
-        background-image: url('/images/dead-battery.jpg');
+  background-image: url('./images/dead-battery.jpg');
         background-size: contain;
         background-repeat: no-repeat;
         background-position: center;
@@ -3772,8 +3763,8 @@ window.submitAiInfoPassword = function(fromButton = false) {
     grid.innerHTML = '';
 
     const items = [];
-    items.push({ type:'image', name:'photo_01.jpg', src:'/images/preview_game.png' });
-    items.push({ type:'image', name:'photo_02.jpg', src:'/images/preview_basic.png' });
+  items.push({ type:'image', name:'photo_01.jpg', src:'./images/preview_game.png' });
+  items.push({ type:'image', name:'photo_02.jpg', src:'./images/preview_basic.png' });
     for (let i=1;i<=8;i++) items.push({ type:'corrupt', name:`corrupted_ai_${String(i).padStart(2,'0')}` });
     items.push({ type:'text', name:'the_truth.txt' });
 

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { addToInventory } from '../player.js';
+import { createCelShadingMaterial } from '../shaders/CelShader.js';
 
 let oldEnglishFontPromise = null;
 
@@ -80,7 +81,7 @@ export function createReusableLaptop(options = {}) {
   const {
     position = new THREE.Vector3(0, 0, 0),
     rotation = 0,
-    screenTexture = '/textures/laptop_preview.png',
+    screenTexture = './textures/laptop_preview.png',
     screenContent = null,
     interactionId = 'laptop',
     onInteract = null,
@@ -290,7 +291,7 @@ export const LaptopPresets = {
   
   room2: {
     position: new THREE.Vector3(0, 0, 0),
-    screenTexture: '/textures/room2_laptop_screen.png',
+    screenTexture: './textures/room2_laptop_screen.png',
     screenContent: (display, material) => applyGammaLaptopWallpaper(display, material),
     interactionId: 'room2_laptop',
     roomId: 'room2',
@@ -299,7 +300,7 @@ export const LaptopPresets = {
   
   room3: {
     position: new THREE.Vector3(0, 0, 0),
-    screenTexture: '/textures/laptop_preview.png',
+    screenTexture: './textures/laptop_preview.png',
     interactionId: 'room3_laptop',
     roomId: 'room3',
     htmlInterface: (roomId) => createRoom3LaptopInterface(roomId)
@@ -307,7 +308,7 @@ export const LaptopPresets = {
   
   room4: {
     position: new THREE.Vector3(0, 0, 0),
-    screenTexture: '/textures/room2_laptop_screen.png',
+    screenTexture: './textures/room2_laptop_screen.png',
     screenContent: (display, material) => applyGammaLaptopWallpaper(display, material),
     interactionId: 'room4_laptop',
     roomId: 'room4',
@@ -998,9 +999,10 @@ function createRoom4LaptopInterface(roomId) {
       'Decoder Instructions',
       `
         <h3>Complete the Binary Decoder</h3>
-        <p>The floating binary streams in this room contain hidden data. Use the decoder panel on the north wall to translate them.</p>
-        <p>Once decoded, you will receive a <strong>five-letter password</strong> required to access the NEXUS terminal.</p>
-        <div class="status info">Tip: The truth filter glasses will reveal the correct binary.</div>
+        <p>The floating binary streams in this room contain hidden encryption. Use the decoder panel on the north wall to translate them.</p>
+        <p>Once decoded, you will receive a <strong>five-letter password</strong> required to access the terminal.</p>
+        <p>Return to this laptop to submit the password and gain access to your card.</p>
+        <div class="status info">Tip: DON'T TRUST IT! REVEAL THE TRUTH!</div>
       `
     );
     windowsLayer.appendChild(win);
@@ -1243,17 +1245,10 @@ function createLaptopWorkstation(parentGroup, screenTexture, screenContent) {
   laptopGroup.position.y = 0.8;
   parentGroup.add(laptopGroup);
 
-  // Laptop base (keyboard)
-  const baseMat = new THREE.MeshStandardMaterial({ 
-    color: 0x4a4a4a, // Much brighter
-    metalness: 0.7, // Good metalness for reflection
-    roughness: 0.1, // Very low roughness for more reflection
-    emissive: 0x555555, // Bright emissive glow
-    emissiveIntensity: 0.3
-  });
+  // Laptop base (keyboard) - WITH CEL SHADING
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(0.6, 0.05, 0.4), 
-    baseMat
+    createCelShadingMaterial(0x4a4a4a, 3) // Use cel shading for cartoon effect
   );
   laptopGroup.add(base);
 
@@ -1262,18 +1257,11 @@ function createLaptopWorkstation(parentGroup, screenTexture, screenContent) {
   hingeGroup.position.z = -0.2;
   laptopGroup.add(hingeGroup);
 
-  // Screen
-  const screenMat = new THREE.MeshStandardMaterial({ 
-    color: 0x3a3a3a, // Much brighter
-    metalness: 0.8, // High metalness for good reflection
-    roughness: 0.05, // Very low roughness for maximum reflection
-    emissive: 0x666666, // Very bright emissive glow
-    emissiveIntensity: 0.4
-  });
+  // Screen - WITH CEL SHADING
   const screenHeight = 0.4;
   const screen = new THREE.Mesh(
     new THREE.BoxGeometry(0.6, screenHeight, 0.05), 
-    screenMat
+    createCelShadingMaterial(0x3a3a3a, 3) // Use cel shading for cartoon effect
   );
   screen.position.y = screenHeight / 2;
   hingeGroup.add(screen);

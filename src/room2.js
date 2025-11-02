@@ -72,9 +72,9 @@ export function createRoom2() {
 
   // Wood067 texture files for Room 2
   const wood067Files = {
-    color: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_Color.jpg",
-    normal: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_NormalGL.jpg",
-    rough: "/textures/Wood067_1K-JPG/Wood067_1K-JPG_Roughness.jpg",
+  color: "./textures/Wood067_1K-JPG/Wood067_1K-JPG_Color.jpg",
+  normal: "./textures/Wood067_1K-JPG/Wood067_1K-JPG_NormalGL.jpg",
+  rough: "./textures/Wood067_1K-JPG/Wood067_1K-JPG_Roughness.jpg",
     // AO not provided in set
   };
 
@@ -176,7 +176,7 @@ export function createRoom2() {
   const loader = new GLTFLoader();
 
   // Add scales model
-  loader.load('/models/scales.glb', (gltf) => {
+  loader.load('./models/scales.glb', (gltf) => {
       const scales = setupModel(gltf);
       scales.position.set(0, 0.2, 4.5);
       scales.scale.set(0.05, 0.05, 0.05);
@@ -450,7 +450,7 @@ export function createRoom2() {
   });
 
   // Robot Hand - Load from model
-  loader.load('/models/hand_sculpt.glb', (gltf) => {
+  loader.load('./models/hand_sculpt.glb', (gltf) => {
       const robotHand = setupModel(gltf);
       robotHand.position.set(5, 0.3, -4);
       robotHand.scale.set(1, 1, 1);
@@ -467,7 +467,7 @@ export function createRoom2() {
   });
 
   // AI Manual - Load real book model
-  loader.load('/models/book.glb', (gltf) => {
+  loader.load('./models/book.glb', (gltf) => {
       const aiBook = setupModel(gltf);
       aiBook.name = 'ai-book-prop';
     // Start at desired X/Z; Y will be set after we compute the base
@@ -584,70 +584,116 @@ export function createRoom2() {
   // Register the glasses model for dropped items
   registerOriginalModel('glasses', glasses);
 
-  // Hidden wall clues that show only with glasses selected
-  // Create simple quads with emissive text-like look
-  const clueMat = new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0.0 });
-  const clueGeo = new THREE.PlaneGeometry(1.0, 0.25);
-  const wallZ = -5.9; // near the south wall
-  const cluesData = [
-    { text: 'Robot Hand = 12', pos: new THREE.Vector3(-3.5, 1.4, wallZ) },
-    { text: 'Circuit Board = 5', pos: new THREE.Vector3(-1.2, 1.1, wallZ) },
-    { text: 'AI Manual = 4', pos: new THREE.Vector3(1.2, 0.9, wallZ) },
-    { text: 'Robot Eye = 3', pos: new THREE.Vector3(3.2, 0.8, wallZ) }
-  ];
-  cluesData.forEach(({ text, pos }) => {
-    const m = clueMat.clone();
-    // Add label using a CanvasTexture for the text
-    const canvas = document.createElement('canvas');
-    canvas.width = 256; canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#66ccff';
-    ctx.font = '28px Segoe UI';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = '#1a3d5c';
-    ctx.shadowBlur = 8;
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.needsUpdate = true;
-    m.map = tex;
-    m.opacity = 0.0; // hidden by default
-    const mesh = new THREE.Mesh(clueGeo, m);
-    mesh.position.copy(pos);
-    mesh.rotation.y = 0; // facing the room
-    mesh.name = `room2-clue-${text.replace(/\s+/g, '-')}`;
-    group.add(mesh);
-    hiddenClues.push(mesh);
-  });
-
   // Additional cryptic hidden messages (visible with glasses)
   const addHiddenMessage = (text, position, scale = new THREE.Vector2(0.9, 0.22)) => {
     const canvas = document.createElement('canvas');
     canvas.width = 512; canvas.height = 128;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = 'rgba(0,0,0,0)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.shadowColor = '#0aefff'; ctx.shadowBlur = 12;
+    
+    // Clear with transparent background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw glowing text
+    ctx.font = 'bold 42px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Add glow effect
+    ctx.shadowColor = '#0aefff';
+    ctx.shadowBlur = 20;
     ctx.fillStyle = '#8fe9ff';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = 'bold 38px Segoe UI';
     ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-    const tex = new THREE.CanvasTexture(canvas); tex.needsUpdate = true;
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.0, color: 0xffffff });
+    
+    // Draw again for more intensity
+    ctx.shadowBlur = 10;
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    
+    const mat = new THREE.MeshBasicMaterial({ 
+      map: tex, 
+      transparent: true, 
+      opacity: 0.0, 
+      color: 0xffffff,
+      side: THREE.DoubleSide, // Visible from both sides
+      depthWrite: false, // Prevent z-fighting
+      blending: THREE.AdditiveBlending // Make it glow more
+    });
+    
     const geo = new THREE.PlaneGeometry(scale.x, scale.y);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.copy(position);
-    mesh.rotation.y = 0;
+    mesh.rotation.y = Math.PI; // facing south (toward room interior)
+    mesh.renderOrder = 999; // Render after other objects
     mesh.name = `room2-hidden-${text.replace(/\W+/g, '-')}`;
+    mesh.frustumCulled = false; // Don't cull even if off-screen
     group.add(mesh);
     hiddenClues.push(mesh);
   };
 
-  addHiddenMessage("DON'T TRUST ITS VOICE", new THREE.Vector3(2.2, 1.2, -5.85));
-  addHiddenMessage('HELP', new THREE.Vector3(-0.2, 0.7, -5.85), new THREE.Vector2(0.5, 0.2));
-  addHiddenMessage('I AM IN THE WIRES', new THREE.Vector3(-3.2, 1.5, -5.85));
+  addHiddenMessage("DON'T TRUST ITS VOICE", new THREE.Vector3(2.2, 2.2, 5.85));
+  addHiddenMessage('HELP', new THREE.Vector3(-0.2, 1.7, 5.85), new THREE.Vector2(0.5, 0.2));
+  addHiddenMessage('I AM IN THE WIRES', new THREE.Vector3(-3.2, 2.5, 5.85));
   // (Removed) overturned chair, restraint loops, caution tape, and hologram projector
 
+  // ================================
+  // ADD WEIGHT CLUES AGAIN - NEW IMPLEMENTATION
+  // ================================
+  // Create weight clues as simple sprites that definitely show up
+  const weightCluesData = [
+    { text: 'Robot Hand = 12', x: -3.5, y: 1.8 },
+    { text: 'Circuit Board = 5', x: -1.2, y: 1.5 },
+    { text: 'AI Manual = 4', x: 1.2, y: 1.5 },
+    { text: 'Robot Eye = 3', x: 3.2, y: 1.8 }
+  ];
+
+  weightCluesData.forEach(({ text, x, y }) => {
+    // Create a bright canvas texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Clear background
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw bright glowing text
+    ctx.font = 'bold 52px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Multiple passes for intense glow
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = '#00ffff';
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    
+    // Create texture
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    
+    // Create sprite (always faces camera)
+    const spriteMat = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      opacity: 0.0, // Hidden by default, shown when truth filter enabled
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false
+    });
+    
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.position.set(x, y, 5.8); // North wall
+    sprite.scale.set(1.2, 0.3, 1);
+    sprite.renderOrder = 1000;
+    sprite.name = `room2-weight-sprite-${text.replace(/\s+/g, '-')}`;
+    
+    group.add(sprite);
+    hiddenClues.push(sprite);
+  });
 
   // UI prompt helper
   function ensurePrompt() {
@@ -1052,35 +1098,52 @@ export function createRoom2() {
   function update(deltaTime) {
     // Skip heavy updates when Room 2 is not the active room or not visible
     const isActiveRoom = (window.gameStore && window.gameStore.getCurrentRoom && window.gameStore.getCurrentRoom() === 'room2');
-    if (!isActiveRoom || (group && group.visible === false)) {
-      return;
+    
+    // IMPORTANT: Don't skip truth filter updates - they need to work from any room
+    // Only skip if the group is not visible
+    const shouldSkipHeavyUpdates = !isActiveRoom || (group && group.visible === false);
+    
+    if (shouldSkipHeavyUpdates && group.visible === false) {
+      return; // Only return if group is actually invisible
     }
-    // Safety: if both core puzzles are complete but completion flow hasn't run (e.g., after a reload), trigger it.
-    try {
-      if (!gameStore.rooms.room2.isComplete && room2Puzzles.scalePuzzleComplete && room2Puzzles.logicPuzzleComplete && !logicKeyAwarded) {
-        checkRoom2Completion();
-      }
-    } catch(e) {}
+    
+    // Skip heavy room-specific updates if not active, but always run truth filter
+    if (!shouldSkipHeavyUpdates) {
+      // Safety: if both core puzzles are complete but completion flow hasn't run (e.g., after a reload), trigger it.
+      try {
+        if (!gameStore.rooms.room2.isComplete && room2Puzzles.scalePuzzleComplete && room2Puzzles.logicPuzzleComplete && !logicKeyAwarded) {
+          checkRoom2Completion();
+        }
+      } catch(e) {}
 
-    // Animate note ink fade if in progress
-    if (noteInkMesh && noteRevealProgress < 1) {
-      if (noteRevealProgress > 0) {
-        noteRevealProgress = Math.min(1, noteRevealProgress + deltaTime / 0.8);
-        noteInkMesh.material.opacity = noteRevealProgress;
-        noteInkMesh.material.needsUpdate = true;
+      // Animate note ink fade if in progress
+      if (noteInkMesh && noteRevealProgress < 1) {
+        if (noteRevealProgress > 0) {
+          noteRevealProgress = Math.min(1, noteRevealProgress + deltaTime / 0.8);
+          noteInkMesh.material.opacity = noteRevealProgress;
+          noteInkMesh.material.needsUpdate = true;
+        }
       }
+
+      // (Removed) flicker and hologram pulse animations
+
+      // Update scale puzzle animations
+      if (scalePuzzle) scalePuzzle.update(deltaTime);
     }
-
-    // (Removed) flicker and hologram pulse animations
-
-    // Update scale puzzle animations
-    if (scalePuzzle) scalePuzzle.update(deltaTime);
 
     // Toggle hidden clues based on glasses selection
     const inv = getPlayerInventory();
     const selected = inv.getSelectedItem ? inv.getSelectedItem() : inv.slots?.[inv.selectedSlot];
     const showClues = !!(selected && selected.name === 'glasses');
-    hiddenClues.forEach((mesh) => {
+    
+    // Debug logging
+    if (showClues !== window._lastRoom2ShowClues) {
+      console.log('[Room2] Truth filter changed:', showClues, 'Selected:', selected?.name);
+      console.log('[Room2] Hidden clues count:', hiddenClues.length);
+      window._lastRoom2ShowClues = showClues;
+    }
+    
+    hiddenClues.forEach((mesh, index) => {
       const target = showClues ? 1.0 : 0.0;
       const cur = mesh.material.opacity;
       const t = Math.min(1, deltaTime * 6);

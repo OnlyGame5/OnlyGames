@@ -47,6 +47,28 @@
   padding-bottom: 5px;
 }
 
+.menu-section h4 {
+  color: #aaa;
+  font-size: 14px;
+  margin: 15px 0 8px 0;
+  border-bottom: 1px solid #444;
+  padding-bottom: 3px;
+}
+
+.shadow-section {
+  background: rgba(0, 255, 0, 0.05);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 4px;
+  padding: 15px;
+  margin-top: 15px;
+  transition: opacity 0.3s ease;
+}
+
+.shadow-section h4 {
+  color: #88ff88;
+  border-bottom-color: rgba(0, 255, 0, 0.3);
+}
+
 .menu-button {
   background: #333;
   color: #fff;
@@ -138,6 +160,26 @@
 .settings-row input[type="range"] {
   flex: 1;
   margin: 0 10px;
+}
+
+.settings-row select {
+  flex: 1;
+  margin: 0 10px;
+  background: #333;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 5px;
+  font-size: 14px;
+}
+
+.settings-row select:hover {
+  background: #444;
+}
+
+.settings-row select:focus {
+  outline: none;
+  border-color: #0066cc;
 }
 
 .settings-row .value-display {

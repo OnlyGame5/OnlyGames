@@ -21,19 +21,19 @@ export function createRoom0() {
   
   // Metal030 texture files - edit this object to match your files on disk
   const metal030Files = {
-    color:  "/textures/metal030/Metal030_2K-JPG_Color.jpg",
-    normal: "/textures/metal030/Metal030_2K-JPG/Metal030_2K-JPG_NormalGL.jpg", // Using GL normal map from nested folder
-    rough:  "/textures/metal030/Metal030_2K-JPG_Roughness.jpg",
-    metal:  "/textures/metal030/Metal030_2K-JPG_Metalness.jpg",       // metalness map available
+  color:  "./textures/metal030/Metal030_2K-JPG_Color.jpg",
+  normal: "./textures/metal030/Metal030_2K-JPG/Metal030_2K-JPG_NormalGL.jpg", // Using GL normal map from nested folder
+  rough:  "./textures/metal030/Metal030_2K-JPG_Roughness.jpg",
+  metal:  "./textures/metal030/Metal030_2K-JPG_Metalness.jpg",       // metalness map available
     // ao:     "/textures/metal030/Metal030_2K-JPG_AmbientOcclusion.jpg", // include only if you have it
   };
   
   // Concrete031 texture files for hallway
   const concrete031Files = {
-    color:  "/textures/concrete031/Concrete031_2K-JPG_Color.jpg",
-    normal: "/textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
-    rough:  "/textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
-    ao:     "/textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
+  color:  "./textures/concrete031/Concrete031_2K-JPG_Color.jpg",
+  normal: "./textures/concrete031/Concrete031_2K-JPG_NormalGL.jpg",
+  rough:  "./textures/concrete031/Concrete031_2K-JPG_Roughness.jpg",
+  ao:     "./textures/concrete031/Concrete031_2K-JPG_AmbientOcclusion.jpg",
   };
   
   // === Floor: Tiles108 (single tiled plane with AO/normal/roughness) ===
@@ -140,53 +140,56 @@ export function createRoom0() {
   group.add(backWallRight);
 
   // Left wall - Split into two panels to create opening for Room 3 hallway
-  const leftWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 4.0), Math.PI/2);
+  // Extended to 6.6 meters to ensure proper corner coverage (covers z=0.7 to z=7.3)
+  const leftWallTop = createWallPanel(6.6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, 4.3), Math.PI/2);
   leftWallTop.userData = { type: 'wall', side: 'left-top' };
   group.add(leftWallTop);
 
-  const leftWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, -4.0), Math.PI/2);
+  const leftWallBottom = createWallPanel(6.6, wallHeight, new THREE.Vector3(-roomWidthHalf, wallHeight/2, -4.3), Math.PI/2);
   leftWallBottom.userData = { type: 'wall', side: 'left-bottom' };
   group.add(leftWallBottom);
 
   // Right wall - Split into two panels to create opening for Room 1 hallway
-  const rightWallTop = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 4.0), Math.PI/2);
+  // Extended to 6.6 meters to ensure proper corner coverage (covers z=0.7 to z=7.3)
+  const rightWallTop = createWallPanel(6.6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, 4.3), Math.PI/2);
   rightWallTop.userData = { type: 'wall', side: 'right-top' };
   group.add(rightWallTop);
 
-  const rightWallBottom = createWallPanel(6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, -4.0), Math.PI/2);
+  const rightWallBottom = createWallPanel(6.6, wallHeight, new THREE.Vector3(roomWidthHalf, wallHeight/2, -4.3), Math.PI/2);
   rightWallBottom.userData = { type: 'wall', side: 'right-bottom' };
   group.add(rightWallBottom);
   
   // Add invisible collision walls behind the detailed panels with openings
+  // Extended to match the 6.6-meter visible wall panels
   const leftCollisionWallTop = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6.6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  leftCollisionWallTop.position.set(-roomWidthHalf, wallHeight/2, 4.0);
+  leftCollisionWallTop.position.set(-roomWidthHalf, wallHeight/2, 4.3);
   leftCollisionWallTop.userData = { type: 'collision-wall', side: 'left-top' };
   group.add(leftCollisionWallTop);
 
   const leftCollisionWallBottom = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6.6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  leftCollisionWallBottom.position.set(-roomWidthHalf, wallHeight/2, -4.0);
+  leftCollisionWallBottom.position.set(-roomWidthHalf, wallHeight/2, -4.3);
   leftCollisionWallBottom.userData = { type: 'collision-wall', side: 'left-bottom' };
   group.add(leftCollisionWallBottom);
   
   const rightCollisionWallTop = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6.6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  rightCollisionWallTop.position.set(roomWidthHalf, wallHeight/2, 4.0);
+  rightCollisionWallTop.position.set(roomWidthHalf, wallHeight/2, 4.3);
   rightCollisionWallTop.userData = { type: 'collision-wall', side: 'right-top' };
   group.add(rightCollisionWallTop);
 
   const rightCollisionWallBottom = new THREE.Mesh(
-    new THREE.BoxGeometry(wallThickness, wallHeight, 6),
+    new THREE.BoxGeometry(wallThickness, wallHeight, 6.6),
     new THREE.MeshBasicMaterial({ visible: false })
   );
-  rightCollisionWallBottom.position.set(roomWidthHalf, wallHeight/2, -4.0);
+  rightCollisionWallBottom.position.set(roomWidthHalf, wallHeight/2, -4.3);
   rightCollisionWallBottom.userData = { type: 'collision-wall', side: 'right-bottom' };
   group.add(rightCollisionWallBottom);
 
@@ -303,7 +306,55 @@ export function createRoom0() {
     new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x003322, emissiveIntensity: 0.6 })
   );
   glowStrip.position.set(0, 0.92, 0.5);
+  glowStrip.name = 'glowStrip';
   cardBox.add(glowStrip);
+
+  // Animated upward-moving glow effect (activated when player has key cards)
+  // Create a canvas-based gradient texture for smooth glow
+  const createGlowTexture = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Create vertical gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, 'rgba(0, 255, 136, 0)');
+    gradient.addColorStop(0.5, 'rgba(0, 255, 136, 0.6)');
+    gradient.addColorStop(1, 'rgba(0, 255, 136, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    return new THREE.CanvasTexture(canvas);
+  };
+  
+  const glowTexture = createGlowTexture();
+  glowTexture.needsUpdate = true;
+  
+  const glowPlanes = [];
+  const numGlowPlanes = 2; // Reduce to 2 for less overlap
+  for (let i = 0; i < numGlowPlanes; i++) {
+    const glowPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 0.4),
+      new THREE.MeshBasicMaterial({
+        map: glowTexture,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        depthTest: false
+      })
+    );
+    glowPlane.position.set(0, 0.3, 0.6);
+    glowPlane.userData.offset = i * 0.5; // Half cycle offset
+    glowPlane.userData.baseY = 0.3;
+    glowPlane.name = `glowPlane${i}`;
+    glowPlane.renderOrder = 1000 + i; // Ensure proper render order
+    cardBox.add(glowPlane);
+    glowPlanes.push(glowPlane);
+  }
 
   // Slot positions (cards stand vertically, three slots left-to-right)
   const slotPositions = [
@@ -411,7 +462,7 @@ export function createRoom0() {
   let key = null; // Will be set after loading
   const loader = new GLTFLoader();
   
-  loader.load('/models/key.glb', (gltf) => {
+  loader.load('./models/key.glb', (gltf) => {
     key = gltf.scene;
     
     // Position the key on the pedestal
@@ -610,16 +661,16 @@ export function createRoom0() {
   southDoor.castShadow = true;
   group.add(southDoor);
 
-  // Stage 0: West door (to Room 3) - controlled by Room 2 completion
+  // Stage 0: West door (to Room 3) - controlled by Room 4 completion
   const westDoor = createFuturisticDoor({
-    keyId: null, // No key needed, controlled by Room 2 completion
+    keyId: null, // No key needed, controlled by Room 4 completion
     locked: true,
     position: { x: -9, y: 1.75, z: 0 },
     rotationY: Math.PI / 2, // Rotate 90 degrees to face east (toward room0)
     width: 3.0,
     height: 3.5,
     openOffset: 4.0,
-    labelText: "ROOM 3 ACCESS\nREQUIRES ROOM 2 COMPLETION",
+    labelText: "ROOM 3 ACCESS\nREQUIRES ROOM 4 COMPLETION",
     id: 'west-door'
   });
   
@@ -639,7 +690,7 @@ export function createRoom0() {
 
   westDoor.userData.onDenied = () => {
     if (window.AI) {
-      window.AI.say("Access denied. Complete all puzzles in Room 2 first.");
+      window.AI.say("Access denied. Complete all puzzles in Room 4 first.");
     }
   };
 
@@ -658,7 +709,7 @@ export function createRoom0() {
   let awakeningChair = null;
   const chairLoader = new GLTFLoader();
   
-  chairLoader.load('/models/chair.glb', (gltf) => {
+  chairLoader.load('./models/chair.glb', (gltf) => {
     awakeningChair = gltf.scene;
     awakeningChair.name = 'awakening-chair';
     
@@ -983,6 +1034,67 @@ export function createRoom0() {
         }
       }
     }
+
+    // Animate upward-moving glow effect when player has key cards
+    if (playerObject && getPlayerInventory && glowPlanes.length > 0) {
+      try {
+        const inv = getPlayerInventory();
+        let hasKeyCard = false;
+        if (inv && inv.slots) {
+          hasKeyCard = inv.slots.some(slot => slot && slot.name === 'key_card');
+        }
+
+        const time = Date.now() * 0.001; // Convert to seconds
+        const glowStripMesh = cardBox.getObjectByName('glowStrip');
+
+        if (hasKeyCard) {
+          // Animate each glow plane moving upwards smoothly with eased motion
+          glowPlanes.forEach((plane, idx) => {
+            const cycleTime = 2.5; // 2.5 seconds for full cycle
+            const rawProgress = (time * 0.4 + plane.userData.offset) % cycleTime;
+            const progress = rawProgress / cycleTime;
+            
+            // Smooth easeInOutQuad for movement
+            const easeInOutQuad = (t) => {
+              return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            };
+            
+            const yTravel = 0.75; // How far it travels upward
+            const easedProgress = easeInOutQuad(progress);
+            plane.position.y = plane.userData.baseY + easedProgress * yTravel;
+            
+            // Super smooth sine-based fade with smoother curve
+            const fadeProgress = progress * Math.PI;
+            let opacity = Math.sin(fadeProgress);
+            
+            // Apply smoothstep function for ultra-smooth transitions
+            opacity = opacity * opacity * (3 - 2 * opacity);
+            
+            plane.material.opacity = opacity * 0.5; // Slightly higher opacity with texture
+          });
+
+          // Make the glow strip pulse more smoothly
+          if (glowStripMesh) {
+            const pulseIntensity = Math.sin(time * 1.5) * 0.25 + 0.85;
+            glowStripMesh.material.emissiveIntensity = pulseIntensity;
+          }
+        } else {
+          // No key cards - smoothly fade out glows
+          glowPlanes.forEach(plane => {
+            if (plane.material.opacity > 0) {
+              plane.material.opacity = Math.max(0, plane.material.opacity - dt * 1.5);
+            }
+          });
+
+          // Reset glow strip to normal
+          if (glowStripMesh) {
+            glowStripMesh.material.emissiveIntensity = 0.6;
+          }
+        }
+      } catch (e) {
+        // Silent fail if inventory check fails
+      }
+    }
   }
 
   // Stage 0: E key interaction handler
@@ -1118,8 +1230,8 @@ export function createRoom0() {
             }
             return true;
           } else if (currentDoor.userData.id === 'west-door') {
-            // Special case for west door - check Room 2 completion
-            if (window.gameStore && window.gameStore.rooms.room2.isComplete) {
+            // Special case for west door - check Room 4 completion
+            if (window.gameStore && window.gameStore.rooms.room4.isComplete) {
               currentDoor.userData.setLocked(false);
               currentDoor.userData.openDoor();
               if (window.AI) {
@@ -1127,7 +1239,7 @@ export function createRoom0() {
               }
               return true;
             } else {
-              // Room 2 not completed, show denial message
+              // Room 4 not completed, show denial message
               if (currentDoor.userData.onDenied) {
                 currentDoor.userData.onDenied();
               }

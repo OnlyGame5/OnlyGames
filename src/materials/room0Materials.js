@@ -11,11 +11,11 @@ let bricks058 = null;
 function getBricks058Textures() {
   if (!bricks058) {
     bricks058 = {
-      color: textureCache.load("/textures/bricks058/Bricks058_2K-JPG_Color.jpg", { 
+  color: textureCache.load("./textures/bricks058/Bricks058_2K-JPG_Color.jpg", { 
         colorSpace: THREE.SRGBColorSpace 
       }),
-      normal: textureCache.load("/textures/bricks058/Bricks058_2K-JPG_NormalDX.jpg"),
-      rough: textureCache.load("/textures/bricks058/Bricks058_2K-JPG_Roughness.jpg"),
+  normal: textureCache.load("./textures/bricks058/Bricks058_2K-JPG_NormalDX.jpg"),
+  rough: textureCache.load("./textures/bricks058/Bricks058_2K-JPG_Roughness.jpg"),
       // NOTE: AO on BoxGeometry needs uv2; we skip it for walls built from boxes.
     };
   }
@@ -76,12 +76,12 @@ let tiles108 = null;
 function getTiles108Textures() {
   if (!tiles108) {
     tiles108 = {
-      color: textureCache.load("/textures/tiles108/Tiles108_2K-JPG_Color.jpg", {
+  color: textureCache.load("./textures/tiles108/Tiles108_2K-JPG_Color.jpg", {
         colorSpace: THREE.SRGBColorSpace
       }),
-      normal: textureCache.load("/textures/tiles108/Tiles108_2K-JPG_NormalDX.jpg"),
-      rough: textureCache.load("/textures/tiles108/Tiles108_2K-JPG_Roughness.jpg"),
-      ao: textureCache.load("/textures/tiles108/Tiles108_2K-JPG_AmbientOcclusion.jpg"),
+  normal: textureCache.load("./textures/tiles108/Tiles108_2K-JPG_NormalDX.jpg"),
+  rough: textureCache.load("./textures/tiles108/Tiles108_2K-JPG_Roughness.jpg"),
+  ao: textureCache.load("./textures/tiles108/Tiles108_2K-JPG_AmbientOcclusion.jpg"),
     };
   }
   return tiles108;

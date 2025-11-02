@@ -29,6 +29,7 @@ import { createFuturisticDoor } from './game/props/FuturisticDoor.js';
 import { MatrixSky } from './scene/MatrixSky.js';
 import { SecurityMonitor } from './ui/SecurityMonitor.js';
 import { performanceSettings } from './systems/PerformanceSettings.js';
+import { ShadowSystem } from './postprocessing/ShadowSystem.js';
 
 // --- CHEAT CONSOLE SYSTEM ---
 function createCheatConsole() {
@@ -469,6 +470,29 @@ window.addEventListener('performanceSettingsChanged', (e) => {
     console.log('Updating renderer with new performance settings...');
     performanceSettings.applyToRenderer(renderer);
   }
+  
+  // Handle shadow toggling based on performance mode
+  if (shadowSystem && e.detail.quality) {
+    const shouldEnableShadows = e.detail.quality === 'high';
+    shadowSystem.toggleShadows(shouldEnableShadows);
+    
+    if (shouldEnableShadows) {
+      // Create shadow light if it doesn't exist
+      if (shadowSystem.shadowLights.length === 0) {
+        shadowSystem.createDirectionalShadowLight({
+          color: 0xffffff,
+          intensity: 1.2,
+          position: new THREE.Vector3(10, 20, 10),
+          shadowMapSize: 1024,
+          shadowCameraSize: 25,
+          shadowBias: -0.001
+        });
+      }
+      console.log('Shadows enabled due to High performance mode');
+    } else {
+      console.log(`Shadows disabled due to ${e.detail.quality} performance mode`);
+    }
+  }
 });
 
 // Performance monitor for FPS-based quality adjustment
@@ -478,20 +502,20 @@ setInterval(() => {
   const now = performance.now();
   const fps = (frameCount * 1000) / (now - lastFPSCheck);
   
-  // Only auto-adjust if FPS is consistently low
-  if (fps < 25) {
+  // Only auto-adjust if FPS is consistently low AND user hasn't manually set quality
+  if (fps < 25 && !performanceSettings.isManuallySet()) {
     const stats = performanceSettings.getPerformanceStats();
     console.log(`Low FPS detected (${fps.toFixed(1)}), current quality: ${stats.quality}`);
     
     // Auto-downgrade quality if possible
     const currentQuality = performanceSettings.getQuality();
-    const qualities = ['high', 'medium', 'low', 'potato'];
+    const qualities = ['high', 'medium', 'potato'];
     const currentIndex = qualities.indexOf(currentQuality);
     
     if (currentIndex >= 0 && currentIndex < qualities.length - 1) {
       const newQuality = qualities[currentIndex + 1];
       console.log(`Auto-downgrading quality from ${currentQuality} to ${newQuality}`);
-      performanceSettings.setQuality(newQuality);
+      performanceSettings.setQuality(newQuality, false); // false = automatic, not manual
       performanceSettings.applyToRenderer(renderer);
     }
   }
@@ -676,6 +700,9 @@ let fpsCounter = null;
 
 // Security Monitor setup
 let securityMonitor = null;
+
+// Shadow System setup
+let shadowSystem = null;
 
 // Function to update security monitor reference after recreation
 window.updateSecurityMonitorReference = (newMonitor) => {
@@ -1110,21 +1137,44 @@ async function initGame() {
     gameState.hallwayToRoom4 = hallwayToRoom4;
 
     // Room 3 access is controlled by the existing westDoor in room0.js
-    // Subscribe to Room 2 completion to unlock the west door
+    // Subscribe to Room 2 completion to unlock the north door only
     gameStore.subscribe('room2Complete', (completed) => {
       if (completed) {
-        console.log('Room 2 completed - unlocking west door to Room 3');
+        console.log('Room 2 completed - unlocking north door to Room 4');
+        
+        // Find the main door (north door to Room 4) and unlock it
+        const room0NorthDoor = gameState.room0?.door; // The main door is the north door
+        if (room0NorthDoor) {
+          room0NorthDoor.userData.setLocked(false);
+          // Don't auto-open, just unlock (turn from red to green)
+          console.log('North door to Room 4 unlocked');
+        }
+                
+        // Force minimap redraw to show Room 4 and hallway as accessible (green)
+        if (minimap) {
+          minimap.forceRedraw();
+          console.log('Minimap marked for redraw after Room 2 completion');
+        }
+      }
+    });
+    
+    // Subscribe to Room 4 completion to unlock the west door (Server Room)
+    gameStore.subscribe('room4Complete', (completed) => {
+      if (completed) {
+        console.log('Room 4 completed - unlocking west door to Room 3 (Server Room)');
+        
         // Find the west door in room0 and unlock it
         const room0WestDoor = gameState.room0?.westDoor;
         if (room0WestDoor) {
           room0WestDoor.userData.setLocked(false);
           room0WestDoor.userData.openDoor();
+          console.log('West door to Room 3 (Server Room) unlocked and opened');
         }
                 
         // Force minimap redraw to show Room 3 and hallway as accessible (green)
         if (minimap) {
           minimap.forceRedraw();
-          console.log('Minimap marked for redraw after Room 2 completion');
+          console.log('Minimap marked for redraw after Room 4 completion');
         }
       }
     });
@@ -1181,8 +1231,42 @@ async function initGame() {
     securityMonitor = new SecurityMonitor(scene, renderer, gameState);
     window.securityMonitor = securityMonitor; // Make globally accessible
     
+    // Initialize Shadow System
+    shadowSystem = new ShadowSystem(renderer, scene);
+    window.shadowSystem = shadowSystem; // Make globally accessible
+    
+    // Setup enhanced shadows for the scene
+    shadowSystem.setupShadowsForScene();
+    
+    // Create main directional light with shadows (only if high performance mode)
+    const currentQuality = performanceSettings.getQuality();
+    const shouldEnableShadows = currentQuality === 'high';
+    
+    if (shouldEnableShadows) {
+      shadowSystem.createDirectionalShadowLight({
+        color: 0xffffff,
+        intensity: 1.2,
+        position: new THREE.Vector3(10, 20, 10),
+        shadowMapSize: 1024,
+        shadowCameraSize: 25,
+        shadowBias: -0.001
+      });
+      console.log('Shadows enabled (High performance mode)');
+    } else {
+      // Disable shadows for medium and potato modes
+      shadowSystem.toggleShadows(false);
+      console.log(`Shadows disabled (${currentQuality} performance mode)`);
+    }
+    
+    console.log('Enhanced shadow system initialized');
+    
     // Update HUD with current bindings
     updateHUDInstructions();
+    
+    // Warm up shaders and materials to prevent startup lag
+    console.log('Warming up shaders and materials...');
+    renderer.compile(scene, camera); // Force shader compilation
+    console.log('Shader warmup complete');
     
     // Complete loading
     updateProgress(2); // Models and final setup
@@ -1241,6 +1325,35 @@ async function initGame() {
      
      // Initialize FPS counter in fallback case
      fpsCounter = new FPSCounter();
+     
+     // Initialize Shadow System in fallback case
+     shadowSystem = new ShadowSystem(renderer, scene);
+     window.shadowSystem = shadowSystem;
+     
+     // Setup enhanced shadows for the scene (fallback)
+     shadowSystem.setupShadowsForScene();
+     
+     // Create main directional light with shadows (fallback - only if high performance mode)
+     const currentQuality = performanceSettings.getQuality();
+     const shouldEnableShadows = currentQuality === 'high';
+     
+     if (shouldEnableShadows) {
+       shadowSystem.createDirectionalShadowLight({
+         color: 0xffffff,
+         intensity: 1.2,
+         position: new THREE.Vector3(10, 20, 10),
+         shadowMapSize: 1024,
+         shadowCameraSize: 25,
+         shadowBias: -0.001
+       });
+       console.log('Shadows enabled (High performance mode - fallback)');
+     } else {
+       // Disable shadows for medium and potato modes
+       shadowSystem.toggleShadows(false);
+       console.log(`Shadows disabled (${currentQuality} performance mode - fallback)`);
+     }
+     
+     console.log('Enhanced shadow system initialized (fallback)');
     
     // Make gameState globally accessible for first-person item display
     window.gameState = gameState;
@@ -1300,17 +1413,12 @@ function loadSettingsFromMainMenu() {
   }
 }
 
-// Stop any background music and 2D Matrix rain effects from main menu/loading screen
+// Clean up 2D Matrix rain effects from main menu/loading screen (keep music playing)
 function stopBackgroundMusic() {
-  console.log('Stopping background music and 2D Matrix effects for game start...');
+  console.log('Cleaning up 2D Matrix effects for game start (music continues playing)...');
   
-  // Use global music manager to stop music
-  if (window.GlobalMusicManager) {
-    window.GlobalMusicManager.stop();
-    console.log('Global music stopped via GlobalMusicManager');
-  }
-  
-  // Stop any 2D Matrix rain animations that might still be running
+  // Do NOT stop the global background music here; it should play through the game
+  // Only clear any 2D Matrix rain animations that might still be running
   try {
     // Find and remove any remaining Matrix rain canvases
     const matrixCanvases = document.querySelectorAll('#matrix-rain, #main-menu-matrix-rain');
@@ -1329,33 +1437,7 @@ function stopBackgroundMusic() {
     console.log('Error cleaning up 2D Matrix effects:', error);
   }
   
-  // Fallback: Find and stop all audio elements
-  const audioElements = document.querySelectorAll('audio');
-  audioElements.forEach(audio => {
-    if (!audio.paused) {
-      console.log('Stopping audio element:', audio.src);
-      audio.pause();
-      audio.currentTime = 0;
-      audio.volume = 0;
-    }
-  });
-  
-  // Also try to stop any audio created by the menu systems
-  try {
-    // Stop any audio that might be playing from main menu or loading screen
-    const allAudio = document.querySelectorAll('audio, video');
-    allAudio.forEach(media => {
-      if (!media.paused) {
-        media.pause();
-        media.currentTime = 0;
-        console.log('Stopped media element:', media.tagName, media.src);
-      }
-    });
-  } catch (error) {
-    console.log('Error stopping background music:', error);
-  }
-  
-  console.log('Background music and 2D Matrix effects stopped - game audio can now start');
+  console.log('2D Matrix effects cleaned - background music left playing');
 }
 
 async function initializeGameWithLoading() {
@@ -1370,9 +1452,15 @@ async function initializeGameWithLoading() {
         loadingScreenInstance.destroy();
       }
       
-      // CRITICAL: Stop music ONLY here, when user clicks to start the game
-      // Music plays through: Main Menu -> Loading Screen -> User clicks "Start Gate" -> Music stops here
+      // Clean up 2D visual effects; keep music and switch to in-game track
       stopBackgroundMusic();
+      if (window.GlobalMusicManager) {
+        if (typeof window.GlobalMusicManager.playGameTrack === 'function') {
+          window.GlobalMusicManager.playGameTrack();
+        } else if (typeof window.GlobalMusicManager.ensureStarted === 'function') {
+          window.GlobalMusicManager.ensureStarted();
+        }
+      }
       
       // Initialize input and start the game
       initInput();
@@ -1393,7 +1481,7 @@ async function initializeGameWithLoading() {
       // Start the animation loop
       animate(0);
       
-      console.log('Game started - background music stopped, game audio active!');
+  console.log('Game started - switched to in-game background music');
     }
   });
   
@@ -1800,9 +1888,6 @@ let lastTime = 0;
 function animate(currentTime) {
   requestAnimationFrame(animate);
   
-  // Count frames for performance monitoring
-  frameCount++;
-  
   const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
   lastTime = currentTime;
   
@@ -1980,9 +2065,27 @@ function animate(currentTime) {
     gameState.room1.updateRoom1Dialogue();
   }
 
-  // Update only the active room systems
+  // Update Room 2 systems (truth filter for hidden clues)
+  if (gameState.room2 && typeof gameState.room2.update === 'function') {
+    gameState.room2.update(deltaTime);
+  }
+
+  // Update Room 3 systems
+  if (gameState.room3 && typeof gameState.room3.update === 'function') {
+    gameState.room3.update(deltaTime);
+  }
+
+  // Update Room 4 systems (floating binary truth filter)
+  if (gameState.room4 && typeof gameState.room4.update === 'function') {
+    gameState.room4.update(deltaTime);
+  }
+
+  // Update only the active room systems (for doors)
   if (currentRoomObj && typeof currentRoomObj.update === 'function') {
-    currentRoomObj.update(deltaTime);
+    // Don't call update again if we already called it above
+    if (currentRoomObj !== gameState.room2 && currentRoomObj !== gameState.room3 && currentRoomObj !== gameState.room4) {
+      currentRoomObj.update(deltaTime);
+    }
   }
 
   // Room 3 access door is handled by room0.js westDoor

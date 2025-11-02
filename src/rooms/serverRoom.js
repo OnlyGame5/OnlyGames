@@ -8,6 +8,7 @@ import { DataStormPuzzle } from './Room3/DataStormPuzzle.js';
 import { PurgeMinigame } from './Room3/PurgeMinigame.js';
 import { getPlayerInventory, addToInventory, removeFromInventory } from '../player.js';
 import { room3Audio } from '../audio/room3Audio.js';
+import { createCelShadingMaterial } from '../shaders/CelShader.js';
 
 // Server Room – The Core
 // Controller responsible for assembling the chamber, mounting puzzles, and handling per-frame updates.
@@ -182,8 +183,8 @@ export class ServerRoom {
 
     // Load and apply Chip006 (walls) + Chip005 (floor) textures
     const texLoader = new THREE.TextureLoader();
-    const wallBase = '/textures/Chip005_1K-JPG/';
-    const floorBase = '/textures/Chip005_1K-JPG/';
+  const wallBase = './textures/Chip005_1K-JPG/';
+  const floorBase = './textures/Chip005_1K-JPG/';
     const wallPaths = {
       color: wallBase + 'Chip005_1K-JPG_Color.jpg',
       normal: wallBase + 'Chip005_1K-JPG_NormalGL.jpg',
@@ -1063,9 +1064,8 @@ export class ServerRoom {
     laptopGroup.rotation.y = Math.PI * 1.5; // Rotate 90 degrees counterclockwise (270 degrees)
     workstation.add(laptopGroup);
 
-    // --- LAPTOP BASE (KEYBOARD) ---
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.4 });
-    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), baseMat);
+    // --- LAPTOP BASE (KEYBOARD) - WITH CEL SHADING ---
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), createCelShadingMaterial(0x1a1a1a, 3));
     laptopGroup.add(base);
 
     // --- NEW HINGE MECHANISM ---
@@ -1074,10 +1074,9 @@ export class ServerRoom {
     hingeGroup.position.z = -0.2; // Position at the back edge of the base
     laptopGroup.add(hingeGroup);
     
-    // 2. Create the Screen with correct dimensions
-    const screenMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.9, roughness: 0.3 });
+    // 2. Create the Screen with correct dimensions - WITH CEL SHADING
     const screenHeight = 0.4;
-    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.6, screenHeight, 0.05), screenMat);
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.6, screenHeight, 0.05), createCelShadingMaterial(0x0a0a0a, 3));
     
     // 3. Position the screen *locally* inside the hinge.
     // Move it up by half its height so its bottom edge is at the hinge's pivot point.
@@ -1085,7 +1084,7 @@ export class ServerRoom {
     
     // 4. Create and attach the display texture to the screen
     const textureLoader = new THREE.TextureLoader();
-    const previewTexture = textureLoader.load('/textures/laptop_preview.png');
+  const previewTexture = textureLoader.load('./textures/laptop_preview.png');
     previewTexture.colorSpace = THREE.SRGBColorSpace;
     const displayMat = new THREE.MeshStandardMaterial({
       map: previewTexture,
@@ -1808,10 +1807,15 @@ export class ServerRoom {
       if (nearest && nearestDist < 2.2) {
         if (selected && selected.name === 'key_card') {
           const room4Complete = window.room4KeyCardGranted === true || gameStore.rooms.room4.isComplete === true;
-          const serverOverrideReady = (this.purgeMinigame && this.purgeMinigame.isSolved === true) || gameStore.rooms.room3.puzzles.overrideSolved === true;
+          
+          // Check BOTH puzzles are completed: Data Storm AND Purge Protocol
+          const dataStormSolved = gameStore.rooms.room3.puzzles.dataStormSolved === true;
+          const purgeProtocolSolved = (this.purgeMinigame && this.purgeMinigame.isSolved === true) || gameStore.rooms.room3.puzzles.overrideSolved === true;
+          const serverOverrideReady = dataStormSolved && purgeProtocolSolved;
+          
           if (!room4Complete && !serverOverrideReady) {
-            AI.showInteractionFeedback?.('Override locked. Finish the Room 4 terminal first.');
-            window.AI?.say?.('How did you get here? You need to complete the server room.');
+            AI.showInteractionFeedback?.('Override locked. Complete the laptop puzzle and minigame first.');
+            window.AI?.say?.('Finish both the Data Storm puzzle and Purge Protocol minigame before inserting access cards.');
             return true;
           }
           if (!nearest.slot) {
@@ -1865,7 +1869,7 @@ export class ServerRoom {
     // --- NEW MULTI-STATE LOGIC ---
 
     // Priority 1: If Data Storm is already solved, launch the minigame.
-    if (gameStore.flags.room3.dataStormSolved) {
+    if (gameStore.rooms.room3.puzzles.dataStormSolved) {
       console.log("Data Storm solved. Launching Purge Protocol.");
       this.openUnlockedUI(true); // Open in minigame mode
       return true;
