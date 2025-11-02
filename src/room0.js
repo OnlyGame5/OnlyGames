@@ -303,7 +303,55 @@ export function createRoom0() {
     new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x003322, emissiveIntensity: 0.6 })
   );
   glowStrip.position.set(0, 0.92, 0.5);
+  glowStrip.name = 'glowStrip';
   cardBox.add(glowStrip);
+
+  // Animated upward-moving glow effect (activated when player has key cards)
+  // Create a canvas-based gradient texture for smooth glow
+  const createGlowTexture = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    
+    // Create vertical gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, 'rgba(0, 255, 136, 0)');
+    gradient.addColorStop(0.5, 'rgba(0, 255, 136, 0.6)');
+    gradient.addColorStop(1, 'rgba(0, 255, 136, 0)');
+    
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    return new THREE.CanvasTexture(canvas);
+  };
+  
+  const glowTexture = createGlowTexture();
+  glowTexture.needsUpdate = true;
+  
+  const glowPlanes = [];
+  const numGlowPlanes = 2; // Reduce to 2 for less overlap
+  for (let i = 0; i < numGlowPlanes; i++) {
+    const glowPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 0.4),
+      new THREE.MeshBasicMaterial({
+        map: glowTexture,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        depthTest: false
+      })
+    );
+    glowPlane.position.set(0, 0.3, 0.6);
+    glowPlane.userData.offset = i * 0.5; // Half cycle offset
+    glowPlane.userData.baseY = 0.3;
+    glowPlane.name = `glowPlane${i}`;
+    glowPlane.renderOrder = 1000 + i; // Ensure proper render order
+    cardBox.add(glowPlane);
+    glowPlanes.push(glowPlane);
+  }
 
   // Slot positions (cards stand vertically, three slots left-to-right)
   const slotPositions = [
@@ -981,6 +1029,67 @@ export function createRoom0() {
         if (anim.t >= 1) {
           cardLiftAnimations.splice(i, 1);
         }
+      }
+    }
+
+    // Animate upward-moving glow effect when player has key cards
+    if (playerObject && getPlayerInventory && glowPlanes.length > 0) {
+      try {
+        const inv = getPlayerInventory();
+        let hasKeyCard = false;
+        if (inv && inv.slots) {
+          hasKeyCard = inv.slots.some(slot => slot && slot.name === 'key_card');
+        }
+
+        const time = Date.now() * 0.001; // Convert to seconds
+        const glowStripMesh = cardBox.getObjectByName('glowStrip');
+
+        if (hasKeyCard) {
+          // Animate each glow plane moving upwards smoothly with eased motion
+          glowPlanes.forEach((plane, idx) => {
+            const cycleTime = 2.5; // 2.5 seconds for full cycle
+            const rawProgress = (time * 0.4 + plane.userData.offset) % cycleTime;
+            const progress = rawProgress / cycleTime;
+            
+            // Smooth easeInOutQuad for movement
+            const easeInOutQuad = (t) => {
+              return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            };
+            
+            const yTravel = 0.75; // How far it travels upward
+            const easedProgress = easeInOutQuad(progress);
+            plane.position.y = plane.userData.baseY + easedProgress * yTravel;
+            
+            // Super smooth sine-based fade with smoother curve
+            const fadeProgress = progress * Math.PI;
+            let opacity = Math.sin(fadeProgress);
+            
+            // Apply smoothstep function for ultra-smooth transitions
+            opacity = opacity * opacity * (3 - 2 * opacity);
+            
+            plane.material.opacity = opacity * 0.5; // Slightly higher opacity with texture
+          });
+
+          // Make the glow strip pulse more smoothly
+          if (glowStripMesh) {
+            const pulseIntensity = Math.sin(time * 1.5) * 0.25 + 0.85;
+            glowStripMesh.material.emissiveIntensity = pulseIntensity;
+          }
+        } else {
+          // No key cards - smoothly fade out glows
+          glowPlanes.forEach(plane => {
+            if (plane.material.opacity > 0) {
+              plane.material.opacity = Math.max(0, plane.material.opacity - dt * 1.5);
+            }
+          });
+
+          // Reset glow strip to normal
+          if (glowStripMesh) {
+            glowStripMesh.material.emissiveIntensity = 0.6;
+          }
+        }
+      } catch (e) {
+        // Silent fail if inventory check fails
       }
     }
   }
