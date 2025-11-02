@@ -59,7 +59,10 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(0, 1.75, -7.4), size: new THREE.Vector3(3.0, 3.5, 0.2), type: 'door', id: 'stage0-door', dynamic: true },
       
       // Security Monitor - Mounted on South Wall (offset left)
-      { position: new THREE.Vector3(-4, 2.5, 7.2), size: new THREE.Vector3(2.0, 1.5, 0.5), type: 'monitor', id: 'security-monitor', dynamic: false }
+      { position: new THREE.Vector3(-4, 2.5, 7.2), size: new THREE.Vector3(2.0, 1.5, 0.5), type: 'monitor', id: 'security-monitor', dynamic: false },
+      
+      // Card Deposit Box - North wall, positioned at (-5.0, 0, -6.8)
+      { position: new THREE.Vector3(-5.0, 0.45, -6.8), size: new THREE.Vector3(3.0, 0.9, 1.2), type: 'cardBox' }
     ],
     hallways: [
       // Room 1 hallway (East)
@@ -112,16 +115,23 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(29, 2, 9), size: new THREE.Vector3(18, 4, 0.5) }
     ],
     objects: [
-      // Sci-fi table (position: 0, 0, -7.5) -> World: (29, 0.5, -7.5)
-      { position: new THREE.Vector3(29, 0.5, -7.5), size: new THREE.Vector3(2.0, 1.0, 1.5), type: 'table' },
+      // Sci-fi table (position: -8.2, 0, -4.5) -> World: (20.8, 0, -4.5) - FIXED to cover full desk including drawers
+      { position: new THREE.Vector3(20.8, 0.6, -4.5), size: new THREE.Vector3(1.8, 1.2, 2.4), type: 'table' },
       
-      // Safe collision removed - no longer needed
+      // Office chair (position: -7.4, 0.9, -4.5) -> World: (21.6, 0.9, -4.5)
+      { position: new THREE.Vector3(21.6, 0.9, -4.5), size: new THREE.Vector3(0.9, 1.3, 0.9), type: 'chair' },
+      
+      // Safe model (position: 7.0, 1.2, -6.8) -> World: (36.0, 1.2, -6.8) - ENLARGED to cover full model
+      { position: new THREE.Vector3(36.0, 1.2, -6.8), size: new THREE.Vector3(1.5, 1.5, 1.5), type: 'safe' },
+      
+      // Hologram city model (position: 0, 0.2, -5.5) -> World: (29, 0.2, -5.5) - MAX SIZE to cover full model including edges
+      { position: new THREE.Vector3(29, 0.5, -5.5), size: new THREE.Vector3(4.0, 2.5, 4.0), type: 'hologram' },
       
       // Wire panel (position: 0, 0.8, 8.2) -> World: (29, 0.8, 8.2) - Made thicker
       { position: new THREE.Vector3(29, 0.8, 8.2), size: new THREE.Vector3(1.5, 1.5, 1.0), type: 'wirePanel' },
       
-      // Simon stand/Memory game (position: 8.2, 0, -3) -> World: (37.2, 0.5, -3)
-      { position: new THREE.Vector3(37.2, 0.5, -3), size: new THREE.Vector3(0.8, 1.0, 0.8), type: 'memoryGame' },
+      // Simon stand/Memory game (position: 8.2, 0, 0) -> World: (37.2, 0, 0) - FIXED position
+      { position: new THREE.Vector3(37.2, 0.5, 0), size: new THREE.Vector3(0.8, 1.0, 0.8), type: 'memoryGame' },
       
       // Bookshelf door/Cabinet (position: -8.5, 0, -4.5) -> World: (20.5, 1.0, -4.5)
       { position: new THREE.Vector3(20.5, 1.0, -4.5), size: new THREE.Vector3(0.3, 2.0, 1.5), type: 'cabinet' },
@@ -159,8 +169,7 @@ export const roomWallDefinitions = {
       // Scale of Balance (position: 0, 0.2, 4.5) -> World: (0, 0.4, 28.0)
       { position: new THREE.Vector3(0, 0.4, 28.0), size: new THREE.Vector3(1.5, 1.0, 1.5), type: 'scale' },
       
-      // Secret compartment (position: 0, 0.05, -4.1) -> World: (0, 0.1, 19.4)
-      { position: new THREE.Vector3(0, 0.1, 19.4), size: new THREE.Vector3(0.6, 0.2, 0.4), type: 'compartment' },
+      // Secret compartment - COLLISION REMOVED (was blocking hallway entrance)
       
       // Statue of Liberty (position: -3.5, 0.5, 0) -> World: (-3.5, 0.5, 23.5)
       { position: new THREE.Vector3(-3.5, 0.5, 23.5), size: new THREE.Vector3(0.8, 1.0, 0.8), type: 'statue' },
@@ -221,7 +230,19 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(-37, 0.8, 0), size: new THREE.Vector3(1.2, 1.6, 1.2), type: 'laptop' },
       
       // Central CPU core cube (position: 0, 2.2, 0) -> World: (-30, 2.2, 0)
-      { position: new THREE.Vector3(-30, 2.2, 0), size: new THREE.Vector3(1.2, 1.2, 1.2), type: 'cpuCore' }
+      { position: new THREE.Vector3(-30, 2.2, 0), size: new THREE.Vector3(1.2, 1.2, 1.2), type: 'cpuCore' },
+      
+      // Data Storm puzzle (position: 0, ~2, 0, radius 2.5) -> World: (-30, 2, 0)
+      { position: new THREE.Vector3(-30, 2, 0), size: new THREE.Vector3(5.0, 4.0, 5.0), type: 'dataStorm' },
+      
+      // Access panel 1 (angle 0, east-facing): radius=4.2, x=cos(0)*4.2=4.2, z=sin(0)*4.2=0 -> World: (-30+4.2, 0.85, 0) = (-25.8, 0.85, 0)
+      { position: new THREE.Vector3(-25.8, 0.85, 0), size: new THREE.Vector3(1.0, 1.2, 0.6), type: 'accessPanel' },
+      
+      // Access panel 2 (angle 2π/3 ≈ 120°): x=cos(2π/3)*4.2≈-2.1, z=sin(2π/3)*4.2≈3.637 -> World: (-32.1, 0.85, 3.637)
+      { position: new THREE.Vector3(-32.1, 0.85, 3.637), size: new THREE.Vector3(1.0, 1.2, 0.6), type: 'accessPanel' },
+      
+      // Access panel 3 (angle 4π/3 ≈ 240°): x=cos(4π/3)*4.2≈-2.1, z=sin(4π/3)*4.2≈-3.637 -> World: (-32.1, 0.85, -3.637)
+      { position: new THREE.Vector3(-32.1, 0.85, -3.637), size: new THREE.Vector3(1.0, 1.2, 0.6), type: 'accessPanel' }
     ],
     hallways: [
       // Hub connection
@@ -247,6 +268,9 @@ export const roomWallDefinitions = {
       { position: new THREE.Vector3(5.25, 2, -17.5), size: new THREE.Vector3(7.5, 4, 0.5) }
     ],
     objects: [
+      // Decoder panel (position: 0, 0.75, -8.6, scale 3.5) -> World: (0, 0.75, -35.1)
+      { position: new THREE.Vector3(0, 0.75, -35.1), size: new THREE.Vector3(4.0, 5.0, 2.0), type: 'decoderPanel' },
+      
       // (Laptop collision handled dynamically when the room is active)
     ],
     hallways: [

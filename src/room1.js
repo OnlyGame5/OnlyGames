@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { addToInventory, hasInInventory, getPlayerInventory } from './player.js';
+import { addToInventory, hasInInventory, getPlayerInventory, registerGlobalModel, removeFromInventory } from './player.js';
 import { createWirePanel } from './puzzles/wirePanel.js';
 import { createSimonStand } from './rooms/Room1/SimonStand.js';
 import { createBookshelfDoor } from './rooms/Room1/BookshelfDoor.js';
@@ -25,6 +25,9 @@ export function createRoom1() {
   
   // Create shared GLTFLoader instance for better performance
   const gltfLoader = new GLTFLoader();
+  
+  // Track loading promises for all GLTF models
+  const loadingPromises = [];
 
   // Room state for interactions (declare early so loaders can assign)
   const state = {
@@ -102,6 +105,16 @@ export function createRoom1() {
     floor.receiveShadow = true;
     floor.name = 'room1-floor';
     group.add(floor);
+    
+    // Create precompiled materials for lights ON and OFF to prevent shader recompilation lag
+    const floorMaterialDark = floorMaterial.clone();
+    floorMaterialDark.color.setHex(0x333333);
+    floorMaterialDark.emissive.setHex(0x111111);
+    floorMaterialDark.emissiveIntensity = 0.1;
+    
+    // Store both materials in state for fast switching
+    state.floorMaterialLight = floorMaterial;
+    state.floorMaterialDark = floorMaterialDark;
   }
   createTiles002Floor();
 
@@ -507,23 +520,28 @@ export function createRoom1() {
   group.add(bookshelfDoor);
 
   // Add an office chair in front of the sci-fi desk (Room 1)
-  gltfLoader.load('./models/office_chair.glb', (gltf) => {
-    const chair = gltf.scene;
-    chair.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
+  const chairPromise = new Promise((resolve, reject) => {
+    gltfLoader.load('./models/office_chair.glb', (gltf) => {
+      const chair = gltf.scene;
+      chair.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      // Position in front of desk on the room side; match desk z
+      chair.position.set(-7.4, 0.9, -4.5);
+      chair.rotation.y = -Math.PI / 2; 
+      chair.scale.set(1.1, 1.1, 1.1);
+      chair.name = 'desk-chair';
+      group.add(chair);
+      resolve();
+    }, undefined, (err) => {
+      console.error('Failed to load office_chair.glb', err);
+      reject(err);
     });
-    // Position in front of desk on the room side; match desk z
-    chair.position.set(-7.4, 0.9, -4.5);
-    chair.rotation.y = -Math.PI / 2; 
-    chair.scale.set(1.1, 1.1, 1.1);
-    chair.name = 'desk-chair';
-    group.add(chair);
-  }, undefined, (err) => {
-    console.error('Failed to load office_chair.glb', err);
   });
+  loadingPromises.push(chairPromise);
   
   
   // Add floating tooltip for locked Simon Stand
@@ -1168,20 +1186,21 @@ export function createRoom1() {
   // Removed pedestal, panel, and keypad to keep only table and safe in this room
 
   // Load sci-fi office desk with animated drawers
-  gltfLoader.load('./models/sci_fi_office_desk.glb', (gltf) => {
-    const sciFiTable = gltf.scene;
-    sciFiTable.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-    // Place the desk on the left wall near the chair and scale down
-    sciFiTable.position.set(-8.2, 0, -4.5);
-    sciFiTable.rotation.y = Math.PI / 2;
-    sciFiTable.scale.set(0.3, 0.3, 0.3);
-    sciFiTable.name = 'admin-desk'; // Add name for easier identification
-    group.add(sciFiTable);
+  const deskPromise = new Promise((resolve, reject) => {
+    gltfLoader.load('./models/sci_fi_office_desk.glb', (gltf) => {
+      const sciFiTable = gltf.scene;
+      sciFiTable.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      // Place the desk on the left wall near the chair and scale down
+      sciFiTable.position.set(-8.2, 0, -4.5);
+      sciFiTable.rotation.y = Math.PI / 2;
+      sciFiTable.scale.set(0.3, 0.3, 0.3);
+      sciFiTable.name = 'admin-desk'; // Add name for easier identification
+      group.add(sciFiTable);
 
     // Initialize DrawerManager with GLTF animations
     console.log('[DEBUG] Sci-fi table loaded, checking for animations...');
@@ -1324,7 +1343,9 @@ export function createRoom1() {
         
         // Load laptop charger model and place it in the bottom drawer
         gltfLoader.load('/models/laptop_charger.glb', (chargerGltf) => {
-          const chargerModel = chargerGltf.scene;
+          // Clone the model for the scene (drawer placement)
+          const chargerModel = chargerGltf.scene.clone();
+          console.log('[DEBUG] Loaded laptop_charger.glb model, child count:', chargerModel.children.length);
           
           // Enable shadows for charger model
           chargerModel.traverse((child) => {
@@ -1334,7 +1355,7 @@ export function createRoom1() {
             }
           });
           
-          // Scale the charger 10x larger than original size
+          // Scale the charger 10x larger than original size (for drawer display)
           chargerModel.scale.set(5.0, 5.0, 5.0);
           
           // Position charger inside the bottom drawer
@@ -1351,6 +1372,10 @@ export function createRoom1() {
           state.chargerModel = chargerModel;
           
           console.log('[DEBUG] Laptop charger model loaded and placed in bottom drawer');
+          
+          // Register ORIGINAL unscaled model (like global loader does)
+          registerGlobalModel('laptop-charger', chargerGltf.scene);
+          console.log('[DEBUG] Registered laptop-charger model globally');
         }, undefined, (err) => {
           console.error('Failed to load laptop_charger.glb', err);
         });
@@ -1358,9 +1383,13 @@ export function createRoom1() {
     } else {
       console.warn('[DEBUG] No animations found in sci-fi office desk model');
     }
+    resolve();
   }, undefined, (err) => {
     console.error('Failed to load sci_fi_office_desk.glb', err);
+    reject(err);
   });
+  });
+  loadingPromises.push(deskPromise);
   
   // Create office desk sign with to-do list and inventory
   const deskSignGeometry = new THREE.PlaneGeometry(2.5, 1.8);
@@ -1491,22 +1520,23 @@ export function createRoom1() {
   group.add(laptop);
 
   // Load the safe model very small and place it next to the sci-fi table
-  gltfLoader.load('/models/animated_safe.glb', (gltf) => {
-    const safeModel = gltf.scene;
-    safeModel.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-    // Scale the safe 10% smaller than before
-    safeModel.scale.set(0.45, 0.45, 0.45); // 10% smaller (0.5 * 0.9)
-    // Place it forward and higher - moved forward (less negative Z) and higher (increased Y)
-    safeModel.position.set(7.0, 1.2, -6.8); // Moved further forward (from -7.3 to -6.8)
-    group.add(safeModel);
+  const safePromise = new Promise((resolve, reject) => {
+    gltfLoader.load('/models/animated_safe.glb', (gltf) => {
+      const safeModel = gltf.scene;
+      safeModel.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      // Scale the safe 10% smaller than before
+      safeModel.scale.set(0.45, 0.45, 0.45); // 10% smaller (0.5 * 0.9)
+      // Place it forward and higher - moved forward (less negative Z) and higher (increased Y)
+      safeModel.position.set(7.0, 1.2, -6.8); // Moved further forward (from -7.3 to -6.8)
+      group.add(safeModel);
 
-    // Store reference for interaction
-    state.safeObject = safeModel;
+      // Store reference for interaction
+      state.safeObject = safeModel;
     
     // Set up safe door animation
     if (gltf.animations && gltf.animations.length > 0) {
@@ -1561,9 +1591,13 @@ export function createRoom1() {
         console.warn('[DEBUG] No door object found in safe model');
       }
     }
+    resolve();
   }, undefined, (err) => {
     console.error('Failed to load animated_safe.glb', err);
+    reject(err);
   });
+  });
+  loadingPromises.push(safePromise);
 
   // Gamma research board (replaces coordinates panel)
   // Same size as desk sign: 2.5 x 1.8
@@ -1688,43 +1722,44 @@ export function createRoom1() {
   state.hologramPlayed = false; // Track if animation has been triggered
   state.hologramObject = null;
   
-  gltfLoader.load('/models/hologram-city-animated.glb', (gltf) => {
-    const holo = gltf.scene;
-    
-    // Debug: check if model loaded
-    console.log('[DEBUG] Hologram model loaded:', holo);
-    console.log('[DEBUG] Hologram children count:', holo.children.length);
-    console.log('[DEBUG] Available animations:', gltf.animations.map(a => ({ name: a.name, duration: a.duration })));
-    
-    let meshCount = 0;
-    holo.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-        meshCount++;
-        console.log('[DEBUG] Hologram mesh found:', child.name, 'at', child.position.clone(), 'visible:', child.visible);
-      }
-    });
-    
-    console.log('[DEBUG] Total hologram meshes:', meshCount);
-    
-    // Check model bounding box for size reference
-    const box = new THREE.Box3().setFromObject(holo);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    console.log('[DEBUG] Hologram bounding box:', {
-      size: size.clone(),
-      center: center.clone(),
-      min: box.min.clone(),
-      max: box.max.clone()
-    });
-    
-    // Position closer to floor
-    holo.position.set(0, 0.2, -5.5);  // Lower Y to bring closer to floor
-    holo.rotation.y = 0;
-    holo.scale.set(0.6, 0.6, 0.6);  // Larger scale for visibility
-    holo.name = 'research-hologram';
-    holo.visible = true;
+  const hologramPromise = new Promise((resolve, reject) => {
+    gltfLoader.load('/models/hologram-city-animated.glb', (gltf) => {
+      const holo = gltf.scene;
+      
+      // Debug: check if model loaded
+      console.log('[DEBUG] Hologram model loaded:', holo);
+      console.log('[DEBUG] Hologram children count:', holo.children.length);
+      console.log('[DEBUG] Available animations:', gltf.animations.map(a => ({ name: a.name, duration: a.duration })));
+      
+      let meshCount = 0;
+      holo.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          meshCount++;
+          console.log('[DEBUG] Hologram mesh found:', child.name, 'at', child.position.clone(), 'visible:', child.visible);
+        }
+      });
+      
+      console.log('[DEBUG] Total hologram meshes:', meshCount);
+      
+      // Check model bounding box for size reference
+      const box = new THREE.Box3().setFromObject(holo);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      console.log('[DEBUG] Hologram bounding box:', {
+        size: size.clone(),
+        center: center.clone(),
+        min: box.min.clone(),
+        max: box.max.clone()
+      });
+      
+      // Position closer to floor
+      holo.position.set(0, 0.2, -5.5);  // Lower Y to bring closer to floor
+      holo.rotation.y = 0;
+      holo.scale.set(0.6, 0.6, 0.6);  // Larger scale for visibility
+      holo.name = 'research-hologram';
+      holo.visible = true;
     
     // Create animation mixer for the hologram scene
     if (gltf.animations && gltf.animations.length > 0) {
@@ -1785,9 +1820,13 @@ export function createRoom1() {
       hasAnimation: !!state.hologramMixer && state.hologramActions.length > 0,
       animationClips: state.hologramActions.length
     });
+    resolve();
   }, undefined, (err) => {
     console.error('[ERROR] Failed to load hologram-city-animated.glb', err);
+    reject(err);
   });
+  });
+  loadingPromises.push(hologramPromise);
 
   // Paper examination system
   let paperExaminationOpen = false;
@@ -2510,8 +2549,15 @@ export function createRoom1() {
 
   // Handle charger connection to laptop
   function handleChargerConnection() {
-    if (state.chargerFound && !state.laptopPowered) {
+    // Check if player has the charger in inventory
+    const inventory = getPlayerInventory();
+    const selectedItem = inventory ? inventory.getSelectedItem() : null;
+    
+    if (selectedItem && selectedItem.name === 'laptop-charger' && !state.laptopPowered) {
       state.laptopPowered = true;
+      
+      // Remove charger from inventory
+      removeFromInventory('laptop-charger');
       
       // Show power connected subtitle using interaction feedback
       if (window.AI) {
@@ -2876,19 +2922,15 @@ export function createRoom1() {
       lightFixtureGroup.visible = on;
     }
     
-    // Update floor material to respond to lighting
+    // Update floor material to respond to lighting - use precompiled materials to prevent shader recompilation
     const floor = group.getObjectByName('room1-floor');
-    if (floor && floor.material) {
+    if (floor && on !== undefined) {
       if (on) {
-        // Lights on - normal floor color (white for tiles)
-        floor.material.color.setHex(0xffffff);
-        floor.material.emissive.setHex(0x000000);
-        floor.material.emissiveIntensity = 0.0;
+        // Lights on - switch to precompiled light material
+        floor.material = state.floorMaterialLight;
       } else {
-        // Lights off - much darker floor but still visible
-        floor.material.color.setHex(0x333333);
-        floor.material.emissive.setHex(0x111111);
-        floor.material.emissiveIntensity = 0.1;
+        // Lights off - switch to precompiled dark material
+        floor.material = state.floorMaterialDark;
       }
     }
   }
@@ -3193,9 +3235,9 @@ export function createRoom1() {
       existingInterface.remove();
     }
 
-    // Check if player has charger but hasn't connected it yet
-    if (state.chargerFound && !state.laptopPowered) {
-      // Auto-connect charger when interacting with laptop
+    // Check if player has charger selected and hasn't connected it yet
+    if (!state.laptopPowered) {
+      // Try to connect charger when interacting with laptop
       handleChargerConnection();
     }
 
@@ -4109,6 +4151,7 @@ If you're reading this, you've slipped through a seam. Keep moving. Three rooms.
     lightsOn: lightsOn, // <-- expose current state
     updateRoom1Dialogue, // <-- contextual dialogue system
     dispose, // <-- proper cleanup
-    cleanup: dispose // <-- alias for backward compatibility
+    cleanup: dispose, // <-- alias for backward compatibility
+    loadingPromise: Promise.allSettled(loadingPromises) // <-- Promise that resolves when all GLTF models are loaded
   };
 }

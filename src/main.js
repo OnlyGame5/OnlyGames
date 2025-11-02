@@ -106,6 +106,7 @@ function createCheatConsole() {
   addOutput('  closedoors - Close all doors and restore collision');
   addOutput('  noclip - Toggle noclip mode (pass through walls)');
   addOutput('  godmode - Toggle god mode (invincible)');
+  addOutput('  debugwalls - Toggle wall collision debug visualization');
   addOutput('  teleport <room> - Teleport to room (room0, room1, room2, room3, room4)');
   addOutput('  give <item> - Give item to player');
   addOutput('  accesscards - Add three access cards to inventory');
@@ -186,12 +187,17 @@ function createCheatConsole() {
         addOutput('Lighting reset to default values');
         break;
         
+      case 'debugwalls':
+        toggleWallDebug();
+        break;
+        
       case 'help':
         addOutput('Available commands:');
         addOutput('  opendoors - Open all doors and bypass collision');
         addOutput('  closedoors - Close all doors and restore collision');
         addOutput('  noclip - Toggle noclip mode (pass through walls)');
         addOutput('  godmode - Toggle god mode (invincible)');
+        addOutput('  debugwalls - Toggle wall collision debug visualization');
         addOutput('  teleport <room> - Teleport to room (room0, room1, room2, room3, room4)');
         addOutput('  give <item> - Give item to player');
         addOutput('  accesscards - Add three access cards to inventory');
@@ -260,6 +266,43 @@ function createCheatConsole() {
     } else {
       window.godMode = true;
       addOutput('God mode enabled - you are invincible');
+    }
+  }
+  
+  function toggleWallDebug() {
+    if (!window.wallCollisionManager) {
+      addOutput('Wall collision manager not found!');
+      return;
+    }
+    
+    if (wallCollisionManager.debugMode) {
+      wallCollisionManager.clearDebug();
+      // Also hide security monitor debug box
+      if (window.securityMonitorCollisionDebug) {
+        window.securityMonitorCollisionDebug.visible = false;
+      }
+      addOutput('Wall collision debug disabled');
+    } else {
+      // Force collision setup before enabling debug
+      // Get current room and force setup
+      const activePlayer = window.leonardModel || window.player;
+      const playerX = activePlayer.position.x;
+      const playerZ = activePlayer.position.z;
+      let forceRoom = 'room0';
+      if (playerX > 20) forceRoom = 'room1';
+      else if (playerZ > 15) forceRoom = 'room2';
+      else if (playerX < -20) forceRoom = 'room3';
+      else if (playerZ < -20) forceRoom = 'room4';
+      
+      setupRoomCollisions(forceRoom);
+      wallCollisionManager.enableDebug(window.scene);
+      
+      // Also show security monitor debug box
+      if (window.securityMonitorCollisionDebug) {
+        window.securityMonitorCollisionDebug.visible = true;
+      }
+      
+      addOutput('Wall collision debug enabled - Red = walls, Green = hallways, Yellow = hallway walls, Blue = objects, Purple = doors, Green wireframe = security monitor');
     }
   }
   
@@ -1137,6 +1180,27 @@ async function initGame() {
     gameState.hallwayToRoom4 = hallwayToRoom4;
 
     // Room 3 access is controlled by the existing westDoor in room0.js
+    // Subscribe to Room 1 completion to unlock the south door to Room 2
+    gameStore.subscribe('room1Complete', (completed) => {
+      if (completed) {
+        console.log('Room 1 completed - unlocking south door to Room 2');
+        
+        // Find the south door (to Room 2) and unlock it
+        const room0SouthDoor = gameState.room0?.southDoor;
+        if (room0SouthDoor) {
+          room0SouthDoor.userData.setLocked(false);
+          // Don't auto-open, just unlock (turn from red to green)
+          console.log('South door to Room 2 unlocked');
+        }
+                
+        // Force minimap redraw to show Room 2 and hallway as accessible (green)
+        if (minimap) {
+          minimap.forceRedraw();
+          console.log('Minimap marked for redraw after Room 1 completion');
+        }
+      }
+    });
+    
     // Subscribe to Room 2 completion to unlock the north door only
     gameStore.subscribe('room2Complete', (completed) => {
       if (completed) {
@@ -1264,9 +1328,19 @@ async function initGame() {
     updateHUDInstructions();
     
     // Warm up shaders and materials to prevent startup lag
-    console.log('Warming up shaders and materials...');
+    // First compile without waiting for Room 1 models
+    console.log('Warming up shaders and materials (initial)...');
     renderer.compile(scene, camera); // Force shader compilation
-    console.log('Shader warmup complete');
+    console.log('Initial shader warmup complete');
+    
+    // Wait for Room 1 GLTF models to load, then compile again
+    if (gameState.room1 && gameState.room1.loadingPromise) {
+      console.log('Waiting for Room 1 GLTF models to load...');
+      await gameState.room1.loadingPromise;
+      console.log('Room 1 GLTF models loaded, compiling shaders again...');
+      renderer.compile(scene, camera); // Force shader compilation with all Room 1 models
+      console.log('Final shader warmup complete');
+    }
     
     // Complete loading
     updateProgress(2); // Models and final setup
@@ -1571,43 +1645,6 @@ window.addEventListener('keydown', (e) => {
        minimap.toggleZoom();
      }
    }
-   
-  // K key for wall collision debug toggle
-  if (e.code === 'KeyK') {
-    if (wallCollisionManager.debugMode) {
-      wallCollisionManager.clearDebug();
-      // Also hide security monitor debug box
-      if (window.securityMonitorCollisionDebug) {
-        window.securityMonitorCollisionDebug.visible = false;
-      }
-      console.log('[Main] Wall collision debug disabled');
-      AI.say('Wall collision debug disabled');
-    } else {
-      // Force collision setup before enabling debug
-      console.log('[Main] Forcing collision setup...');
-      
-      // Get current room and force setup
-      const playerX = (leonardModel || player).position.x;
-      const playerZ = (leonardModel || player).position.z;
-      let forceRoom = 'room0';
-      if (playerX > 20) forceRoom = 'room1';
-      else if (playerZ > 15) forceRoom = 'room2';
-      else if (playerX < -20) forceRoom = 'room3';
-      else if (playerZ < -20) forceRoom = 'room4';
-      
-      console.log(`[Main] Forcing collision setup for room: ${forceRoom}`);
-      setupRoomCollisions(forceRoom);
-      wallCollisionManager.enableDebug(scene);
-      
-      // Also show security monitor debug box
-      if (window.securityMonitorCollisionDebug) {
-        window.securityMonitorCollisionDebug.visible = true;
-      }
-      
-      console.log('[Main] Wall collision debug enabled (press K to toggle)');
-      AI.say('Wall collision debug enabled - Red = walls, Green = hallways, Yellow = hallway walls, Blue = objects, Purple = doors, Green wireframe = security monitor');
-    }
-  }
    
   // F key for FPS counter toggle and Room 2 note interaction
   if (e.code === 'KeyF') {
@@ -2116,23 +2153,7 @@ function animate(currentTime) {
     }
   }
   
-  // Check if wire puzzle is solved and unlock door
-  const wirePuzzleSolved = (gameState.room1 && gameState.room1.isWirePuzzleSolved && gameState.room1.isWirePuzzleSolved()) || 
-                          (window.gameStore && window.gameStore.getWireComplete && window.gameStore.getWireComplete());
-  
-  if (wirePuzzleSolved) {
-    // Wire puzzle solved - unlock door to next room
-    if (gameState.stage < 2) {
-      gameState.stage = 2;
-      if (window.AI) {
-        window.AI.onRoom1Complete();
-      }
-    }
-    // Always unlock the south door when puzzle is solved (regardless of stage)
-    if (gameState.room0 && gameState.room0.unlockSouthDoor) {
-      gameState.room0.unlockSouthDoor();
-    }
-  }
+  // Removed wire puzzle completion check - now handled by room1Complete subscription in initGame
   
    // Update minimap
    if (minimap) {

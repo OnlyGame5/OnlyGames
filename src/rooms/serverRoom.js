@@ -1806,14 +1806,21 @@ export class ServerRoom {
       });
       if (nearest && nearestDist < 2.2) {
         if (selected && selected.name === 'key_card') {
-          const room4Complete = window.room4KeyCardGranted === true || gameStore.rooms.room4.isComplete === true;
-          
           // Check BOTH puzzles are completed: Data Storm AND Purge Protocol
           const dataStormSolved = gameStore.rooms.room3.puzzles.dataStormSolved === true;
           const purgeProtocolSolved = (this.purgeMinigame && this.purgeMinigame.isSolved === true) || gameStore.rooms.room3.puzzles.overrideSolved === true;
           const serverOverrideReady = dataStormSolved && purgeProtocolSolved;
           
-          if (!room4Complete && !serverOverrideReady) {
+          console.log('[Server Room Access Panel] Puzzle check:', { 
+            dataStormSolved, 
+            purgeProtocolSolved,
+            purgeMinigame: !!this.purgeMinigame,
+            purgeMinigameIsSolved: this.purgeMinigame ? this.purgeMinigame.isSolved : false,
+            overrideSolved: gameStore.rooms.room3.puzzles.overrideSolved,
+            serverOverrideReady
+          });
+          
+          if (!serverOverrideReady) {
             AI.showInteractionFeedback?.('Override locked. Complete the laptop puzzle and minigame first.');
             window.AI?.say?.('Finish both the Data Storm puzzle and Purge Protocol minigame before inserting access cards.');
             return true;
