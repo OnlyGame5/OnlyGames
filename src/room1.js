@@ -49,6 +49,33 @@ export function createRoom1() {
     drawerIndicators: [] // Array to store interaction indicator sprites
   };
 
+  // ============================================
+  // Proximity Bark System
+  // ============================================
+  const R1 = {
+    refs: {
+      desk: null,
+      hologram: null,
+      laptop: null,
+      safe: null,
+    },
+    // squared distances to avoid sqrt
+    rangesSq: {
+      desk: 9.0,       // 3.0m
+      hologram: 16.0,  // 4.0m
+      laptop: 9.0,     // 3.0m
+      safe: 9.0        // 3.0m
+    }
+  };
+
+  // Helper: squared distance between player and object
+  function distSqTo(obj3D, player) {
+    if (!obj3D || !player) return Infinity;
+    const a = obj3D.getWorldPosition ? obj3D.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3().setFromMatrixPosition(obj3D.matrixWorld);
+    const b = player.position ?? (player.getWorldPosition ? player.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3());
+    return a.distanceToSquared(b);
+  }
+
   // Global AI Registry data is imported from ./data/aiOrgs.js
   // Map overlay is handled by createFullscreenMap in ./ui/FullscreenMap.js
 
@@ -898,6 +925,36 @@ export function createRoom1() {
     // Update wire panel effects
     wirePanel.update(dt);
     
+    // ----- Proximity barks -----
+    {
+      const player = window.playerObject;
+      if (!player) return;
+      
+      // Only check if player is in Room 1
+      const currentRoom = gameStore.get('currentRoomId');
+      if (currentRoom !== 'room1') return;
+      
+      // Helper function to check and speak proximity barks
+      const maybeSpeak = (key, refKey, onceFlag, rangeSq) => {
+        if (!R1.refs[refKey]) return;
+        const d2 = distSqTo(R1.refs[refKey], player);
+        if (d2 <= rangeSq) {
+          if (!once(onceFlag)) {
+            const ok = sayKey(key, { onceFlag });
+            if (ok) {
+              markOnce(onceFlag);
+            }
+          }
+        }
+      };
+      
+      // Fire each only once per session:
+      maybeSpeak('ACT_I.ROOM1.DESK_DISMISS',     'desk',     'R1_DESK_BARK',     R1.rangesSq.desk);
+      maybeSpeak('ACT_I.ROOM1.HOLOGRAM_BOAST',   'hologram', 'R1_HOLO_BARK',     R1.rangesSq.hologram);
+      maybeSpeak('ACT_I.ROOM1.LAPTOP_DISMISS',   'laptop',   'R1_LAPTOP_BARK',   R1.rangesSq.laptop);
+      maybeSpeak('ACT_I.ROOM1.SAFE_OLD_RELIC',   'safe',     'R1_SAFE_BARK',     R1.rangesSq.safe);
+    }
+    
     // Update Simon Stand
     if (simonStand.userData.update) {
       simonStand.userData.update(dt);
@@ -1181,6 +1238,8 @@ export function createRoom1() {
     sciFiTable.rotation.y = Math.PI / 2;
     sciFiTable.scale.set(0.3, 0.3, 0.3);
     sciFiTable.name = 'admin-desk'; // Add name for easier identification
+    // Set reference for proximity barks
+    R1.refs.desk = sciFiTable;
     group.add(sciFiTable);
 
     // Initialize DrawerManager with GLTF animations
@@ -1486,6 +1545,8 @@ export function createRoom1() {
   
   // Add custom laptop to Room 1 (Gammas Laptop) on the table
   const laptop = createRoom3StyleLaptop();
+  // Set reference for proximity barks
+  R1.refs.laptop = laptop;
   laptop.position.set(0, 0.7, 0); // Adjusted for floor position change
   laptop.rotation.y = Math.PI / 2 + Math.PI; // Face 180 degrees from original direction
   group.add(laptop);
@@ -1507,6 +1568,8 @@ export function createRoom1() {
 
     // Store reference for interaction
     state.safeObject = safeModel;
+    // Set reference for proximity barks
+    R1.refs.safe = safeModel;
     
     // Set up safe door animation
     if (gltf.animations && gltf.animations.length > 0) {
@@ -1726,6 +1789,10 @@ export function createRoom1() {
     holo.name = 'research-hologram';
     holo.visible = true;
     
+    // Store reference for proximity barks
+    state.hologramObject = holo;
+    R1.refs.hologram = holo;
+    
     // Create animation mixer for the hologram scene
     if (gltf.animations && gltf.animations.length > 0) {
       state.hologramMixer = new THREE.AnimationMixer(holo);
@@ -1897,7 +1964,7 @@ export function createRoom1() {
       // AI response with incorrect order
       if (window.AI) {
         setTimeout(() => {
-          window.AI.onWirePanelInstructions();
+          sayKey('ACT_I.ROOM1.WIRE_INSTRUCTIONS_WRONG');
         }, 1000);
       }
     } else {
@@ -2143,7 +2210,7 @@ export function createRoom1() {
                   }
                   setTimeout(() => { 
                     if (window.AI?.say) {
-                      window.AI.say('Just some old wiring, dear. Nothing that concerns us here.', { tone: 'maternal' });
+                      sayKey('ACT_I.ROOM1.CHARGER_FOUND_SHOCK');
                     }
                   }, 1000);
                   
@@ -2368,11 +2435,11 @@ export function createRoom1() {
           }, 500);
           
           gameStore.setPageTaken(true);
-          if (window.AI) window.AI.onSafeOpen();
+          if (window.AI) sayKey('ACT_I.ROOM1.SAFE_OPEN');
         }
       } else {
         if (display) display.textContent = 'WRONG';
-        if (window.AI) window.AI.say('Incorrect password.');
+        if (window.AI) sayKey('ACT_I.ROOM1.SAFE_WRONG_CODE', { tone: 'error' });
       }
     }
     // Escape to close keypad
@@ -2446,11 +2513,11 @@ export function createRoom1() {
           }, 500);
           
           gameStore.setPageTaken(true);
-          if (window.AI) window.AI.onSafeOpen();
+          if (window.AI) sayKey('ACT_I.ROOM1.SAFE_OPEN');
         }
       } else {
         if (display) display.textContent = 'WRONG';
-        if (window.AI) window.AI.say('Incorrect password.');
+        if (window.AI) sayKey('ACT_I.ROOM1.SAFE_WRONG_CODE', { tone: 'error' });
       }
     });
   })();
@@ -2490,7 +2557,7 @@ export function createRoom1() {
         // Show dismissive Nexus dialogue
         setTimeout(() => {
           if (window.AI) {
-            window.AI.say("Just some old wiring, dear. Nothing that concerns us here.", { tone: 'maternal' });
+            sayKey('ACT_I.ROOM1.CHARGER_FOUND_SHOCK', { cooldown: 4000 });
           }
         }, 1000);
         
@@ -2943,7 +3010,7 @@ export function createRoom1() {
         }
         
         // Queue Room 1 welcome (will wait for current dialogue to finish)
-        window.AI.onRoom1Entry();
+        sayKey('ACT_I.ROOM1.ENTRY');
       }
     }
   }
@@ -3216,7 +3283,7 @@ export function createRoom1() {
       state.laptopInspected = true;
       // Show gentle Nexus dismissal on first inspection
       if (window.AI) {
-        window.AI.say("That terminal is non-essential. Auxiliary systems like this will only distract you. Stay focused on the green path and repair the main circuit at the wire panel — that is all we need to proceed.", { tone: 'maternal' });
+        sayKey('ACT_I.ROOM1.LAPTOP_DISMISS');
       }
     }
     

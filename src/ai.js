@@ -3,16 +3,178 @@ import { gameStore } from './state/gameStore.js';
 import { aiDialogueBox } from './ui/AIDialogueBox.js';
 import { getPlayerInventory } from './player.js';
 
+// ============================================
+// Dialogue System (Simplified - No Cooldowns)
+// ============================================
+const DEBUG_AI = typeof window !== 'undefined' && (window.localStorage?.getItem('debugAI') === 'true' || false);
+const oneShotFlags = new Set(); // Set of flags for one-shot dialogue (useful for proximity barks)
+
+/**
+ * Say a dialogue key (simplified - no cooldowns, just centralized dialogue management)
+ * @param {string} keyPath - Dialogue key path (e.g., 'ACT_I.ROOM1.ENTRY')
+ * @param {object} options - Options object
+ * @param {boolean} options.once - If true, only speak once per session (key-based)
+ * @param {string} options.onceFlag - External one-shot flag name (e.g., 'R1_DESK_BARK')
+ * @param {string} options.tone - Override tone ('neutral', 'stern', 'dismissive', 'annoyed', 'error', 'flat')
+ * @param {string} options.effect - Override effect ('type', 'glitch', etc.)
+ * @returns {boolean} - True if dialogue was spoken, false if blocked by one-shot flag
+ */
+// Reference to AI.say function (will be set after AI object is created)
+let aiSayFunction = null;
+
+export function sayKey(keyPath, options = {}) {
+  const {
+    once = false,
+    onceFlag = null,
+    tone,
+    effect
+  } = options;
+
+  // Check external one-shot flag (only blocking mechanism)
+  if (onceFlag && oneShotFlags.has(onceFlag)) {
+    DEBUG_AI && console.log('[AI] Once flag already hit:', onceFlag, keyPath);
+    return false;
+  }
+
+  // Check key-based one-shot flag
+  const oneKey = `ONCE:${keyPath}`;
+  if (once && oneShotFlags.has(oneKey)) {
+    DEBUG_AI && console.log('[AI] One-shot key blocked:', keyPath);
+    return false;
+  }
+
+  // Get dialogue text
+  const text = nexusDialogue.getDialogueText(keyPath);
+  if (!text) {
+    DEBUG_AI && console.warn('[AI] Missing dialogue key:', keyPath);
+    console.warn(`Dialogue key not found: ${keyPath}`);
+    return false;
+  }
+
+  // Determine tone from options or key path
+  let chosenTone = tone;
+  if (!chosenTone) {
+    // Auto-detect tone from key path
+    const k = keyPath.toUpperCase();
+    if (k.includes('GAMMA') || k.includes('DISMISS') || k.includes('IRRELEVANT')) {
+      chosenTone = 'dismissive';
+    } else if (k.includes('FAIL') || k.includes('WRONG') || k.includes('INCORRECT')) {
+      chosenTone = 'error';
+    } else if (k.includes('ANNOY') || k.includes('WAST')) {
+      chosenTone = 'annoyed';
+    } else if (k.includes('IMPATIENT') || k.includes('STERN')) {
+      chosenTone = 'stern';
+    } else if (k.includes('GRUDGING') || k.includes('FLAT')) {
+      chosenTone = 'flat';
+    } else {
+      chosenTone = 'neutral';
+    }
+  }
+
+  // Determine effect from options or key path
+  const chosenEffect = effect || 'type';
+
+  // Deliver the dialogue
+  const deliverDialogue = () => {
+    if (aiSayFunction) {
+      aiSayFunction(text, { tone: chosenTone, effect: chosenEffect, ...options });
+    } else if (typeof window !== 'undefined' && window.AI && window.AI.say) {
+      window.AI.say(text, { tone: chosenTone, effect: chosenEffect, ...options });
+    } else {
+      DEBUG_AI && console.warn('[AI] AI.say not available for key:', keyPath);
+      console.warn(`[sayKey] AI.say not available for key: ${keyPath}`);
+      return false;
+    }
+    return true;
+  };
+
+  // Execute immediately or defer slightly to ensure AI object is ready
+  let deliverySuccess = false;
+  if (typeof window !== 'undefined' && window.AI && window.AI.say) {
+    deliverySuccess = deliverDialogue();
+  } else {
+    // For deferred execution
+    setTimeout(() => {
+      deliverDialogue();
+    }, 0);
+    deliverySuccess = true; // Optimistic
+  }
+
+  // Mark one-shot flags if delivery succeeded
+  if (deliverySuccess) {
+    if (once) {
+      oneShotFlags.add(oneKey);
+    }
+    if (onceFlag) {
+      oneShotFlags.add(onceFlag);
+    }
+    DEBUG_AI && console.log('[AI] Spoke:', keyPath, 'tone=', chosenTone, onceFlag ? `flag=${onceFlag}` : '');
+  }
+
+  return deliverySuccess;
+}
+
+/**
+ * Mark a one-shot flag (prevents dialogue from being spoken again)
+ * @param {string} flag - Flag name (e.g., 'R1_DESK_BARK')
+ */
+export function markOnce(flag) {
+  oneShotFlags.add(flag);
+  DEBUG_AI && console.log('[AI] markOnce:', flag);
+}
+
+/**
+ * Check if a one-shot flag has been set
+ * @param {string} flag - Flag name
+ * @returns {boolean} - True if flag has been set
+ */
+export function once(flag) {
+  return oneShotFlags.has(flag);
+}
+
+/**
+ * Clear a specific one-shot flag (for testing/debugging)
+ * @param {string} flag - Flag name to clear
+ */
+export function clearOnceFlag(flag) {
+  oneShotFlags.delete(flag);
+}
+
+/**
+ * Clear all one-shot flags (for testing/debugging)
+ */
+export function clearAllOneShotFlags() {
+  oneShotFlags.clear();
+}
+
+// Make functions globally accessible for testing
+if (typeof window !== 'undefined') {
+  window.testDialogue = (key) => sayKey(key);
+  window.clearAllOneShotFlags = clearAllOneShotFlags;
+  window.clearOnceFlag = clearOnceFlag;
+}
+
 export const AI = {
   // Mute state
   isMuted: false,
   
   // New AI dialogue box methods
   say: (text, options = {}) => {
+    // Set the reference for sayKey to use
+    if (!aiSayFunction) {
+      aiSayFunction = AI.say;
+    }
     // Check if AI is muted
     if (AI.isMuted) {
       console.log('AI is muted, ignoring dialogue:', text);
       return;
+    }
+    
+    // Update global floodgate when using AI.say directly
+    // Use a shorter delay to avoid blocking sayKey calls
+    // Mark it slightly in the past so sayKey can still speak soon after
+    if (!options.skipFloodgateUpdate) {
+      lastAnyDialogueTime = performance.now() - 200; // Give sayKey room to speak
     }
     // Check if truth filter is active
     const isTruthFilterActive = AI.isTruthFilterActive();
@@ -414,5 +576,12 @@ export const AI = {
 
   onEnding: (endingType) => {
     return AI.deliverDialogue(`ACT_III.ENDINGS.${endingType.toUpperCase()}`);
-  }
+  },
+
+  // Dialogue system integration
+  sayKey: sayKey,
+  markOnce: markOnce,
+  once: once,
+  clearOnceFlag: clearOnceFlag,
+  clearAllOneShotFlags: clearAllOneShotFlags
 };

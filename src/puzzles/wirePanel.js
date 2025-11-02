@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { loadingScreen } from '../loading.js';
 import { gameStore } from '../state/gameStore.js';
+import { sayKey } from '../ai.js';
 
 export function createWirePanel(opts = {}) {
   const order = opts.order || ['R','G','B','Y'];
@@ -727,7 +728,7 @@ export function createWirePanel(opts = {}) {
       // Success animation
       setTimeout(() => {
         if (window.AI) {
-          window.AI.onWirePanelSuccess();
+          sayKey('ACT_I.ROOM1.WIRE_SUCCESS_GRUDGING', { tone: 'flat' });
         }
         closePanel();
       }, 2000);
@@ -755,7 +756,7 @@ export function createWirePanel(opts = {}) {
     triggerHapticFeedback('error');
     
     if (window.AI) {
-      window.AI.onWirePanelFailure();
+      sayKey('ACT_I.ROOM1.WIRE_FAIL_IMPATIENT', { tone: 'stern' });
     }
   }
 
