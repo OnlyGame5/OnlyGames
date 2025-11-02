@@ -1137,6 +1137,27 @@ async function initGame() {
     gameState.hallwayToRoom4 = hallwayToRoom4;
 
     // Room 3 access is controlled by the existing westDoor in room0.js
+    // Subscribe to Room 1 completion to unlock the south door to Room 2
+    gameStore.subscribe('room1Complete', (completed) => {
+      if (completed) {
+        console.log('Room 1 completed - unlocking south door to Room 2');
+        
+        // Find the south door (to Room 2) and unlock it
+        const room0SouthDoor = gameState.room0?.southDoor;
+        if (room0SouthDoor) {
+          room0SouthDoor.userData.setLocked(false);
+          // Don't auto-open, just unlock (turn from red to green)
+          console.log('South door to Room 2 unlocked');
+        }
+                
+        // Force minimap redraw to show Room 2 and hallway as accessible (green)
+        if (minimap) {
+          minimap.forceRedraw();
+          console.log('Minimap marked for redraw after Room 1 completion');
+        }
+      }
+    });
+    
     // Subscribe to Room 2 completion to unlock the north door only
     gameStore.subscribe('room2Complete', (completed) => {
       if (completed) {
@@ -2116,23 +2137,7 @@ function animate(currentTime) {
     }
   }
   
-  // Check if wire puzzle is solved and unlock door
-  const wirePuzzleSolved = (gameState.room1 && gameState.room1.isWirePuzzleSolved && gameState.room1.isWirePuzzleSolved()) || 
-                          (window.gameStore && window.gameStore.getWireComplete && window.gameStore.getWireComplete());
-  
-  if (wirePuzzleSolved) {
-    // Wire puzzle solved - unlock door to next room
-    if (gameState.stage < 2) {
-      gameState.stage = 2;
-      if (window.AI) {
-        window.AI.onRoom1Complete();
-      }
-    }
-    // Always unlock the south door when puzzle is solved (regardless of stage)
-    if (gameState.room0 && gameState.room0.unlockSouthDoor) {
-      gameState.room0.unlockSouthDoor();
-    }
-  }
+  // Removed wire puzzle completion check - now handled by room1Complete subscription in initGame
   
    // Update minimap
    if (minimap) {

@@ -1113,7 +1113,8 @@ let globalModelRegistry = {
   'robot_eye': null,
   'circuit_board': null,
   'robot_hand': null,
-  'ai_book': null
+  'ai_book': null,
+  'laptop-charger': null
 };
 
 // Function to register models globally
@@ -1221,6 +1222,12 @@ function dropSelectedItem(player) {
   const selectedItem = playerInventory.getSelectedItem();
   if (!selectedItem) {
     AI.say("I don't have anything selected to drop.");
+    return false;
+  }
+
+  // Prevent dropping the laptop charger
+  if (selectedItem.name === 'laptop-charger') {
+    AI.say("I can't drop this. I might need it.");
     return false;
   }
 
@@ -1917,6 +1924,89 @@ function createDroppedItemMesh(item, player) {
         bookGroup.userData.itemDescription = item.description;
         bookGroup.userData.isDroppedItem = true;
         mesh = bookGroup;
+      }
+      break;
+      
+    case 'laptop-charger':
+      // Try to get the original charger model from global registry
+      console.log('[DEBUG] Attempting to drop laptop-charger, registry has model:', !!globalModelRegistry['laptop-charger']);
+      if (globalModelRegistry['laptop-charger']) {
+        mesh = globalModelRegistry['laptop-charger'].clone();
+        console.log('[DEBUG] Cloned laptop-charger model from registry');
+        
+        // Scale the charger to a reasonable drop size
+        try {
+          const box = new THREE.Box3().setFromObject(mesh);
+          const size = new THREE.Vector3();
+          box.getSize(size);
+          const currentMax = Math.max(size.x, size.y, size.z) || 1;
+          const targetMax = 0.4; // Reasonable size for a dropped charger
+          const s = targetMax / currentMax;
+          mesh.scale.multiplyScalar(s);
+          console.log('[DEBUG] Scaled charger from', currentMax, 'to', targetMax, 'scale factor:', s);
+          console.log('[DEBUG] Charger mesh after scaling - visible:', mesh.visible, 'children:', mesh.children.length);
+        } catch (e) {
+          console.warn('[DEBUG] Failed to scale charger:', e);
+        }
+        
+        // Debug: Log all children
+        let childIndex = 0;
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            console.log(`[DEBUG] Child ${childIndex++}:`, child.name || 'unnamed', 'material:', !!child.material, 'visible:', child.visible);
+          }
+        });
+        
+        // Position the charger
+        mesh.position.copy(dropPosition);
+        
+        // Lay it flat on the floor
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.rotation.y = Math.PI / 2;
+        
+        // Ensure it has proper materials and shadows
+        mesh.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            // Don't clone materials - just ensure they exist (like key does)
+          }
+        });
+        
+        mesh.userData.itemName = item.name;
+        mesh.userData.itemDescription = item.description;
+        mesh.userData.isDroppedItem = true;
+        console.log('[DEBUG] Created dropped laptop-charger mesh successfully');
+      } else {
+        console.warn('[DEBUG] laptop-charger model not in registry, using fallback');
+        // Fallback to simple charger representation
+        const chargerGroup = new THREE.Group();
+        const plug = new THREE.Mesh(
+          new THREE.BoxGeometry(0.1, 0.05, 0.15),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x333333,
+            metalness: 0.2,
+            roughness: 0.8
+          })
+        );
+        const cable = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.015, 0.015, 0.3, 8),
+          new THREE.MeshStandardMaterial({ 
+            color: 0x222222,
+            metalness: 0.1,
+            roughness: 0.9
+          })
+        );
+        plug.position.set(0, 0, -0.075);
+        cable.position.set(0, 0, 0.15);
+        cable.rotation.x = Math.PI / 2;
+        chargerGroup.add(plug, cable);
+        chargerGroup.position.copy(dropPosition);
+        chargerGroup.rotation.x = -Math.PI / 2;
+        chargerGroup.userData.itemName = item.name;
+        chargerGroup.userData.itemDescription = item.description;
+        chargerGroup.userData.isDroppedItem = true;
+        mesh = chargerGroup;
       }
       break;
       

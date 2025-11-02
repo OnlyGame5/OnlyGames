@@ -1,4 +1,6 @@
 // Global game state management for puzzle gates and UI
+import { addToInventory } from '../player.js';
+
 class GameStore {
   constructor() {
     // --- NEW NON-LINEAR STRUCTURE ---
@@ -167,6 +169,7 @@ class GameStore {
     this.notify('wirePuzzleComplete', value);
     this.notify('memoryLockedReason', this.memoryLockedReason);
     this.tryOpenBookshelfDoor();
+    this.checkRoom1Completion();
   }
   
   openMemoryUI() {
@@ -187,6 +190,7 @@ class GameStore {
     this.notify('memoryPuzzleComplete', value);
     this.notify('showMemoryUI', false);
     this.tryOpenBookshelfDoor();
+    this.checkRoom1Completion();
   }
   
   setPageTaken(value) {
@@ -217,6 +221,34 @@ class GameStore {
       console.log('Opening bookshelf door!');
       puzzles.bookshelfDoorOpen = true;
       this.notify('bookshelfDoorOpen', true);
+    }
+  }
+
+  checkRoom1Completion() {
+    const puzzles = this.rooms.room1.puzzles;
+    // Room 1 is complete when both wire and memory puzzles are done
+    const allComplete = puzzles.wirePuzzleComplete && puzzles.memoryPuzzleComplete;
+    
+    if (allComplete && !this.rooms.room1.isComplete) {
+      this.rooms.room1.isComplete = true;
+      this.notify('room1Complete', true);
+      
+      console.log('Room 1 completed! All puzzles solved.');
+      if (window.AI) {
+        window.AI.say('First assessment complete. The path forward is now accessible.');
+      }
+      
+      // Grant the player the access key card once all puzzles are complete
+      try {
+        if (!window.room1KeyCardAwarded) {
+          const granted = addToInventory({ name: 'key_card', description: 'Access Key Card', type: 'key' });
+          if (granted) {
+            window.room1KeyCardAwarded = true;
+            if (window.AI) window.AI.say('Access Key Card issued. You may need this later.');
+            if (window.gameStore) window.gameStore.notify('room1.keyCardAwarded', true);
+          }
+        }
+      } catch (e) { console.warn('Failed to grant key card at completion:', e); }
     }
   }
 

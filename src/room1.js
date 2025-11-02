@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { addToInventory, hasInInventory, getPlayerInventory } from './player.js';
+import { addToInventory, hasInInventory, getPlayerInventory, registerGlobalModel, removeFromInventory } from './player.js';
 import { createWirePanel } from './puzzles/wirePanel.js';
 import { createSimonStand } from './rooms/Room1/SimonStand.js';
 import { createBookshelfDoor } from './rooms/Room1/BookshelfDoor.js';
@@ -1324,7 +1324,9 @@ export function createRoom1() {
         
         // Load laptop charger model and place it in the bottom drawer
         gltfLoader.load('/models/laptop_charger.glb', (chargerGltf) => {
-          const chargerModel = chargerGltf.scene;
+          // Clone the model for the scene (drawer placement)
+          const chargerModel = chargerGltf.scene.clone();
+          console.log('[DEBUG] Loaded laptop_charger.glb model, child count:', chargerModel.children.length);
           
           // Enable shadows for charger model
           chargerModel.traverse((child) => {
@@ -1334,7 +1336,7 @@ export function createRoom1() {
             }
           });
           
-          // Scale the charger 10x larger than original size
+          // Scale the charger 10x larger than original size (for drawer display)
           chargerModel.scale.set(5.0, 5.0, 5.0);
           
           // Position charger inside the bottom drawer
@@ -1351,6 +1353,10 @@ export function createRoom1() {
           state.chargerModel = chargerModel;
           
           console.log('[DEBUG] Laptop charger model loaded and placed in bottom drawer');
+          
+          // Register ORIGINAL unscaled model (like global loader does)
+          registerGlobalModel('laptop-charger', chargerGltf.scene);
+          console.log('[DEBUG] Registered laptop-charger model globally');
         }, undefined, (err) => {
           console.error('Failed to load laptop_charger.glb', err);
         });
@@ -2510,8 +2516,15 @@ export function createRoom1() {
 
   // Handle charger connection to laptop
   function handleChargerConnection() {
-    if (state.chargerFound && !state.laptopPowered) {
+    // Check if player has the charger in inventory
+    const inventory = getPlayerInventory();
+    const selectedItem = inventory ? inventory.getSelectedItem() : null;
+    
+    if (selectedItem && selectedItem.name === 'laptop-charger' && !state.laptopPowered) {
       state.laptopPowered = true;
+      
+      // Remove charger from inventory
+      removeFromInventory('laptop-charger');
       
       // Show power connected subtitle using interaction feedback
       if (window.AI) {
@@ -3193,9 +3206,9 @@ export function createRoom1() {
       existingInterface.remove();
     }
 
-    // Check if player has charger but hasn't connected it yet
-    if (state.chargerFound && !state.laptopPowered) {
-      // Auto-connect charger when interacting with laptop
+    // Check if player has charger selected and hasn't connected it yet
+    if (!state.laptopPowered) {
+      // Try to connect charger when interacting with laptop
       handleChargerConnection();
     }
 
