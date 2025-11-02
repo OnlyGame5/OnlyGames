@@ -76,8 +76,7 @@ export class MemoryPanel {
       inset: 0;
       display: grid;
       place-items: center;
-      background: rgba(3, 6, 12, 0.65);
-      backdrop-filter: blur(4px);
+      background: rgba(3, 6, 12, 0.85);
       z-index: 1000;
       overflow-y: auto;
       padding: 20px;
