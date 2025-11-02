@@ -29,6 +29,7 @@ import { createFuturisticDoor } from './game/props/FuturisticDoor.js';
 import { MatrixSky } from './scene/MatrixSky.js';
 import { SecurityMonitor } from './ui/SecurityMonitor.js';
 import { performanceSettings } from './systems/PerformanceSettings.js';
+import { ShadowSystem } from './postprocessing/ShadowSystem.js';
 
 // --- CHEAT CONSOLE SYSTEM ---
 function createCheatConsole() {
@@ -469,6 +470,29 @@ window.addEventListener('performanceSettingsChanged', (e) => {
     console.log('Updating renderer with new performance settings...');
     performanceSettings.applyToRenderer(renderer);
   }
+  
+  // Handle shadow toggling based on performance mode
+  if (shadowSystem && e.detail.quality) {
+    const shouldEnableShadows = e.detail.quality === 'high';
+    shadowSystem.toggleShadows(shouldEnableShadows);
+    
+    if (shouldEnableShadows) {
+      // Create shadow light if it doesn't exist
+      if (shadowSystem.shadowLights.length === 0) {
+        shadowSystem.createDirectionalShadowLight({
+          color: 0xffffff,
+          intensity: 1.2,
+          position: new THREE.Vector3(10, 20, 10),
+          shadowMapSize: 2048,
+          shadowCameraSize: 30,
+          shadowBias: -0.001
+        });
+      }
+      console.log('Shadows enabled due to High performance mode');
+    } else {
+      console.log(`Shadows disabled due to ${e.detail.quality} performance mode`);
+    }
+  }
 });
 
 // Performance monitor for FPS-based quality adjustment
@@ -676,6 +700,9 @@ let fpsCounter = null;
 
 // Security Monitor setup
 let securityMonitor = null;
+
+// Shadow System setup
+let shadowSystem = null;
 
 // Function to update security monitor reference after recreation
 window.updateSecurityMonitorReference = (newMonitor) => {
@@ -1204,6 +1231,35 @@ async function initGame() {
     securityMonitor = new SecurityMonitor(scene, renderer, gameState);
     window.securityMonitor = securityMonitor; // Make globally accessible
     
+    // Initialize Shadow System
+    shadowSystem = new ShadowSystem(renderer, scene);
+    window.shadowSystem = shadowSystem; // Make globally accessible
+    
+    // Setup enhanced shadows for the scene
+    shadowSystem.setupShadowsForScene();
+    
+    // Create main directional light with shadows (only if high performance mode)
+    const currentQuality = performanceSettings.getQuality();
+    const shouldEnableShadows = currentQuality === 'high';
+    
+    if (shouldEnableShadows) {
+      shadowSystem.createDirectionalShadowLight({
+        color: 0xffffff,
+        intensity: 1.2,
+        position: new THREE.Vector3(10, 20, 10),
+        shadowMapSize: 2048,
+        shadowCameraSize: 30,
+        shadowBias: -0.001
+      });
+      console.log('Shadows enabled (High performance mode)');
+    } else {
+      // Disable shadows for medium and potato modes
+      shadowSystem.toggleShadows(false);
+      console.log(`Shadows disabled (${currentQuality} performance mode)`);
+    }
+    
+    console.log('Enhanced shadow system initialized');
+    
     // Update HUD with current bindings
     updateHUDInstructions();
     
@@ -1264,6 +1320,35 @@ async function initGame() {
      
      // Initialize FPS counter in fallback case
      fpsCounter = new FPSCounter();
+     
+     // Initialize Shadow System in fallback case
+     shadowSystem = new ShadowSystem(renderer, scene);
+     window.shadowSystem = shadowSystem;
+     
+     // Setup enhanced shadows for the scene (fallback)
+     shadowSystem.setupShadowsForScene();
+     
+     // Create main directional light with shadows (fallback - only if high performance mode)
+     const currentQuality = performanceSettings.getQuality();
+     const shouldEnableShadows = currentQuality === 'high';
+     
+     if (shouldEnableShadows) {
+       shadowSystem.createDirectionalShadowLight({
+         color: 0xffffff,
+         intensity: 1.2,
+         position: new THREE.Vector3(10, 20, 10),
+         shadowMapSize: 2048,
+         shadowCameraSize: 30,
+         shadowBias: -0.001
+       });
+       console.log('Shadows enabled (High performance mode - fallback)');
+     } else {
+       // Disable shadows for medium and potato modes
+       shadowSystem.toggleShadows(false);
+       console.log(`Shadows disabled (${currentQuality} performance mode - fallback)`);
+     }
+     
+     console.log('Enhanced shadow system initialized (fallback)');
     
     // Make gameState globally accessible for first-person item display
     window.gameState = gameState;
